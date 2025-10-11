@@ -349,6 +349,9 @@ class GameState {
     this.seasonEndTriggered = false;
     // 记录已完成的比赛（按唯一键：`${halfIndex}_${compName}_${week}`），用于避免在同一赛季重复触发
     this.completedCompetitions = new Set();
+    // 记录生涯所有正式比赛的结果（用于结局页面展示）
+    // 每项记录结构示例：{ week, halfIndex, name, passLine, maxScore, results:[{name,total,eligible,remark,medal}] }
+    this.careerCompetitions = [];
   }
   getWeatherFactor(){
     let factor=1.0;
@@ -1362,6 +1365,19 @@ function holdCompetitionModal(comp){
       const doneKey = `${halfIndexApply}_${comp.name}_${comp.week}`;
       if(!game.completedCompetitions) game.completedCompetitions = new Set();
       game.completedCompetitions.add(doneKey);
+      // 记录本场比赛到生涯记录（包括每个学生的名次/分数/备注）
+      try{
+        const record = {
+          week: comp.week,
+          halfIndex: halfIndexApply,
+          name: comp.name,
+          passLine: pass_line,
+          maxScore: comp.maxScore || 400,
+          entries: results.map((r, idx) => ({ name: r.name, total: r.total, eligible: r.eligible, remark: (r.eligible===false? '未参加' : (r.total>=pass_line? '晋级':'')), rank: r.eligible? (r.total!=null? (results.filter(x=>x.eligible===true).map(x=>x.name).indexOf(r.name)+1) : null) : null }))
+        };
+        if(!game.careerCompetitions) game.careerCompetitions = [];
+        game.careerCompetitions.push(record);
+      }catch(e){ console.error('record career comp failed', e); }
     }catch(e){ console.error('mark completion error', e); }
     log(`${comp.name} 结果已应用`);
     // 比赛不再消耗周数：保留一次性事件模态抑制以避免弹窗干扰
@@ -1920,12 +1936,41 @@ function renderEndSummary(){
     let ending = checkEnding.call({ game: tmp, students: tmp.students, budget: tmp.budget }) ;
     // fallback: call checkEnding directly (it uses global game) - so set global game to tmp then restore
     let prev = game; game = tmp; ending = checkEnding(); game = prev;
+    // build career competitions table if present
+    let careerHtml = '';
+    const career = (o.careerCompetitions && Array.isArray(o.careerCompetitions)) ? o.careerCompetitions : (o.game && o.game.careerCompetitions ? o.game.careerCompetitions : null);
+    if(career && career.length > 0){
+      careerHtml += `<div style="margin-top:8px"><strong>生涯比赛记录</strong></div>`;
+      careerHtml += `<div style="margin-top:6px;max-height:220px;overflow:auto"><table><thead><tr><th>周</th><th>比赛</th><th>名次/参与</th><th>总分</th><th>备注</th></tr></thead><tbody>`;
+      for(let rec of career){
+        // show top 3 entries quickly
+        let rows = [];
+        // show each eligible entry as separate row up to 6 rows to avoid huge table
+        let shown = 0;
+        for(let e of rec.entries){
+          if(shown>=6) break;
+          const rankText = e.rank? `${e.rank}` : (e.eligible? '-' : '—');
+          const totalText = (e.total==null)? '—' : `${e.total}`;
+          const remark = e.remark || (e.eligible? '' : '未参加');
+          rows.push(`<tr><td>${rec.week}</td><td>${rec.name}</td><td>${rankText}</td><td>${totalText}</td><td>${remark}</td></tr>`);
+          shown++;
+        }
+        careerHtml += rows.join('');
+      }
+      careerHtml += `</tbody></table></div>`;
+    } else {
+      careerHtml += `<div class="small muted" style="margin-top:8px">未记录到比赛生涯数据</div>`;
+    }
+
     el.innerHTML = `<div>初始人数: <strong>${initial}</strong></div>
       <div>当前在队: <strong>${active}</strong></div>
       <div>平均压力: <strong>${avgP}</strong></div>
       <div>经费: <strong>¥${budget}</strong></div>
       <div>声誉: <strong>${rep}</strong></div>
-      <div style="margin-top:8px;font-weight:600">结局： ${ending}</div>`;
+      <div style="margin-top:8px;font-weight:600">结局： <span id=\"ending-text\" class=\"ending-highlight\">${ending}</span></div>
+      ${careerHtml}`;
+    // add a short animation pulse to ending text
+    try{ const endEl = document.getElementById('ending-text'); if(endEl){ endEl.classList.add('ending-animate'); setTimeout(()=>{ endEl.classList.remove('ending-animate'); }, 2500); } }catch(e){}
   }catch(e){ el.innerText = '读取结算数据失败：'+e; }
 }
 
