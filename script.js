@@ -781,17 +781,66 @@ function outingTraining(difficulty_choice, province_choice){
   if(game.budget < final_cost){ alert("经费不足，无法外出集训！"); return; }
   game.budget -= final_cost;
   log(`外出集训：${target.name} (${target.type})，难度:${difficulty_choice}，费用 ¥${final_cost}`);
+  // 隐藏模拟赛难度映射：基础班->普及级(1)，提高班->NOIP级(2)，冲刺班->NOI级(4)
+  const DIFFIDX_MAP = {1:1, 2:2, 3:4};
+  const diffIdxForHidden = DIFFIDX_MAP[difficulty_choice] || 1;
   for(let s of game.students){
     if(!s.active) continue;
-    let knowledge_gain = uniformInt(knowledge_min, knowledge_max);
+    // 先对单个学生做一次隐藏模拟赛（不弹窗），用于调整收益与压力
+    let hiddenScore = simulateHiddenMockScore(s, diffIdxForHidden);
+    // 根据分数独立计算增益修正与压力修正
+    let knowledge_modifier = 1.0;
+    let ability_modifier = 1.0;
+    let pressure_delta = 0;
+    if(hiddenScore < 100){
+      knowledge_modifier = 0.6; ability_modifier = 0.6; pressure_delta = 10;
+    } else if(hiddenScore > 200){
+      knowledge_modifier = 1.3; ability_modifier = 1.3; pressure_delta = -10;
+    }
+
+    let knowledge_gain = Math.floor(uniformInt(knowledge_min, knowledge_max) * knowledge_modifier);
     s.knowledge_ds += knowledge_gain; s.knowledge_graph += knowledge_gain; s.knowledge_string += knowledge_gain; s.knowledge_math += knowledge_gain; s.knowledge_dp += knowledge_gain;
-    let ability_gain = uniform(ability_min, ability_max);
+    let ability_gain = uniform(ability_min, ability_max) * ability_modifier;
     s.thinking += ability_gain; s.coding += ability_gain; s.mental += ability_gain * 0.5;
     s.thinking = Math.min(100,s.thinking); s.coding = Math.min(100,s.coding); s.mental = Math.min(100,s.mental);
-    s.pressure += pressure_gain; s.comfort -= 10;
+    // apply pressure (base pressure + per-student delta)
+    s.pressure += pressure_gain + pressure_delta;
+    s.comfort -= 10;
+    // 记录隐藏模拟赛分数供调试（不会在 UI 自动显示）
+    s.hiddenMockScore = hiddenScore;
   }
   game.weeks_since_entertainment += 1;
     log("外出集训完成（1周）。");
+}
+
+// 辅助：为单个学生运行一次隐藏模拟赛，返回总分（0..400），不弹窗
+function simulateHiddenMockScore(s, diffIdx){
+  const knowledge_types = ["数据结构","图论","字符串","数学","动态规划"];
+  let total = 0;
+  for(let qi=0; qi<4; qi++){
+    let num_tags = uniformInt(1,3);
+    let selected = [];
+    while(selected.length < num_tags){
+      let idx = uniformInt(0,4);
+      if(!selected.includes(knowledge_types[idx])) selected.push(knowledge_types[idx]);
+    }
+    let totalK = 0; for(let t of selected) totalK += s.getKnowledgeByType(t);
+    let avgK = selected.length>0 ? Math.floor(totalK / selected.length) : 0;
+    let knowledge_multiplier = 3.5;
+    let ability_avg = s.getAbilityAvg();
+    let mental_idx = s.getMentalIndex();
+    let perf = sigmoid((ability_avg + avgK * knowledge_multiplier - 0) / 15.0);
+    let difficulty_proxy = MOCK_CONTEST_DIFF_VALUES[diffIdx] || 30;
+    let stability = mental_idx / 100.0;
+    let sigma = (100 - mental_idx) / 150.0 + 0.08;
+    let random_factor = normal(0, sigma);
+    let final_ratio = perf * stability * (1 + random_factor) * sigmoid((ability_avg + avgK * knowledge_multiplier - difficulty_proxy) / 10.0);
+    final_ratio = clamp(final_ratio, 0, 1);
+    let score = Math.floor(final_ratio * 100 / 10) * 10;
+    score = clampInt(score,0,100);
+    total += score;
+  }
+  return total;
 }
 
 /* 模拟赛：支持每题多 tag、难度显示为等级（MOCK_CONTEST_DIFFICULTIES），并在弹窗里显示每题得分表格
