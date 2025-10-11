@@ -1,495 +1,16 @@
-/* =================== 常量（与 C++ 保持一致） =================== */
-/* 时间与赛季 */
-// 原始赛季长度（用于按比例缩放原始比赛日程）
-const ORIGINAL_SEASON_WEEKS = 52;
-// 缩短后的赛季长度（提高节奏）
-const SEASON_WEEKS = 26;
-/* 能力与知识权重 */
-const KNOWLEDGE_WEIGHT = 0.6;
-const ABILITY_WEIGHT = 0.4;
-/* 压力/恢复 */
-const RECOVERY_RATE = 7.0;
-const FATIGUE_FROM_PRESSURE = 180.0;
-const ALPHA1 = 28.0;
-/* 忘却 */
-const KNOWLEDGE_FORGET_RATE = 0.997;
-/* 省份基础 */
-const STRONG_PROVINCE_BUDGET = 200000;
-const NORMAL_PROVINCE_BUDGET = 100000;
-const WEAK_PROVINCE_BUDGET = 40000;
-const STRONG_PROVINCE_TRAINING_QUALITY = 1.3;
-const NORMAL_PROVINCE_TRAINING_QUALITY = 1.0;
-const WEAK_PROVINCE_TRAINING_QUALITY = 0.7;
-/* 比赛日程 */
-const COMPETITION_SCHEDULE = [
-  {week:10, name:"CSP-S1", difficulty:25, maxScore:100},
-  {week:15, name:"CSP-S2", difficulty:75, maxScore:400},
-  {week:20, name:"NOIP", difficulty:125, maxScore:400},
-  {week:37, name:"省选", difficulty:200, maxScore:400},
-  {week:50, name:"NOI", difficulty:300, maxScore:400}
-];
-// 明确的比赛链顺序（用于链式晋级判断）
-const COMPETITION_ORDER = ["CSP-S1","CSP-S2","NOIP","省选","NOI"];
-/* 晋级线基准 */
-const WEAK_PROVINCE_BASE_PASS_RATE = 0.4;
-const NORMAL_PROVINCE_BASE_PASS_RATE = 0.5;
-const STRONG_PROVINCE_BASE_PASS_RATE = 0.65;
-const PROVINCIAL_SELECTION_BONUS = 0.2;
-/* 学生能力范围 */
-const STRONG_PROVINCE_MIN_ABILITY = 50.0;
-const STRONG_PROVINCE_MAX_ABILITY = 70.0;
-const NORMAL_PROVINCE_MIN_ABILITY = 30.0;
-const NORMAL_PROVINCE_MAX_ABILITY = 55.0;
-const WEAK_PROVINCE_MIN_ABILITY = 20.0;
-const WEAK_PROVINCE_MAX_ABILITY = 45.0;
-/* 难度修正 */
-const EASY_MODE_BUDGET_MULTIPLIER = 1.15;
-const HARD_MODE_BUDGET_MULTIPLIER = 0.7;
-const EASY_MODE_TEACHING_POINTS = 15;
-const NORMAL_MODE_TEACHING_POINTS = 10;
-const HARD_MODE_TEACHING_POINTS = 5;
-const EASY_MODE_ABILITY_BONUS = 10.0;
-const HARD_MODE_ABILITY_PENALTY = 10.0;
-/* 设施 */
-const FACILITY_UPGRADE_COSTS = {
-  computer: {base:20000,grow:1.6},
-  library: {base:15000,grow:1.5},
-  ac: {base:8000,grow:1.4},
-  dorm: {base:8000,grow:1.4},
-  canteen: {base:8000,grow:1.4}
-};
-const MAX_COMPUTER_LEVEL = 5;
-const MAX_LIBRARY_LEVEL = 5;
-const MAX_OTHER_FACILITY_LEVEL = 3;
-const COMPUTER_EFFICIENCY_PER_LEVEL = 0.07;
-const LIBRARY_EFFICIENCY_PER_LEVEL = 0.06;
-const CANTEEN_PRESSURE_REDUCTION_PER_LEVEL = 0.06;
-const DORM_COMFORT_BONUS_PER_LEVEL = 5.5;
-const AC_COMFORT_BONUS_PER_LEVEL = 9.0;
-/* 天气/舒适 */
-const BASE_COMFORT_NORTH = 45.0;
-const BASE_COMFORT_SOUTH = 55.0;
-const EXTREME_COLD_THRESHOLD = 5;
-const EXTREME_HOT_THRESHOLD = 35;
-const WEATHER_PENALTY_NO_AC = 20.0;
-const WEATHER_PENALTY_WITH_AC = 10.0;
-/* 训练 */
-const TRAINING_BASE_KNOWLEDGE_GAIN_PER_INTENSITY = 4;
-const TRAINING_THINKING_GAIN_MIN = 0.6;
-const TRAINING_CODING_GAIN_MIN = 0.6;
-const TRAINING_PRESSURE_MULTIPLIER_LIGHT = 1.0;
-const TRAINING_PRESSURE_MULTIPLIER_MEDIUM = 1.5;
-const TRAINING_PRESSURE_MULTIPLIER_HEAVY = 2.5;
-const COMPOSITE_TRAINING_PRESSURE_BONUS = 1.2;
-/* 外出集训 */
-const OUTFIT_BASE_COST_BASIC = 15000;
-const OUTFIT_BASE_COST_INTERMEDIATE = 25000;
-const OUTFIT_BASE_COST_ADVANCED = 40000;
-const STRONG_PROVINCE_COST_MULTIPLIER = 1.5;
-const WEAK_PROVINCE_COST_MULTIPLIER = 0.7;
-const OUTFIT_KNOWLEDGE_BASE_BASIC = 5;
-const OUTFIT_KNOWLEDGE_BASE_INTERMEDIATE = 10;
-const OUTFIT_KNOWLEDGE_BASE_ADVANCED = 18;
-const OUTFIT_ABILITY_BASE_BASIC = 3.0;
-const OUTFIT_ABILITY_BASE_INTERMEDIATE = 6.0;
-const OUTFIT_ABILITY_BASE_ADVANCED = 10.0;
-const OUTFIT_PRESSURE_BASIC = 30;
-const OUTFIT_PRESSURE_INTERMEDIATE = 50;
-const OUTFIT_PRESSURE_ADVANCED = 75;
-/* 模拟赛 */
-const MOCK_CONTEST_PURCHASE_MIN_COST = 3000;
-const MOCK_CONTEST_PURCHASE_MAX_COST = 8000;
-const MOCK_CONTEST_GAIN_MULTIPLIER_PURCHASED = 1.8;
-const MOCK_CONTEST_DIFFICULTIES = ["入门级","普及级","NOIP级","省选级","NOI级"]; // 去数值化：只显示等级
-const MOCK_CONTEST_DIFF_VALUES = [30, 50, 120, 360, 420];
-/* 娱乐 */
-const ENTERTAINMENT_COST_MEAL = 3000;
-const ENTERTAINMENT_COST_CS = 1000;
-/* 放假 */
-const VACATION_MAX_DAYS = 7;
-/* 比赛奖励 */
-const NOI_GOLD_THRESHOLD = 0.9;
-const NOI_SILVER_THRESHOLD = 0.6;
-const NOI_BRONZE_THRESHOLD = 0.4;
-const NOI_REWARD_MIN = 30000;
-const NOI_REWARD_MAX = 50000;
-const NOIP_REWARD_MIN = 10000;
-const NOIP_REWARD_MAX = 20000;
-const CSP_S2_REWARD_MIN = 4000;
-const CSP_S2_REWARD_MAX = 8000;
-const CSP_S1_REWARD_MIN = 2000;
-const CSP_S1_REWARD_MAX = 5000;
-/* 随机事件 */
-const BASE_SICK_PROB = 0.025;
-const SICK_PROB_FROM_COLD_HOT = 0.03;
-const QUIT_PROB_BASE = 0.22;
-const QUIT_PROB_PER_EXTRA_PRESSURE = 0.02;
-/* 劝退消耗声誉 */
-const EVICT_REPUTATION_COST = 10;
-
-/* =========== 省份数据 =========== */
-const PROVINCES = {
-  1:{name:"北京",type:"强省",isNorth:true,baseBudget:STRONG_PROVINCE_BUDGET,trainingQuality:STRONG_PROVINCE_TRAINING_QUALITY},
-  2:{name:"浙江",type:"强省",isNorth:false,baseBudget:STRONG_PROVINCE_BUDGET,trainingQuality:STRONG_PROVINCE_TRAINING_QUALITY},
-  3:{name:"江苏",type:"强省",isNorth:false,baseBudget:STRONG_PROVINCE_BUDGET,trainingQuality:STRONG_PROVINCE_TRAINING_QUALITY},
-  4:{name:"上海",type:"强省",isNorth:false,baseBudget:STRONG_PROVINCE_BUDGET,trainingQuality:STRONG_PROVINCE_TRAINING_QUALITY},
-  5:{name:"广东",type:"普通省",isNorth:false,baseBudget:NORMAL_PROVINCE_BUDGET,trainingQuality:NORMAL_PROVINCE_TRAINING_QUALITY},
-  6:{name:"湖南",type:"普通省",isNorth:false,baseBudget:NORMAL_PROVINCE_BUDGET,trainingQuality:NORMAL_PROVINCE_TRAINING_QUALITY},
-  7:{name:"山东",type:"普通省",isNorth:false,baseBudget:NORMAL_PROVINCE_BUDGET,trainingQuality:NORMAL_PROVINCE_TRAINING_QUALITY},
-  8:{name:"河南",type:"普通省",isNorth:false,baseBudget:NORMAL_PROVINCE_BUDGET,trainingQuality:NORMAL_PROVINCE_TRAINING_QUALITY},
-  9:{name:"四川",type:"普通省",isNorth:false,baseBudget:NORMAL_PROVINCE_BUDGET,trainingQuality:NORMAL_PROVINCE_TRAINING_QUALITY},
- 10:{name:"湖北",type:"普通省",isNorth:false,baseBudget:NORMAL_PROVINCE_BUDGET,trainingQuality:NORMAL_PROVINCE_TRAINING_QUALITY},
- 11:{name:"黑龙江",type:"弱省",isNorth:true,baseBudget:WEAK_PROVINCE_BUDGET,trainingQuality:WEAK_PROVINCE_TRAINING_QUALITY},
- 12:{name:"吉林",type:"弱省",isNorth:true,baseBudget:WEAK_PROVINCE_BUDGET,trainingQuality:WEAK_PROVINCE_TRAINING_QUALITY},
- 13:{name:"甘肃",type:"弱省",isNorth:true,baseBudget:WEAK_PROVINCE_BUDGET,trainingQuality:WEAK_PROVINCE_TRAINING_QUALITY},
- 14:{name:"青海",type:"弱省",isNorth:true,baseBudget:WEAK_PROVINCE_BUDGET,trainingQuality:WEAK_PROVINCE_TRAINING_QUALITY},
- 15:{name:"新疆",type:"弱省",isNorth:true,baseBudget:WEAK_PROVINCE_BUDGET,trainingQuality:WEAK_PROVINCE_TRAINING_QUALITY},
- 16:{name:"西藏",type:"弱省",isNorth:true,baseBudget:WEAK_PROVINCE_BUDGET,trainingQuality:WEAK_PROVINCE_TRAINING_QUALITY}
-};
-
-/* =========== 随机 =========== */
-function uniform(min, max){ return min + Math.random()*(max-min); }
-function uniformInt(min, max){ return Math.floor(min + Math.random()*(max - min + 1)); }
-function normal(mean=0, stddev=1){
-  let u=0,v=0;
-  while(u===0) u=Math.random();
-  while(v===0) v=Math.random();
-  let z=Math.sqrt(-2.0*Math.log(u))*Math.cos(2*Math.PI*v);
-  return z*stddev + mean;
+/* script.js (主脚本) 已将大量基础定义拆分到 lib/constants.js, lib/utils.js, lib/models.js
+   这些文件必须在 HTML 中先于本文件加载。
+*/
+if(typeof GameState === 'undefined'){
+  console.warn('Warning: GameState is not defined. Ensure lib/models.js is loaded before script.js');
 }
-function clamp(val,min,max){ return Math.max(min,Math.min(max,val)); }
-function clampInt(v,min,max){ return Math.max(min,Math.min(max,Math.round(v))); }
-function sigmoid(x){ return 1.0 / (1.0 + Math.exp(-x)); }
-// 根据数值返回模糊等级：E, D, C, B, A, S, SS, SSS
-function getLetterGrade(val) {
-  if (val < 10) return 'E';
-  else if (val < 30) return 'D';
-  else if (val < 50) return 'C';
-  else if (val < 70) return 'B';
-  else if (val < 80) return 'A';
-  else if (val < 90) return 'S';
-  else if (val < 95) return 'SS';
-  return 'SSS';
+// 避免在脚本加载时使用未初始化的局部 `game`（会触发 TDZ）。
+// 使用 `window.game` 作为全局持有者，并在需要时懒初始化。
+if(typeof window.game === 'undefined' || !window.game){
+  try{ window.game = new GameState(); }catch(e){ /* 如果 GameState 不可用，保留为 undefined，稍后在 onload 中处理 */ }
 }
-
-/* =========== 名字生成 =========== */
-/* =========== 名字生成（男性单字） =========== */
-const surnames = [
-  "张","李","王","刘","陈","杨","黄","赵","周","吴",
-  "徐","孙","马","朱","胡","郭","何","林","罗","高",
-  "梁","宋","郑","谢","韩","唐","冯","于","董","萧","曹",
-  "潘","袁","许","曾","蒋","蔡","余","杜","叶","程",
-  "苏","魏","吕","丁","任","沈","姚","卢","姜","崔"
-];
-
-const namesPool = [
-  "伟","刚","勇","毅","俊","峰","强","军","平","保",
-  "东","文","辉","力","明","永","健","世","广","志",
-  "义","兴","良","海","山","仁","波","宁","贵","福",
-  "生","龙","元","全","国","胜","学","祥","才","发",
-  "武","新","利","清","飞","彬","富","顺","信","杰",
-  "涛","昌","成","康","星","光","天","达","安","岩",
-  "中","茂","进","林","有","坚","和","彪","博","诚",
-  "先","敬","震","振","壮","会","思","群","豪","心",
-  "邦","承","乐","绍","功","松","善","厚","庆","民",
-  "友","裕","河","哲","江","超","浩","亮","政","谦",
-  "亨","奇","固","之","翰","朗","伯","宏","言","鸣",
-  "朋","斌","梁","栋","维","启","克","伦","翔","旭",
-  "鹏","泽","晨","辰","士","建","家","致","树","炎",
-  "德","行","时","泰","盛","雄","琛","钧","冠","策",
-  "腾","楠","榕","岳","然","煜","鑫","骏","宸","珩",
-  "骁","恒","博","尧","奕","澄","峻","逸","尘","晟",
-  "烨","翎","晗","卓","麟","皓","煦","栩","瀚","燊",
-  "烁","霖","屹","骞","嵩","澜","漾","渊","峥","祺",
-  "淞","珺","珞","瑜","瑾","琨","铠","铭","锴","锋",
-  "铎","锐","剑","戎","霆","震","骢","骥","昊","煊",
-  "炜","昱","曜","桦","槐","栋","森","澔","淳","湛",
-  "涵","灿","焱","燎","炎","尧","哲","航","睿","凯",
-  "琪","澔","玮","珂","洺","源","湧","鸣","俊","煜",
-  "翰","云","哲","诚","邦","尘","恒","鸣","渊","森",
-  "桓","泽","弘","川","渝","岳","帆","栋","弈","奇",
-  "锐","琪","嵩","铠","恺","诚","轩","峰","晟","远",
-  "铭","凯","炜","煜","杰","烽","志","朗","逸","骞",
-  "宸","烨","骁","尧","腾","珩","霖","泽","航","瑞",
-  "煊","岳","麟","博","晗","昀","嘉","澄","桦","骅",
-  "澜","然","尘","奕","翰","栩","祺","瑜","珺","骏",
-  "峻","晟","尧","钧","骋","锐","承","炎","帆","弘"
-];
-function generateName(){
-  let s = surnames[uniformInt(0,surnames.length-1)];
-  let n = namesPool[uniformInt(0,namesPool.length-1)];
-  if(Math.random()>0.4) n += namesPool[uniformInt(0,namesPool.length-1)];
-  return s + n;
-}
-
-/* =========== 类 =========== */
-class Student {
-  constructor(name,thinking,coding,mental){
-    this.name=name; this.thinking=thinking; this.coding=coding; this.mental=mental;
-    this.knowledge_ds=uniformInt(0,3)|0;
-    this.knowledge_graph=uniformInt(0,3)|0;
-    this.knowledge_string=uniformInt(0,3)|0;
-    this.knowledge_math=uniformInt(0,3)|0;
-    this.knowledge_dp=uniformInt(0,3)|0;
-    this.pressure=20; this.comfort=50;
-    this.burnout_weeks=0; this.depression_count=0; this.high_pressure_weeks=0;
-    this.active=true; this.sick_weeks=0;
-  }
-  getAbilityAvg(){ return (this.thinking + this.coding + this.mental)/3.0; }
-  getKnowledgeTotal(){ return (this.knowledge_ds + this.knowledge_graph + this.knowledge_string + this.knowledge_math + this.knowledge_dp)/5.0; }
-  getComprehensiveAbility(){
-    let ability_avg = this.getAbilityAvg();
-    let knowledge_total = this.getKnowledgeTotal();
-    return ABILITY_WEIGHT*ability_avg + KNOWLEDGE_WEIGHT*knowledge_total;
-  }
-  getMentalIndex(){
-    let noise = normal(0,3.0);
-    let result = this.mental - ALPHA1*(this.pressure/100.0)*(1 - this.comfort/100.0) + noise;
-    return clamp(result,0,100);
-  }
-  // 正式比赛使用此函数（与 C++ 保持一致）
-  getPerformanceScore(difficulty,maxScore,knowledge_value){
-    let comprehensive = this.getComprehensiveAbility();
-    let mental_idx = this.getMentalIndex();
-    let knowledge_bonus = knowledge_value * 2.0; // 与 C++ 相同
-    let effective_ability = comprehensive + knowledge_bonus;
-    let performance_ratio = sigmoid((effective_ability - difficulty)/10.0);
-    let stability_factor = mental_idx/100.0;
-    let base_noise = 0.05;
-    let sigma_performance = (100 - mental_idx)/200.0 + base_noise;
-    let random_factor = normal(0, sigma_performance);
-    let final_ratio = performance_ratio * stability_factor * (1 + random_factor);
-    final_ratio = clamp(final_ratio,0,1);
-    return Math.max(0, final_ratio * maxScore);
-  }
-  calculateKnowledgeGain(base_gain, facility_bonus, sick_penalty){
-    let learning_efficiency = (0.6*(this.thinking/100.0) + 0.4)*(1.0 - this.pressure / FATIGUE_FROM_PRESSURE);
-    return Math.floor(base_gain * learning_efficiency * facility_bonus * sick_penalty);
-  }
-  getKnowledgeByType(type){
-    if(type==="数据结构") return this.knowledge_ds;
-    if(type==="图论") return this.knowledge_graph;
-    if(type==="字符串") return this.knowledge_string;
-    if(type==="数学") return this.knowledge_math;
-    if(type==="DP" || type==="动态规划") return this.knowledge_dp;
-    return 0;
-  }
-  addKnowledge(type,amount){
-    if(type==="数据结构") this.knowledge_ds += amount;
-    else if(type==="图论") this.knowledge_graph += amount;
-    else if(type==="字符串") this.knowledge_string += amount;
-    else if(type==="数学") this.knowledge_math += amount;
-    else if(type==="DP" || type==="动态规划") this.knowledge_dp += amount;
-  }
-}
-
-class Facilities {
-  constructor(){ this.computer=1; this.ac=1; this.dorm=1; this.library=1; this.canteen=1; }
-  getComputerEfficiency(){ return 1.0 + COMPUTER_EFFICIENCY_PER_LEVEL * (this.computer - 1); }
-  getLibraryEfficiency(){ return 1.0 + LIBRARY_EFFICIENCY_PER_LEVEL * (this.library - 1); }
-  getCanteenPressureReduction(){ return 1.0 - CANTEEN_PRESSURE_REDUCTION_PER_LEVEL * (this.canteen - 1); }
-  getDormComfortBonus(){ return DORM_COMFORT_BONUS_PER_LEVEL * (this.dorm - 1); }
-  getUpgradeCost(fac){
-    let it = FACILITY_UPGRADE_COSTS[fac];
-    if(!it) return 0;
-    let level = this.getCurrentLevel(fac);
-    return Math.floor(it.base * Math.pow(it.grow, level - 1));
-  }
-  getMaxLevel(fac){
-    if(fac==="computer"||fac==="library") return MAX_COMPUTER_LEVEL;
-    return MAX_OTHER_FACILITY_LEVEL;
-  }
-  getCurrentLevel(fac){
-    if(fac==="computer") return this.computer;
-    if(fac==="library") return this.library;
-    if(fac==="ac") return this.ac;
-    if(fac==="dorm") return this.dorm;
-    if(fac==="canteen") return this.canteen;
-    return 0;
-  }
-  upgrade(fac){
-    if(fac==="computer") this.computer++;
-    else if(fac==="library") this.library++;
-    else if(fac==="ac") this.ac++;
-    else if(fac==="dorm") this.dorm++;
-    else if(fac==="canteen") this.canteen++;
-  }
-  getMaintenanceCost(){
-    let total = this.computer + this.ac + this.dorm + this.library + this.canteen;
-    return Math.floor(100 * Math.pow(total,1.2));
-  }
-}
-
-class GameState {
-  constructor(){
-    this.students=[];
-    this.facilities=new Facilities();
-    this.budget=100000;
-    this.week=1;
-    this.reputation=50;
-    this.temperature=20;
-    this.weather="晴";
-    this.province_name="";
-    this.province_type="";
-    this.is_north=false;
-    this.difficulty=2;
-    this.base_comfort=50;
-    this.initial_students=0;
-    this.quit_students=0;
-    this.had_good_result_recently=false;
-    this.weeks_since_entertainment=0;
-    this.weeks_since_good_result=0;
-    this.noi_rankings=[];
-    this.teaching_points=NORMAL_MODE_TEACHING_POINTS;
-    // qualification: per-season (two halves) per-competition qualified student names (Set)
-    // qualification[0] -> 第一半赛季, qualification[1] -> 第二半赛季
-    this.qualification = [ {}, {} ];
-    for(let name of COMPETITION_ORDER){ this.qualification[0][name] = new Set(); this.qualification[1][name] = new Set(); }
-    // 标记赛季结束结算（避免重复触发）
-    this.seasonEndTriggered = false;
-    // 记录已完成的比赛（按唯一键：`${halfIndex}_${compName}_${week}`），用于避免在同一赛季重复触发
-    this.completedCompetitions = new Set();
-    // 记录生涯所有正式比赛的结果（用于结局页面展示）
-    // 每项记录结构示例：{ week, halfIndex, name, passLine, maxScore, results:[{name,total,eligible,remark,medal}] }
-    this.careerCompetitions = [];
-  }
-  getWeatherFactor(){
-    let factor=1.0;
-    let extreme_temp = (this.temperature < EXTREME_COLD_THRESHOLD || this.temperature > EXTREME_HOT_THRESHOLD);
-    if(extreme_temp){
-      if(this.facilities.ac===1) factor = 1.5;
-      if(this.facilities.ac===1 && this.facilities.dorm===1) factor = 2.0;
-    }
-    return factor;
-  }
-  getComfort(){
-    let comfort = this.base_comfort;
-    comfort += this.facilities.getDormComfortBonus();
-    comfort += AC_COMFORT_BONUS_PER_LEVEL * (this.facilities.ac - 1);
-    comfort += 3 * (this.facilities.canteen - 1);
-    let weather_penalty = 0;
-    if(this.temperature < EXTREME_COLD_THRESHOLD || this.temperature > EXTREME_HOT_THRESHOLD){
-      weather_penalty = WEATHER_PENALTY_WITH_AC;
-      if(this.facilities.ac === 1) weather_penalty = WEATHER_PENALTY_NO_AC;
-    }
-    return clamp(comfort - weather_penalty, 0, 100);
-  }
-  getWeeklyCost(){
-    let active_count = this.students.filter(s=>s.active).length;
-    return 1000 + 50*active_count + this.facilities.getMaintenanceCost();
-  }
-  getDifficultyModifier(){
-    if(this.difficulty===1) return 0.9;
-    if(this.difficulty===3) return 1.1;
-    return 1.0;
-  }
-  getNextCompetition(){
-    // 使用运行时生成的 `competitions`（已为两季），按周排序后计算下场比赛
-    if(Array.isArray(competitions) && competitions.length > 0){
-      const sorted = competitions.slice().sort((a, b) => a.week - b.week);
-      const next = sorted.find(c => c.week > this.week);
-      if(next){
-        let weeks_left = next.week - this.week;
-        return next.name + ` (还有${weeks_left}周)`;
-      }
-    }
-    return "无";
-  }
-  updateWeather(){
-    if(this.week >=1 && this.week <= 13){
-      if(this.is_north) this.temperature = uniform(15,28);
-      else this.temperature = uniform(22,36);
-    } else if(this.week >=14 && this.week <= 26){
-      if(this.is_north) this.temperature = uniform(-5,10);
-      else this.temperature = uniform(8,20);
-    } else if(this.week >=27 && this.week <= 39){
-      if(this.is_north) this.temperature = uniform(-10,5);
-      else this.temperature = uniform(5,18);
-    } else {
-      if(this.is_north) this.temperature = uniform(8,25);
-      else this.temperature = uniform(15,30);
-    }
-    let roll = Math.random();
-    if(roll < 0.65) this.weather="晴";
-    else if(roll < 0.80) this.weather="阴";
-    else if(roll < 0.93) this.weather="雨";
-    else this.weather="雪";
-    if(this.is_north && this.week >=27 && this.week <=39 && Math.random()<0.3) this.weather="雪";
-  }
-  getFutureExpense(){
-    // 将未来费用按活跃人数系数显示（人数 * 0.3）
-    const weekly = this.getWeeklyCost();
-    const activeCount = Array.isArray(this.students) ? this.students.filter(s=>s.active).length : 0;
-    const mult = activeCount * 0.3;
-    return Math.round(weekly * 4 * mult);
-  }
-  // 返回用于调整支出的系数：人数 * 0.3
-  getExpenseMultiplier(){
-    try{
-      const activeCount = Array.isArray(this.students) ? this.students.filter(s=>s.active).length : 0;
-      return Math.max(0, activeCount * 0.3);
-    }catch(e){ return 1.0; }
-  }
-  getWeatherDescription(){
-    let desc = this.weather;
-    if(this.weather==="雪") desc += " ❄️";
-    else if(this.weather==="雨") desc += " 🌧️";
-    else if(this.weather==="晴") desc += " ☀️";
-    else desc += " ☁️";
-    if(this.temperature < 0) desc += " (极寒)";
-    else if(this.temperature < 10) desc += " (寒冷)";
-    else if(this.temperature < 20) desc += " (凉爽)";
-    else if(this.temperature < 30) desc += " (温暖)";
-    else desc += " (炎热)";
-    return desc;
-  }
-}
-
-/* =========== 比赛数据复刻（两赛季） =========== */
-// 将原始 COMPETITION_SCHEDULE（基于 ORIGINAL_SEASON_WEEKS）按比例缩放到当前 SEASON_WEEKS
-// 并复制为两季（第二季偏移半季长度）
-const WEEKS_PER_HALF = Math.floor(SEASON_WEEKS / 2);
-let competitions = [];
-if(Array.isArray(COMPETITION_SCHEDULE)){
-  // 使用原始赛季周数的相对位置，分别映射到第一半季和第二半季
-  // 这样可以保证两轮的周数区间互不重叠
-  const totalOrig = ORIGINAL_SEASON_WEEKS;
-  const firstHalfSize = WEEKS_PER_HALF; // weeks allocated to first half: [1 .. WEEKS_PER_HALF]
-  const secondHalfSize = SEASON_WEEKS - WEEKS_PER_HALF; // weeks allocated to second half: [WEEKS_PER_HALF+1 .. SEASON_WEEKS]
-
-  for (let name of COMPETITION_ORDER) {
-    const src = COMPETITION_SCHEDULE.find(c => c.name === name);
-    if (!src) continue;
-    // normalized position in original season [0..1]
-    const p = (src.week - 1) / Math.max(1, (totalOrig - 1));
-    // map to first half range
-    let newWeek = 1 + Math.round(p * Math.max(0, firstHalfSize - 1));
-    if (newWeek < 1) newWeek = 1;
-    if (newWeek > firstHalfSize) newWeek = firstHalfSize;
-    let copy = Object.assign({}, src);
-    copy.week = newWeek;
-    competitions.push(copy);
-  }
-
-  for (let name of COMPETITION_ORDER) {
-    const src = COMPETITION_SCHEDULE.find(c => c.name === name);
-    if (!src) continue;
-    const p = (src.week - 1) / Math.max(1, (totalOrig - 1));
-    // map to second half range (offset by WEEKS_PER_HALF)
-    let newWeek2 = WEEKS_PER_HALF + 1 + Math.round(p * Math.max(0, secondHalfSize - 1));
-    if (newWeek2 < WEEKS_PER_HALF + 1) newWeek2 = WEEKS_PER_HALF + 1;
-    if (newWeek2 > SEASON_WEEKS) newWeek2 = SEASON_WEEKS;
-    let copy = Object.assign({}, src);
-    copy.week = newWeek2;
-    competitions.push(copy);
-  }
-  // 此处故意保持添加顺序（不进行全局按周排序），以确保比赛在 UI/逻辑中按 CSP-S1->CSP-S2->NOIP->省选->NOI 的顺序出现
-} else {
-  competitions = [];
-}
-
-/* =========== 全局游戏对象 =========== */
-let game = new GameState();
+// 局部引用始终通过 window.game 访问，避免在全局初始化顺序问题上抛错
+let game = window.game;
 
 /* 每日/每次渲染随机一言 */
 const QUOTES = [
@@ -510,19 +31,24 @@ const $ = id => document.getElementById(id);
 function log(msg){
   try{
     let el = $('log');
-    if(el){ let p = document.createElement('div'); p.innerText = `[周${game.week}] ${msg}`; el.prepend(p); }
-    else { console.log(`[周${game.week}] ${msg}`); }
-  }catch(e){ console.log(`[周${game.week}] ${msg}`); }
+    const wk = (game && typeof game.week !== 'undefined') ? game.week : 0;
+    if(el){ let p = document.createElement('div'); p.innerText = `[周${wk}] ${msg}`; el.prepend(p); }
+    else { console.log(`[周${wk}] ${msg}`); }
+  }catch(e){ try{ const wk = (game && typeof game.week !== 'undefined') ? game.week : 0; console.log(`[周${wk}] ${msg}`); }catch(ee){ console.log(msg); } }
 }
+// 安全获取当前周（如果 game 未初始化则返回 0）
+function currWeek(){ return (game && typeof game.week !== 'undefined') ? game.week : 0; }
+
 // 将事件推入突发事件卡片（并保留日志）
 // store recent events (用于填充两个预留事件卡)
 const recentEvents = [];
 function pushEvent(msg){
   // 支持传入字符串或对象 {name, description, week}
   let ev = null;
-  if(typeof msg === 'string') ev = { name: null, description: msg, week: game.week };
-  else if(typeof msg === 'object' && msg !== null) ev = { name: msg.name || null, description: msg.description || msg.text || '', week: msg.week || game.week };
-  else ev = { name: null, description: String(msg), week: game.week };
+  const wkDefault = (game && typeof game.week !== 'undefined') ? game.week : 0;
+  if(typeof msg === 'string') ev = { name: null, description: msg, week: wkDefault };
+  else if(typeof msg === 'object' && msg !== null) ev = { name: msg.name || null, description: msg.description || msg.text || '', week: msg.week || wkDefault };
+  else ev = { name: null, description: String(msg), week: wkDefault };
 
   // 保留日志
   log(`[${ev.week}] ${ev.name? ev.name + '：' : ''}${ev.description}`);
@@ -606,9 +132,9 @@ function __summarizeSnapshot(before, after, title){
 
     const summary = parts.length ? parts.join('； ') : '无显著变化';
     // push concise event card
-    pushEvent({ name: title || '变动汇总', description: summary, week: game.week });
-    // also log the detailed version
-    log(`[${title||'变动'}] ${summary}`);
+  pushEvent({ name: title || '变动汇总', description: summary, week: currWeek() });
+  // also log the detailed version
+  log(`[${title||'变动'}] ${summary}`);
     return summary;
   }catch(e){ console.error('summarize error', e); return null; }
 }
@@ -634,7 +160,7 @@ function renderEventCards(){
   }
   // only render events from the last 2 weeks (inclusive)
   const maxWeekDelta = 2;
-  const nowWeek = game ? game.week : (new Date().getWeek ? new Date().getWeek() : 0);
+  const nowWeek = (typeof game !== 'undefined' && game && typeof game.week === 'number') ? game.week : (new Date().getWeek ? new Date().getWeek() : currWeek());
   let shown = 0;
   for(let ev of recentEvents){
     if(typeof ev.week === 'number'){
@@ -659,7 +185,7 @@ function showEventModal(evt){
   try{
     let title = evt && evt.name ? evt.name : '事件';
     let desc = evt && evt.description ? evt.description : (evt && evt.text ? evt.text : '暂无描述');
-    let weekInfo = evt && evt.week ? `[周${evt.week}] ` : `[周${game.week}] `;
+  let weekInfo = evt && evt.week ? `[周${evt.week}] ` : `[周${currWeek()}] `;
     // 不再在这里重复 pushEvent（pushEvent 在事件触发处负责），仅展示弹窗
     let html = `<h3>${weekInfo}${title}</h3><div class="small" style="margin-top:6px">${desc}</div>`;
     html += `<div style="text-align:right;margin-top:12px"><button class="btn" onclick="closeModal()">关闭</button></div>`;
@@ -672,7 +198,7 @@ function showChoiceModal(evt){
   try{
     const title = (evt && evt.name) ? evt.name : '选择事件';
     const desc = (evt && evt.description) ? evt.description : '';
-    const weekInfo = (evt && evt.week) ? `[周${evt.week}] ` : `[周${game.week}] `;
+  const weekInfo = (evt && evt.week) ? `[周${evt.week}] ` : `[周${currWeek()}] `;
     // build option buttons
     let opts = '';
     const options = (evt && Array.isArray(evt.options)) ? evt.options : [];
@@ -693,8 +219,8 @@ function showChoiceModal(evt){
     const html = `<h3>${weekInfo}${title}</h3><div class="small" style="margin-top:6px">${desc}</div>${opts}`;
     showModal(html);
 
-    // push event to recent events log for visibility
-    try{ if(window.pushEvent) window.pushEvent({ name: title, description: desc, week: evt && evt.week ? evt.week : game.week }); }catch(e){}
+  // push event to recent events log for visibility
+  try{ if(window.pushEvent) window.pushEvent({ name: title, description: desc, week: evt && evt.week ? evt.week : currWeek() }); }catch(e){}
 
     // wire up handlers (effects may be functions passed by EventManager)
     for(let i=0;i<options.length;i++){
@@ -723,16 +249,16 @@ function testShowChoiceModal(){
       } },
     { label: '拒绝', effect: () => { log('测试：已拒绝'); } }
   ];
-  showChoiceModal({ name: '测试选择事件', description: '这是一个用于验证的测试弹窗。', week: game.week, options });
+  showChoiceModal({ name: '测试选择事件', description: '这是一个用于验证的测试弹窗。', week: currWeek(), options });
 }
 window.testShowChoiceModal = testShowChoiceModal;
 /* 渲染：主页去数值化（不显示学生具体能力/压力数值） */
 function renderAll(){
-  $('header-week').innerText = `第 ${game.week} 周`;
+  $('header-week').innerText = `第 ${currWeek()} 周`;
   $('header-province').innerText = `省份: ${game.province_name} (${game.province_type})`;
   $('header-budget').innerText = `经费: ¥${game.budget}`;
   $('header-reputation').innerText = `声誉: ${game.reputation}`;
-  $('info-week').innerText = game.week;
+  $('info-week').innerText = currWeek();
   $('info-temp').innerText = game.temperature.toFixed(1) + "°C";
   $('info-weather').innerText = game.getWeatherDescription();
   $('info-future-expense').innerText = game.getFutureExpense();
@@ -811,8 +337,8 @@ function renderAll(){
   let compNow = null;
   const sortedComps = Array.isArray(competitions) ? competitions.slice().sort((a,b)=>a.week - b.week) : [];
   for (let comp of sortedComps) {
-    if (comp.week === game.week) {
-      const half = (game.week > WEEKS_PER_HALF) ? 1 : 0;
+    if (comp.week === currWeek()) {
+      const half = (currWeek() > WEEKS_PER_HALF) ? 1 : 0;
       const key = `${half}_${comp.name}_${comp.week}`;
       if (!game.completedCompetitions || !game.completedCompetitions.has(key)) {
         compNow = comp;
@@ -1146,7 +672,7 @@ function holdCompetitionModal(comp){
   }catch(e){ /* ignore if comp.maxScore is not present */ }
   // evaluate students using Student.getPerformanceScore for each problem
   // Determine current half-season index (0 or 1) and enforce chain qualification
-  const halfIndex = (game.week > WEEKS_PER_HALF) ? 1 : 0;
+  const halfIndex = (currWeek() > WEEKS_PER_HALF) ? 1 : 0;
   let results = [];
   for(let s of game.students){
     if(!s.active) continue;
@@ -1222,7 +748,7 @@ function holdCompetitionModal(comp){
   $('comp-apply').onclick = ()=>{
     const __before = typeof __createSnapshot === 'function' ? __createSnapshot() : null;
     // apply effects (mirrors C++ logic) but only for eligible participants
-    const halfIndexApply = (game.week > WEEKS_PER_HALF) ? 1 : 0;
+  const halfIndexApply = (currWeek() > WEEKS_PER_HALF) ? 1 : 0;
     // ensure qualification structure exists
     if(!game.qualification[halfIndexApply]) game.qualification[halfIndexApply] = {};
     if(!game.qualification[halfIndexApply][comp.name]) game.qualification[halfIndexApply][comp.name] = new Set();
@@ -1235,6 +761,23 @@ function holdCompetitionModal(comp){
         pass_count++;
       }
     }
+
+    // 如果处于第二轮赛季（halfIndexApply === 1）且本场比赛无人晋级 -> 视为晋级链断裂，直接结束赛季
+    try{
+      if(halfIndexApply === 1 && pass_count === 0){
+        const ending = "🔚 晋级链断裂：本轮比赛无人晋级，赛季提前结束";
+        // 记录事件与日志
+  try{ pushEvent({ name: '赛季终止', description: ending, week: currWeek() }); }catch(e){}
+        try{ log(`赛季提前结束：${ending}`); }catch(e){}
+        // 标记并保存当前游戏状态与结局文本
+        try{ game.seasonEndTriggered = true; localStorage.setItem('oi_coach_save', JSON.stringify(game)); localStorage.setItem('oi_coach_ending', ending); }catch(e){}
+        // 显示结算提示并跳转到结算页面
+        closeModal();
+        showModal(`<h3>赛季结束</h3><div class="small">${ending}</div><div style="text-align:right;margin-top:8px"><button class="btn" onclick="(function(){ closeModal(); window.location.href='end.html'; })()">查看结算页面</button></div>`);
+        renderAll();
+        return; // 中止后续比赛应用逻辑
+      }
+    }catch(e){ console.error('early season-end check failed', e); }
 
     let gold=0,silver=0,bronze=0;
     if(comp.name==="NOI"){
@@ -1302,7 +845,7 @@ function holdCompetitionModal(comp){
   const msg = `上级拨款：由于 ${comp.name} 有 ${pass_count} 人晋级，获得拨款 ¥${grant}（等级${level}，省系数${provinceCoef}）`;
   log && log(`[拨款] ${msg}`);
   // 事件卡显示只保留金额，以保持简洁
-  pushEvent && pushEvent({ name:'上级拨款', description: `¥${grant}`, week: game.week });
+  pushEvent && pushEvent({ name:'上级拨款', description: `¥${grant}`, week: currWeek() });
       }
     }catch(e){ console.error('grant error', e); }
 
@@ -1361,7 +904,7 @@ function holdCompetitionModal(comp){
   if(__before && __after) __summarizeSnapshot(__before, __after, `比赛：${comp.name}`);
     // 标记为已完成，使用唯一键避免重复触发
     try{
-      const halfIndexApply = (game.week > WEEKS_PER_HALF) ? 1 : 0;
+  const halfIndexApply = (currWeek() > WEEKS_PER_HALF) ? 1 : 0;
       const doneKey = `${halfIndexApply}_${comp.name}_${comp.week}`;
       if(!game.completedCompetitions) game.completedCompetitions = new Set();
       game.completedCompetitions.add(doneKey);
@@ -1387,11 +930,11 @@ function holdCompetitionModal(comp){
 
   // 在应用比赛结果后，若当前周已达到赛季末且尚未结算，则立即触发赛季结算（确保最终比赛结果被纳入结算）
   try{
-    if(game.week >= SEASON_WEEKS && !game.seasonEndTriggered){
+  if(currWeek() >= SEASON_WEEKS && !game.seasonEndTriggered){
       // mark and save
       game.seasonEndTriggered = true;
       let ending = checkEnding();
-      try{ pushEvent(`赛季结束：${ending}`); }catch(e){}
+  try{ pushEvent({ name: '赛季结束', description: `赛季结束：${ending}`, week: currWeek() }); }catch(e){}
       try{ localStorage.setItem('oi_coach_save', JSON.stringify(game)); localStorage.setItem('oi_coach_ending', ending); }catch(e){}
       showModal(`<h3>赛季结束</h3><div class="small">本轮赛季结算：${ending}</div><div style="text-align:right;margin-top:8px"><button class="btn" onclick="(function(){ closeModal(); window.location.href='end.html'; })()">查看结算页面</button></div>`);
     }
@@ -1410,7 +953,7 @@ function checkRandomEvents(){
       // 2) A one-time suppression flag is set on the game (used after applying competition results
       //    to advance week without allowing event modals to steal focus). See where
       //    `game.suppressEventModalOnce` is set in the competition flow.
-      const compNow = (typeof competitions !== 'undefined') ? competitions.find(c => c.week === game.week) : null;
+  const compNow = (typeof competitions !== 'undefined') ? competitions.find(c => c.week === currWeek()) : null;
       const suppressOnce = game && game.suppressEventModalOnce;
       if(compNow || suppressOnce){
         // temporarily replace modal showing functions with safe variants that only push events
@@ -1479,11 +1022,11 @@ function weeklyUpdate(weeks=1){
   if(game.weeks_since_good_result > 12) game.had_good_result_recently = false;
   checkRandomEvents();
   // 如果到达第二赛季末（累计周数 >= SEASON_WEEKS），优先检查本周是否有未完成的正式比赛（如有则先打开比赛模态，赛季结算延后）
-  if(game.week >= SEASON_WEEKS && !game.seasonEndTriggered){
+  if(currWeek() >= SEASON_WEEKS && !game.seasonEndTriggered){
     try{
-      const compThisWeek = Array.isArray(competitions) ? competitions.find(c => c.week === game.week) : null;
-      const halfIndex = (game.week > WEEKS_PER_HALF) ? 1 : 0;
-      const doneKey = compThisWeek ? `${halfIndex}_${compThisWeek.name}_${compThisWeek.week}` : null;
+  const compThisWeek = Array.isArray(competitions) ? competitions.find(c => c.week === currWeek()) : null;
+  const halfIndex = (currWeek() > WEEKS_PER_HALF) ? 1 : 0;
+  const doneKey = compThisWeek ? `${halfIndex}_${compThisWeek.name}_${compThisWeek.week}` : null;
       const isCompleted = compThisWeek && game.completedCompetitions && game.completedCompetitions.has(doneKey);
       if(compThisWeek && !isCompleted){
         // 在赛季最后一周有尚未完成的正式比赛：直接打开比赛模态，延后赛季结算
@@ -1491,8 +1034,8 @@ function weeklyUpdate(weeks=1){
       } else {
         // 无未完成比赛，正常触发赛季结算
         game.seasonEndTriggered = true;
-        let ending = checkEnding();
-        try{ pushEvent(`赛季结束：${ending}`); }catch(e){}
+  let ending = checkEnding();
+  try{ pushEvent({ name: '赛季结束', description: `赛季结束：${ending}`, week: currWeek() }); }catch(e){}
         // 保存结算到 localStorage 以便 end.html 展示，并跳转到结算页
         try{
           localStorage.setItem('oi_coach_save', JSON.stringify(game));
@@ -1523,8 +1066,8 @@ function safeWeeklyUpdate(weeks = 1) {
   }catch(e){ /* ignore */ }
   // 查找按周排序后的下场比赛
   const sorted = Array.isArray(competitions) ? competitions.slice().sort((a, b) => a.week - b.week) : [];
-  let nextComp = sorted.find(c => c.week > game.week);
-  let weeksToComp = nextComp ? (nextComp.week - game.week) : Infinity;
+  let nextComp = sorted.find(c => c.week > currWeek());
+  let weeksToComp = nextComp ? (nextComp.week - currWeek()) : Infinity;
   if (weeksToComp <= weeks) {
     // 跳转至比赛周
     weeklyUpdate(weeksToComp);
@@ -1541,9 +1084,9 @@ function checkCompetitions(){
   // 遍历按周排序后的比赛，确保与周次对齐
   const sorted = Array.isArray(competitions) ? competitions.slice().sort((a,b)=>a.week - b.week) : [];
   for(let comp of sorted){
-    if(comp.week !== game.week) continue;
+  if(comp.week !== currWeek()) continue;
     // 构建唯一键：半季索引 + 比赛名 + 周数，避免误触发
-    const halfIndex = (game.week > WEEKS_PER_HALF) ? 1 : 0;
+  const halfIndex = (currWeek() > WEEKS_PER_HALF) ? 1 : 0;
     const key = `${halfIndex}_${comp.name}_${comp.week}`;
     if(game.completedCompetitions && game.completedCompetitions.has(key)){
       // 已完成，跳过
@@ -1629,8 +1172,8 @@ function trainStudentsUI(){
     closeModal();
   trainStudents(topic, intensity);
   // 安全更新：判断下场比赛周数，避免培训跳过比赛
-  let nextComp = competitions.find(c => c.week > game.week);
-  let weeksToComp = nextComp ? (nextComp.week - game.week) : Infinity;
+  let nextComp = competitions.find(c => c.week > currWeek());
+  let weeksToComp = nextComp ? (nextComp.week - currWeek()) : Infinity;
   let advance = Math.min(1, weeksToComp);
   safeWeeklyUpdate(advance);
   renderAll();
