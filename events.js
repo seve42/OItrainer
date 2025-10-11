@@ -54,7 +54,8 @@
         id: 'sickness',
         name: '感冒',
         description: '天气/舒适度导致学生生病',
-        check: c => true,
+        // 只有当存在尚未生病且处于 active 状态的学生时才进行检测
+        check: c => c.game.students.some(s => s.active && (!s.sick_weeks || s.sick_weeks === 0)),
         run: c => {
           const {BASE_SICK_PROB, SICK_PROB_FROM_COLD_HOT, EXTREME_COLD_THRESHOLD, EXTREME_HOT_THRESHOLD} = c.constants;
           const comfort = c.game.getComfort();
@@ -72,8 +73,11 @@
           }
           if(sickList.length){
             const msg = `${sickList.join('、')} 感冒了`;
+            log && log(`[事件] ${msg}`);
             window.pushEvent && window.pushEvent({ name:'感冒', description: msg, week: c.game.week });
+            return msg; // 返回具体消息以供调度器显示弹窗
           }
+          return null;
         }
       });
 
@@ -82,7 +86,10 @@
         id: 'burnout',
         name: '退队/倦怠',
         description: '压力累计导致学生退队',
-        check: c => true,
+        check: c => {
+          // 仅当有学生压力过高时才激活此事件
+          return c.game.students.some(s => s.active && s.pressure >= 90);
+        },
         run: c => {
           const {QUIT_PROB_BASE, QUIT_PROB_PER_EXTRA_PRESSURE} = c.constants;
           const quitList = [];
@@ -112,7 +119,9 @@
             window.pushEvent && window.pushEvent({ name:'退队', description: msg, week: c.game.week });
             // 刷新 UI 以移除学生
             window.renderAll && window.renderAll();
+            return msg; // 返回具体消息
           }
+          return null; // 没有学生退队，返回 null
         }
       });
     },
@@ -123,14 +132,17 @@
       const c = {
         game,
         PROVINCES: ctx.PROVINCES || window.PROVINCES,
-        constants: Object.assign({}, ctx.constants || {}, {
+        // Use window defaults first, then override with ctx.constants if provided.
+        // This prevents window.<CONST> being undefined (because `const` at top-level
+        // doesn't always create window properties) from overwriting valid ctx values.
+        constants: Object.assign({}, {
           BASE_SICK_PROB: window.BASE_SICK_PROB,
           SICK_PROB_FROM_COLD_HOT: window.SICK_PROB_FROM_COLD_HOT,
           QUIT_PROB_BASE: window.QUIT_PROB_BASE,
           QUIT_PROB_PER_EXTRA_PRESSURE: window.QUIT_PROB_PER_EXTRA_PRESSURE,
           EXTREME_COLD_THRESHOLD: window.EXTREME_COLD_THRESHOLD,
           EXTREME_HOT_THRESHOLD: window.EXTREME_HOT_THRESHOLD
-        }),
+        }, ctx.constants || {}),
         utils: ctx.utils || {
           uniform: window.uniform,
           uniformInt: window.uniformInt,
@@ -143,8 +155,12 @@
       for(let evt of this._events.slice()){
         try{
           if(evt.check(c)){
-            evt.run && evt.run(c);
-            window.showEventModal && window.showEventModal({ name: evt.name, description: evt.description, week: game.week });
+            const runResult = evt.run && evt.run(c);
+            // 如果 run 返回了具体的消息，则使用该消息，否则使用通用描述
+            if (runResult !== null) { // 仅当事件实际发生时才显示弹窗
+                const description = typeof runResult === 'string' ? runResult : evt.description;
+                window.showEventModal && window.showEventModal({ name: evt.name, description: description, week: game.week });
+            }
           }
         }catch(e){
           console.error('EventManager error', evt.id, e);

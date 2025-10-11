@@ -414,9 +414,20 @@ function pushEvent(msg){
 
   // 保留日志
   log(`[${ev.week}] ${ev.name? ev.name + '：' : ''}${ev.description}`);
-  // push to recent list (keep up to 12 events)
-  recentEvents.unshift(ev);
-  if(recentEvents.length > 12) recentEvents.pop();
+  // avoid exact-duplicate events (same week+description)
+  try{
+    const key = `${ev.week}::${(ev.name||'')}::${(ev.description||'')}`;
+    const exists = recentEvents.some(r => (`${r.week}::${(r.name||'')}::${(r.description||'')}`) === key);
+    if(!exists){
+      // push to recent list (keep up to 24 events) - still cap to avoid growing forever
+      recentEvents.unshift(ev);
+      if(recentEvents.length > 24) recentEvents.pop();
+    }
+  }catch(e){
+    // fallback: if anything goes wrong, still push but keep small cap
+    recentEvents.unshift(ev);
+    if(recentEvents.length > 24) recentEvents.pop();
+  }
 
   // render dynamic event cards container
   renderEventCards();
@@ -426,6 +437,7 @@ function pushEvent(msg){
 function renderEventCards(){
   const container = document.getElementById('event-cards-container');
   if(!container) return;
+  // clear container before render to avoid duplicate DOM nodes
   container.innerHTML = '';
   if(recentEvents.length === 0){
     // show placeholder card similar to original
@@ -435,14 +447,25 @@ function renderEventCards(){
     container.appendChild(el);
     return;
   }
-  // for each recent event create a card with title=event name or '突发事件', desc=description
+  // only render events from the last 2 weeks (inclusive)
+  const maxWeekDelta = 2;
+  const nowWeek = game ? game.week : (new Date().getWeek ? new Date().getWeek() : 0);
+  let shown = 0;
   for(let ev of recentEvents){
+    if(typeof ev.week === 'number'){
+      const delta = nowWeek - ev.week;
+      if(delta > maxWeekDelta) continue; // too old
+    }
+    // create card
     let card = document.createElement('div');
     card.className = 'action-card event-active';
     let title = ev.name || '突发事件';
     let desc = ev.description || '';
     card.innerHTML = `<div class="card-title">${title}</div><div class="card-desc">${desc}</div>`;
     container.appendChild(card);
+    shown++;
+    // safety cap: show at most 6 cards to keep UI tidy
+    if(shown >= 6) break;
   }
 }
 
@@ -1326,6 +1349,9 @@ window.onload = ()=>{
   // 注册默认事件到事件管理器（如果可用）
   if(window.EventManager && typeof window.EventManager.registerDefaultEvents === 'function'){
     try{
+      // Inject the simple logger (log) - NOT pushEvent. Passing pushEvent here caused
+      // EventManager to call pushEvent when it intended to only log text, creating
+      // duplicate event cards. Use `log` to write to the log area without creating cards.
       window.EventManager.registerDefaultEvents({
         game: game,
         PROVINCES: PROVINCES,
@@ -1338,7 +1364,7 @@ window.onload = ()=>{
           EXTREME_HOT_THRESHOLD: EXTREME_HOT_THRESHOLD
         },
         utils: { uniform: uniform, uniformInt: uniformInt, normal: normal, clamp: clamp, clampInt: clampInt },
-        log: pushEvent
+        log: log
       });
     }catch(e){ console.error('registerDefaultEvents failed', e); }
   }
@@ -1385,7 +1411,9 @@ window.onload = ()=>{
     };
   };
   document.getElementById('action-save').onclick = ()=>{ if(confirm("保存进度？（将覆盖本地存档）")) saveGame(); else if(confirm("载入存档？")) loadGame(); };
-  document.getElementById('action-evict').onclick = ()=>{ evictStudentUI(); };
+  // action-evict 在某些 UI 版本中可能不存在，添加存在性检查以免抛出错误中断后续绑定
+  const actionEvictBtn = document.getElementById('action-evict');
+  if(actionEvictBtn) actionEvictBtn.onclick = ()=>{ evictStudentUI(); };
   // bind inline upgrade buttons under facilities (if present)
   document.querySelectorAll('.btn.upgrade').forEach(b => {
     b.onclick = (e) => {
