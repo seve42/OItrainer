@@ -22,6 +22,10 @@ input[type="number"], select, input[type="text"]{width:100%;padding:6px;border:1
 .prov-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:4px}
 .prov-btn{background:var(--accent);color:#fff;border:none;padding:8px 12px;border-radius:6px;cursor:pointer}
 .prov-btn.selected{box-shadow:0 0 0 2px #333 inset}
+/* option card (used in entertainment modal) */
+.option-card{transition:all 180ms ease;border:1px solid #e6e6e6;background:#fff}
+.option-card:hover{transform:translateY(-3px);box-shadow:0 6px 18px rgba(0,0,0,0.06)}
+.option-card.selected{border-color:var(--accent);background:linear-gradient(180deg, rgba(43,108,176,0.03), rgba(43,108,176,0.01));box-shadow:0 6px 20px rgba(43,108,176,0.12);transform:translateY(-2px)}
 /* theme swatches */
 .theme-swatch{display:inline-block;width:16px;height:16px;border-radius:50%;cursor:pointer;margin-left:4px;border:1px solid #ccc;vertical-align:middle}
 body.theme-red{--accent:#e53e3e;--bg:#fff5f5;--card:#ffffff;--muted:#666}
