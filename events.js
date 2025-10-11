@@ -184,7 +184,7 @@
         description: '比赛佳绩后获得额外经费与声誉提升',
         check: c => c.game.recentSuccess && (c.game.week - (c.game.recentSuccessWeek||0)) <= 2 && Math.random() < 0.5,
         run: c => {
-          const gain = c.utils.uniformInt(10000, 30000);
+          const gain = c.utils.uniformInt(5000, 10000);
           c.game.budget = (c.game.budget || 0) + gain;
           c.game.reputation = Math.min(100, c.game.reputation + 3);
           const msg = `收到上级拨款 ¥${gain}，声誉提升 +3`;
@@ -362,6 +362,8 @@
           return null;
         }
       });
+
+      
     },
 
     // 主调度：逐个事件执行 check/run

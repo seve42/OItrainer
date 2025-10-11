@@ -414,7 +414,18 @@ class GameState {
     if(this.is_north && this.week >=27 && this.week <=39 && Math.random()<0.3) this.weather="雪";
   }
   getFutureExpense(){
-    return this.getWeeklyCost()*4;
+    // 将未来费用按活跃人数系数显示（人数 * 0.3）
+    const weekly = this.getWeeklyCost();
+    const activeCount = Array.isArray(this.students) ? this.students.filter(s=>s.active).length : 0;
+    const mult = activeCount * 0.3;
+    return Math.round(weekly * 4 * mult);
+  }
+  // 返回用于调整支出的系数：人数 * 0.3
+  getExpenseMultiplier(){
+    try{
+      const activeCount = Array.isArray(this.students) ? this.students.filter(s=>s.active).length : 0;
+      return Math.max(0, activeCount * 0.3);
+    }catch(e){ return 1.0; }
   }
   getWeatherDescription(){
     let desc = this.weather;
@@ -703,7 +714,10 @@ function showChoiceModal(evt){
 // Debug helper: 在控制台调用 testShowChoiceModal() 可以弹出一个示例选择弹窗
 function testShowChoiceModal(){
   const options = [
-    { label: '接受', effect: () => { game.budget = Math.max(0, game.budget - 5000); log('测试：已接受，扣除经费'); } },
+    { label: '接受', effect: () => { 
+        const raw = 5000; const adj = Math.round(raw * (game.getExpenseMultiplier ? game.getExpenseMultiplier() : 1));
+        game.budget = Math.max(0, game.budget - adj); log(`测试：已接受，扣除经费 ¥${adj}`);
+      } },
     { label: '拒绝', effect: () => { log('测试：已拒绝'); } }
   ];
   showChoiceModal({ name: '测试选择事件', description: '这是一个用于验证的测试弹窗。', week: game.week, options });
@@ -1375,8 +1389,11 @@ function checkRandomEvents(){
         const origShowEventModal = window.showEventModal;
         const origShowChoiceModal = window.showChoiceModal;
         try{
+          // Only suppress non-interactive event modals during competition weeks or one-time suppression.
+          // Choice modals (that require player input) should still be allowed so the player can
+          // respond to invitations/choices even during competition weeks.
           window.showEventModal = function(evt){ try{ if(window.pushEvent) window.pushEvent(evt); }catch(e){} };
-          window.showChoiceModal = function(evt){ try{ if(window.pushEvent) window.pushEvent({ name: evt.name || '选择事件', description: evt.description || '', week: evt.week || game.week }); }catch(e){} };
+          // Keep choice modal intact to allow player interaction. Do NOT override window.showChoiceModal here.
           window.EventManager.checkRandomEvents(game);
         }finally{
           // restore originals
@@ -1422,7 +1439,10 @@ function weeklyUpdate(weeks=1){
     s.pressure = Math.min(100, s.pressure);
   }
   for(let i=0;i<weeks;i++){
-    game.budget -= game.getWeeklyCost();
+    // 周度支出按人数系数调整
+    const weeklyRaw = game.getWeeklyCost();
+    const weeklyAdj = Math.round(weeklyRaw * (game.getExpenseMultiplier ? game.getExpenseMultiplier() : 1));
+    game.budget -= weeklyAdj;
     game.week++;
     game.updateWeather();
   }
@@ -1450,7 +1470,8 @@ function weeklyUpdate(weeks=1){
 function safeWeeklyUpdate(weeks = 1) {
   // 如果当前经费不足以维持下一周，则直接触发坏结局并跳转到结算页
   try{
-    const nextWeekCost = game.getWeeklyCost();
+    const nextWeekCostRaw = game.getWeeklyCost();
+    const nextWeekCost = Math.round(nextWeekCostRaw * (game.getExpenseMultiplier ? game.getExpenseMultiplier() : 1));
     if(typeof nextWeekCost === 'number' && game.budget < nextWeekCost){
       try{ pushEvent('经费不足，无法继续下一周，触发坏结局'); }catch(e){}
       try{
@@ -1611,12 +1632,13 @@ function holdMockContestUI(){
       questionTagsArray.push(tags);
     }
     closeModal();
-    // if purchased, charge
+    // if purchased, charge (按人数系数调整)
     if(isPurchased){
       let cost = uniformInt(MOCK_CONTEST_PURCHASE_MIN_COST, MOCK_CONTEST_PURCHASE_MAX_COST);
-      if(game.budget < cost){ alert("经费不足，无法购买题目"); return; }
-      game.budget -= cost;
-      log(`购买模拟赛题目，花费 ¥${cost}`);
+      const adj = Math.round(cost * (game.getExpenseMultiplier ? game.getExpenseMultiplier() : 1));
+      if(game.budget < adj){ alert("经费不足，无法购买题目"); return; }
+      game.budget -= adj;
+      log(`购买模拟赛题目，基础 ¥${cost}，调整后 ¥${adj}`);
     } else {
       log("参加网赛（免费）");
     }
@@ -1660,8 +1682,10 @@ function entertainmentUI(){
     let cost = opt.cost;
     // ID-based checks: 5 == 打CS
     if(opt.id === 5 && game.facilities.computer < 3){ alert("需要计算机等级 ≥ 3"); return; }
-    if(game.budget < cost){ alert("经费不足"); return; }
-    game.budget -= cost;
+  // 娱乐费用按人数系数调整
+  const costAdj = Math.round(cost * (game.getExpenseMultiplier ? game.getExpenseMultiplier() : 1));
+  if(game.budget < costAdj){ alert("经费不足"); return; }
+  game.budget -= costAdj;
     closeModal();
       // apply quick entertainment logic based on numeric id
       for(let s of game.students){
@@ -1780,10 +1804,12 @@ function upgradeFacility(f){
   if(current >= max){ alert("已达最高等级"); return; }
   let cost = game.facilities.getUpgradeCost(f);
   if(!confirm(`升级到 ${current+1} 级 需要 ¥${cost}，确认？`)) return;
-  if(game.budget < cost){ alert("经费不足"); return; }
-  game.budget -= cost;
+  // 升级费用按人数系数调整
+  const costAdj = Math.round(cost * (game.getExpenseMultiplier ? game.getExpenseMultiplier() : 1));
+  if(game.budget < costAdj){ alert("经费不足"); return; }
+  game.budget -= costAdj;
   game.facilities.upgrade(f);
-  log(`设施升级：${f} 到等级 ${current+1}（花费 ¥${cost}）`);
+  log(`设施升级：${f} 到等级 ${current+1}（基础 ¥${cost}，调整后 ¥${costAdj}）`);
   renderAll();
 }
 
