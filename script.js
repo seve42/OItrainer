@@ -395,23 +395,39 @@ class GameState {
 const WEEKS_PER_HALF = Math.floor(SEASON_WEEKS / 2);
 let competitions = [];
 if(Array.isArray(COMPETITION_SCHEDULE)){
-  const scale = SEASON_WEEKS / ORIGINAL_SEASON_WEEKS;
-  // 第一季（缩放周数）
-  for(let c of COMPETITION_SCHEDULE){
-    let newWeek = Math.max(1, Math.round(c.week * scale));
-    let copy = Object.assign({}, c);
+  // 使用原始赛季周数的相对位置，分别映射到第一半季和第二半季
+  // 这样可以保证两轮的周数区间互不重叠
+  const totalOrig = ORIGINAL_SEASON_WEEKS;
+  const firstHalfSize = WEEKS_PER_HALF; // weeks allocated to first half: [1 .. WEEKS_PER_HALF]
+  const secondHalfSize = SEASON_WEEKS - WEEKS_PER_HALF; // weeks allocated to second half: [WEEKS_PER_HALF+1 .. SEASON_WEEKS]
+
+  for (let name of COMPETITION_ORDER) {
+    const src = COMPETITION_SCHEDULE.find(c => c.name === name);
+    if (!src) continue;
+    // normalized position in original season [0..1]
+    const p = (src.week - 1) / Math.max(1, (totalOrig - 1));
+    // map to first half range
+    let newWeek = 1 + Math.round(p * Math.max(0, firstHalfSize - 1));
+    if (newWeek < 1) newWeek = 1;
+    if (newWeek > firstHalfSize) newWeek = firstHalfSize;
+    let copy = Object.assign({}, src);
     copy.week = newWeek;
     competitions.push(copy);
   }
-  // 第二季：将周数偏移到后一半
-  for(let c of COMPETITION_SCHEDULE){
-    let newWeek = Math.max(1, Math.round(c.week * scale));
-    let copy = Object.assign({}, c);
-    copy.week = newWeek + WEEKS_PER_HALF;
-    if(copy.week > SEASON_WEEKS) copy.week = SEASON_WEEKS;
+
+  for (let name of COMPETITION_ORDER) {
+    const src = COMPETITION_SCHEDULE.find(c => c.name === name);
+    if (!src) continue;
+    const p = (src.week - 1) / Math.max(1, (totalOrig - 1));
+    // map to second half range (offset by WEEKS_PER_HALF)
+    let newWeek2 = WEEKS_PER_HALF + 1 + Math.round(p * Math.max(0, secondHalfSize - 1));
+    if (newWeek2 < WEEKS_PER_HALF + 1) newWeek2 = WEEKS_PER_HALF + 1;
+    if (newWeek2 > SEASON_WEEKS) newWeek2 = SEASON_WEEKS;
+    let copy = Object.assign({}, src);
+    copy.week = newWeek2;
     competitions.push(copy);
   }
-  competitions.sort((a,b)=>a.week - b.week);
+  // 此处故意保持添加顺序（不进行全局按周排序），以确保比赛在 UI/逻辑中按 CSP-S1->CSP-S2->NOIP->省选->NOI 的顺序出现
 } else {
   competitions = [];
 }
