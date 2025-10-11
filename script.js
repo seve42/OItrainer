@@ -1022,7 +1022,7 @@ function weeklyUpdate(weeks=1){
   if(game.weeks_since_good_result > 12) game.had_good_result_recently = false;
   checkRandomEvents();
   // 如果到达第二赛季末（累计周数 >= SEASON_WEEKS），优先检查本周是否有未完成的正式比赛（如有则先打开比赛模态，赛季结算延后）
-  if(currWeek() >= SEASON_WEEKS && !game.seasonEndTriggered){
+  if(currWeek() > SEASON_WEEKS && !game.seasonEndTriggered){
     try{
   const compThisWeek = Array.isArray(competitions) ? competitions.find(c => c.week === currWeek()) : null;
   const halfIndex = (currWeek() > WEEKS_PER_HALF) ? 1 : 0;

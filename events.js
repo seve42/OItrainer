@@ -189,8 +189,8 @@
           c.game.reputation = Math.min(100, c.game.reputation + 3);
           const msg = `收到上级拨款 ¥${gain}，声誉提升 +3`;
           c.log && c.log(`[上级拨款] ${msg}`);
-          // 事件卡仅显示金额以保持简洁
-          window.pushEvent && window.pushEvent({ name:'上级拨款', description: `¥${gain}`, week: c.game.week });
+          // 事件卡显示完整影响（金额 + 简短说明），以便玩家一目了然
+          window.pushEvent && window.pushEvent({ name:'上级拨款', description: `${msg}`, week: c.game.week });
           return msg;
         }
       });
@@ -293,10 +293,21 @@
                   s.coding = Math.min(100, s.coding + 1);
                   s.pressure = Math.min(100, s.pressure + 2);
                 }
+                // 推送事件卡说明：显示选择结果和造成的影响
+                const desc = `接受友校交流：经费 -¥5000，学生能力小幅提升，压力略增`;
+                window.pushEvent && window.pushEvent({ name: '友校交流邀请', description: desc, week: c.game.week });
               }
             },
             { label: '婉拒邀请', effect: () => { c.game.reputation = Math.max(0, c.game.reputation - 1); } }
           ];
+          // 为拒绝选项也加入 pushEvent 描述，需在 effect 内部处理
+          // 包装拒绝选项以便在执行时发送描述
+          options[1].effect = () => {
+            c.game.reputation = Math.max(0, c.game.reputation - 1);
+            const desc = `婉拒友校交流：声誉 -1`;
+            window.pushEvent && window.pushEvent({ name: '友校交流邀请', description: desc, week: c.game.week });
+          };
+
           window.showChoiceModal && window.showChoiceModal({ name: '友校交流邀请', description: '是否接受友校交流邀请？', week: c.game.week, options });
           return null;
         }
@@ -316,6 +327,25 @@
             },
             { label: '拒绝', effect: () => {} }
           ];
+          // 给选项 effect 添加事件卡描述
+          const origAccept = options[0].effect;
+          options[0].effect = () => {
+            const cost = c.utils.uniformInt(10000, 20000);
+            c.game.budget = Math.max(0, c.game.budget - cost);
+            c.game.students.push({ name: '新学生', active: true, thinking: 80, coding: 80, pressure: 30, comfort: 80 });
+            const desc = `接收新学生：经费 -¥${cost}，获得一名能力较强学生`;
+            window.pushEvent && window.pushEvent({ name: '学生自荐', description: desc, week: c.game.week });
+            // 保持原行为（如果有）
+            try{ origAccept(); }catch(e){}
+          };
+          const origReject = options[1].effect;
+          options[1].effect = () => {
+            c.game.reputation = Math.max(0, c.game.reputation - 0);
+            const desc = `拒绝新学生：暂无即时影响`;
+            window.pushEvent && window.pushEvent({ name: '学生自荐', description: desc, week: c.game.week });
+            try{ origReject(); }catch(e){}
+          };
+
           window.showChoiceModal && window.showChoiceModal({ name: '学生自荐', description: '一名学生想加入，是否接收？', week: c.game.week, options });
           return null;
         }
@@ -335,6 +365,20 @@
             },
             { label: '低调处理', effect: () => { c.game.reputation = Math.min(100, c.game.reputation + 2); } }
           ];
+          // 为每个选项添加 pushEvent 描述
+          const high = options[0].effect;
+          options[0].effect = () => {
+            high();
+            const desc = `高调宣传：声誉 +10，学生压力 +10`;
+            window.pushEvent && window.pushEvent({ name: '媒体采访请求', description: desc, week: c.game.week });
+          };
+          const low = options[1].effect;
+          options[1].effect = () => {
+            low();
+            const desc = `低调处理：声誉 +2`;
+            window.pushEvent && window.pushEvent({ name: '媒体采访请求', description: desc, week: c.game.week });
+          };
+
           window.showChoiceModal && window.showChoiceModal({ name: '媒体采访请求', description: '是否高调宣传？', week: c.game.week, options });
           return null;
         }
@@ -358,6 +402,24 @@
             },
             { label: '拒绝', effect: () => {} }
           ];
+          // 添加 pushEvent 到选项 effect 中以显示结果描述
+          const origAttend = options[0].effect;
+          options[0].effect = () => {
+            const gain = c.utils.uniformInt(20000, 50000);
+            c.game.budget += gain;
+            for (const s of c.game.students) if (s.active) {
+              s.pressure = Math.min(100, s.pressure + 10);
+              s.forget = (s.forget || 0) + 1;
+            }
+            const desc = `参加商业活动：经费 +¥${gain}，学生压力 +10，遗忘 +1`;
+            window.pushEvent && window.pushEvent({ name: '参加商业活动', description: desc, week: c.game.week });
+            try{ origAttend(); }catch(e){}
+          };
+          options[1].effect = () => {
+            const desc = `拒绝商业活动：保持现状`;
+            window.pushEvent && window.pushEvent({ name: '参加商业活动', description: desc, week: c.game.week });
+          };
+
           window.showChoiceModal && window.showChoiceModal({ name: '是否参加商业活动', description: '接受或拒绝商业活动？', week: c.game.week, options });
           return null;
         }
