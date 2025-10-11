@@ -1,6 +1,9 @@
 /* =================== 常量（与 C++ 保持一致） =================== */
 /* 时间与赛季 */
-const SEASON_WEEKS = 52;
+// 原始赛季长度（用于按比例缩放原始比赛日程）
+const ORIGINAL_SEASON_WEEKS = 52;
+// 缩短后的赛季长度（提高节奏）
+const SEASON_WEEKS = 26;
 /* 能力与知识权重 */
 const KNOWLEDGE_WEIGHT = 0.6;
 const ABILITY_WEIGHT = 0.4;
@@ -296,6 +299,8 @@ class GameState {
     this.weeks_since_good_result=0;
     this.noi_rankings=[];
     this.teaching_points=NORMAL_MODE_TEACHING_POINTS;
+    // 标记赛季结束结算（避免重复触发）
+    this.seasonEndTriggered = false;
   }
   getWeatherFactor(){
     let factor=1.0;
@@ -328,10 +333,13 @@ class GameState {
     return 1.0;
   }
   getNextCompetition(){
-    for(let comp of COMPETITION_SCHEDULE){
-      if(comp.week > this.week){
-        let weeks_left = comp.week - this.week;
-        return comp.name + " (还有" + weeks_left + "周)";
+    // 使用运行时生成的 `competitions`（已为两季）来计算下场比赛
+    if(typeof competitions !== 'undefined'){
+      for(let comp of competitions){
+        if(comp.week > this.week){
+          let weeks_left = comp.week - this.week;
+          return comp.name + " (还有" + weeks_left + "周)";
+        }
       }
     }
     return "无";
@@ -375,8 +383,32 @@ class GameState {
   }
 }
 
-/* =========== 比赛数据复刻 =========== */
-let competitions = COMPETITION_SCHEDULE.map(c => ({...c}));
+/* =========== 比赛数据复刻（两赛季） =========== */
+// 将原始 COMPETITION_SCHEDULE（基于 ORIGINAL_SEASON_WEEKS）按比例缩放到当前 SEASON_WEEKS
+// 并复制为两季（第二季偏移半季长度）
+const WEEKS_PER_HALF = Math.floor(SEASON_WEEKS / 2);
+let competitions = [];
+if(Array.isArray(COMPETITION_SCHEDULE)){
+  const scale = SEASON_WEEKS / ORIGINAL_SEASON_WEEKS;
+  // 第一季（缩放周数）
+  for(let c of COMPETITION_SCHEDULE){
+    let newWeek = Math.max(1, Math.round(c.week * scale));
+    let copy = Object.assign({}, c);
+    copy.week = newWeek;
+    competitions.push(copy);
+  }
+  // 第二季：将周数偏移到后一半
+  for(let c of COMPETITION_SCHEDULE){
+    let newWeek = Math.max(1, Math.round(c.week * scale));
+    let copy = Object.assign({}, c);
+    copy.week = newWeek + WEEKS_PER_HALF;
+    if(copy.week > SEASON_WEEKS) copy.week = SEASON_WEEKS;
+    competitions.push(copy);
+  }
+  competitions.sort((a,b)=>a.week - b.week);
+} else {
+  competitions = [];
+}
 
 /* =========== 全局游戏对象 =========== */
 let game = new GameState();
@@ -521,7 +553,7 @@ function renderAll(){
     let pressureClass = s.pressure < 35 ? "pressure-low" : s.pressure < 65 ? "pressure-mid" : "pressure-high";
   // 计算模糊资质与能力等级：思维能力 & 心理素质
   let aptitudeVal = 0.5 * s.thinking + 0.5 * s.mental;
-    let aptitudeGrade = getLetterGrade(Math.floor(aptitudeVal));
+  let aptitudeGrade = getLetterGrade(Math.floor(aptitudeVal));
   // 能力 = 各能力平均 + 各知识点方差加权
   let abilityAvg = s.getAbilityAvg();
   // 计算知识方差
@@ -558,10 +590,33 @@ function renderAll(){
   });
   // render dynamic event cards
   renderEventCards();
+
+  // Competition-week: inject single "参加比赛" action and hide others
+  const compNow = competitions.find(c => c.week === game.week);
+  const actionContainer = document.querySelector('.action-cards');
+  if (compNow) {
+    // inject comp-only action if not exists
+    if (!document.getElementById('comp-only-action')) {
+      const compCard = document.createElement('div');
+      compCard.className = 'action-card'; compCard.id = 'comp-only-action'; compCard.setAttribute('role','button'); compCard.tabIndex = 0;
+      compCard.innerHTML = `<div class="card-title">参加比赛【${compNow.name}】</div>`;
+      compCard.onclick = () => { holdCompetitionModal(compNow); };
+      actionContainer.appendChild(compCard);
+    }
+    document.body.classList.add('comp-week');
+  } else {
+    document.body.classList.remove('comp-week');
+    const compCard = document.getElementById('comp-only-action');
+    if (compCard) compCard.remove();
+  }
 }
 
+// Returns competition object if this week has one, otherwise null
+
+// Render a minimal UI that shows only the "参加比赛" button and auto-starts the competition.
+
 /* ======= 主要逻辑函数（训练/集训/活动/周结算/随机事件/比赛等） ======= */
-/* 训练（2周） */
+/* 训练（1周） */
 function trainStudents(topic,intensity){
   log(`开始 ${topic} 训练（${intensity===1?'轻':intensity===2?'中':'重'}）`);
   let weather_factor = game.getWeatherFactor();
@@ -609,8 +664,8 @@ function trainStudents(topic,intensity){
     if(s.sick_weeks > 0) pressure_increase += 10;
     s.pressure += pressure_increase;
   }
-  game.weeks_since_entertainment += 2;
-  log("训练结束（2周）。");
+  game.weeks_since_entertainment += 1;
+    log("训练结束（1周）。");
 }
 
 /* 外出集训（略） - 保持与前版本一致（不改动逻辑，仅 UI 触发） */
@@ -655,8 +710,8 @@ function outingTraining(difficulty_choice, province_choice){
     s.thinking = Math.min(100,s.thinking); s.coding = Math.min(100,s.coding); s.mental = Math.min(100,s.mental);
     s.pressure += pressure_gain; s.comfort -= 10;
   }
-  game.weeks_since_entertainment += 2;
-  log("外出集训完成（2周）。");
+  game.weeks_since_entertainment += 1;
+    log("外出集训完成（1周）。");
 }
 
 /* 模拟赛：支持每题多 tag、难度显示为等级（MOCK_CONTEST_DIFFICULTIES），并在弹窗里显示每题得分表格
@@ -756,7 +811,7 @@ function holdMockContestModal(isPurchased, diffIdx, questionTagsArray){
       s.pressure += pressure_gain;
     }
     closeModal();
-    log("模拟赛结果已应用（2周结算后的效果）。");
+    log("模拟赛结果已应用（1周结算后的效果）。");
     renderAll();
   };
 }
@@ -919,6 +974,8 @@ function holdCompetitionModal(comp){
     }
     closeModal();
     log(`${comp.name} 结果已应用`);
+    // advance to next week after competition
+    safeWeeklyUpdate(1);
     renderAll();
   };
 }
@@ -936,7 +993,7 @@ function checkRandomEvents(){
 }
 
 /* 周结算（默认 2 周） */
-function weeklyUpdate(weeks=2){
+function weeklyUpdate(weeks=1){
   let comfort = game.getComfort();
   for(let s of game.students) if(s.sick_weeks > 0) s.sick_weeks--;
   for(let s of game.students){
@@ -967,22 +1024,30 @@ function weeklyUpdate(weeks=2){
   game.weeks_since_good_result += weeks;
   if(game.weeks_since_good_result > 12) game.had_good_result_recently = false;
   checkRandomEvents();
+  // 如果到达第二赛季末（累计周数 >= SEASON_WEEKS），触发赛季结算一次
+  if(game.week >= SEASON_WEEKS && !game.seasonEndTriggered){
+    game.seasonEndTriggered = true;
+    let ending = checkEnding();
+    try{ pushEvent(`赛季结束：${ending}`); }catch(e){}
+    // 弹窗提示结局
+    showModal(`<h3>赛季结束</h3><div class="small">本轮赛季结算：${ending}</div><div style="text-align:right;margin-top:8px"><button class="btn" onclick="closeModal()">关闭</button></div>`);
+  }
   renderAll();
 }
 // 安全的周更新：在多周跳转时不跳过即将到来的比赛
-function safeWeeklyUpdate(weeks = 2) {
+function safeWeeklyUpdate(weeks = 1) {
   let nextComp = competitions.find(c => c.week > game.week);
   let weeksToComp = nextComp ? (nextComp.week - game.week) : Infinity;
-  if (weeksToComp <= weeks) {
-    // 跳转至比赛周
-    weeklyUpdate(weeksToComp);
-    checkCompetitions();
-    // 剩余周数继续更新
-    let rem = weeks - weeksToComp;
-    if (rem > 0) weeklyUpdate(rem);
-  } else {
-    weeklyUpdate(weeks);
-  }
+    if (weeksToComp <= weeks) {
+      // 跳转至比赛周
+      weeklyUpdate(weeksToComp);
+      // Removed automatic competition popup; user must click button
+      // 剩余周数继续更新
+      let rem = weeks - weeksToComp;
+      if (rem > 0) weeklyUpdate(rem);
+    } else {
+      weeklyUpdate(weeks);
+    }
 }
 
 /* 检查并在比赛周“只弹窗显示比赛” */
@@ -1042,7 +1107,7 @@ function trainStudentsUI(){
     </div>
     <div style="margin-top:12px;text-align:right">
       <button class="btn btn-ghost" onclick="closeModal()">取消</button>
-      <button class="btn" id="train-confirm">开始训练（2周）</button>
+  <button class="btn" id="train-confirm">开始训练（1周）</button>
     </div>`);
 
   // wire up selection behavior
@@ -1063,10 +1128,9 @@ function trainStudentsUI(){
   // 安全更新：判断下场比赛周数，避免培训跳过比赛
   let nextComp = competitions.find(c => c.week > game.week);
   let weeksToComp = nextComp ? (nextComp.week - game.week) : Infinity;
-  let advance = (weeksToComp >= 2) ? 2 : weeksToComp;
+  let advance = Math.min(1, weeksToComp);
   safeWeeklyUpdate(advance);
-    checkCompetitions();
-    renderAll();
+  renderAll();
   };
 }
 
@@ -1074,7 +1138,7 @@ function trainStudentsUI(){
 function holdMockContestUI(){
   // Purchase option + difficulty level (labels) + 4 questions each multi-select checkboxes for tags
   let kpHtml = KP_OPTIONS.map(k=>`<label style="margin-right:8px"><input type="checkbox" class="kp-option" value="${k.name}"> ${k.name}</label>`).join("<br/>");
-  showModal(`<h3>配置模拟赛（2周）</h3>
+  showModal(`<h3>配置模拟赛（1周）</h3>
     <div><label class="block">是否购买题目</label><select id="mock-purchase"><option value="0">否（网赛）</option><option value="1">是（付费）</option></select></div>
     <div style="margin-top:8px"><label class="block">难度等级</label>
       <select id="mock-diff">${MOCK_CONTEST_DIFFICULTIES.map((d,i)=>`<option value="${i}">${d}</option>`).join('')}</select>
@@ -1084,7 +1148,7 @@ function holdMockContestUI(){
     </div>
     <div style="margin-top:10px;text-align:right">
       <button class="btn btn-ghost" onclick="closeModal()">取消</button>
-      <button class="btn" id="mock-submit">开始模拟赛（2周）</button>
+  <button class="btn" id="mock-submit">开始模拟赛（1周）</button>
     </div>`);
   $('mock-submit').onclick = ()=>{
     // read config
@@ -1114,8 +1178,7 @@ function holdMockContestUI(){
     }
     // show modal results and apply after user confirms
   holdMockContestModal(isPurchased, diffIdx, questionTagsArray);
-  safeWeeklyUpdate(2);
-    checkCompetitions(); // note: competitions (official) will open modal separately if scheduled
+  safeWeeklyUpdate(1);
     renderAll();
   };
 }
@@ -1136,7 +1199,7 @@ function entertainmentUI(){
       <div class="card-desc small muted">${o.desc}</div>
     </div>
   `).join('');
-  showModal(`<h3>娱乐活动（2周）</h3>
+  showModal(`<h3>娱乐活动（1周）</h3>
     <div style="display:flex;gap:12px;overflow-x:auto;">${cardsHtml}</div>
     <div style="margin-top:12px;text-align:right">
       <button class="btn btn-ghost" onclick="closeModal()">取消</button>
@@ -1165,8 +1228,8 @@ function entertainmentUI(){
         else if(type==="打CS"){ s.mental += uniform(10,24); s.coding += uniform(2.0,3.0); s.pressure = Math.max(0, s.pressure - uniform(30,50)); }
         s.mental = Math.min(100, s.mental);
       }
-  game.weeks_since_entertainment += 2;
-  safeWeeklyUpdate(2);
+  game.weeks_since_entertainment += 1;
+  safeWeeklyUpdate(1);
     renderAll();
     log("娱乐活动完成");
   };
@@ -1179,7 +1242,7 @@ function takeVacationUI(){
   $('vac-confirm').onclick = ()=>{
     let days = clampInt(parseInt($('vac-days').value),1,VACATION_MAX_DAYS);
     closeModal();
-    let weeks = Math.floor((days+1)/2);
+  let weeks = Math.ceil(days / 7);
     if(!confirm(`放假 ${days} 天，将跳过 ${weeks} 周，确认？`)) return;
     for(let s of game.students){
       if(!s.active) continue;
@@ -1273,14 +1336,13 @@ function upgradeFacility(f){
   renderAll();
 }
 
-/* 休息 2 周 */
-function rest2Weeks(){
-  log("休息2周...");
-  for(let s of game.students) if(s.active){ s.pressure = Math.max(0,s.pressure - uniform(16,36)); s.mental = Math.min(100, s.mental + uniform(0.4,1.6)); }
-  // 安全更新，避免休息2周跳过比赛
-  safeWeeklyUpdate(2);
+/* 休息 1 周 */
+function rest1Week(){
+  log("休息1周...");
+  for(let s of game.students) if(s.active){ s.pressure = Math.max(0, s.pressure - uniform(16,36)); s.mental = Math.min(100, s.mental + uniform(0.4,1.6)); }
+  // 安全更新，避免休息1周跳过比赛
+  safeWeeklyUpdate(1);
   renderAll();
-  checkCompetitions();
 }
 
 /* 保存/载入（localStorage 简易） */
@@ -1404,10 +1466,9 @@ window.onload = ()=>{
       const p = parseInt(document.querySelector('#out-prov-grid .prov-btn.selected').dataset.val);
       closeModal();
   outingTraining(d, p);
-  // 安全更新，避免外出集训跳过比赛
-  safeWeeklyUpdate(2);
-  renderAll();
-  checkCompetitions();
+      // 安全更新，避免外出集训跳过比赛
+      safeWeeklyUpdate(1);
+      renderAll();
     };
   };
   document.getElementById('action-save').onclick = ()=>{ if(confirm("保存进度？（将覆盖本地存档）")) saveGame(); else if(confirm("载入存档？")) loadGame(); };

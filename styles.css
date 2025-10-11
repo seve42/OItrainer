@@ -94,3 +94,10 @@ th,td{padding:6px;border:1px solid #eee;text-align:center}
 .event-list{max-height:140px;overflow:auto;padding:6px;border-radius:6px;background:linear-gradient(180deg, rgba(0,0,0,0.01), transparent)}
 .event-item{padding:6px;border-bottom:1px dashed #eee;font-size:13px}
 .event-item:last-child{border-bottom:none}
+
+/* Competition-week mode: only show the '参加比赛' card */
+body.comp-week .action-cards .action-card:not(#comp-only-action) {
+	display: none;
+}
+
+
