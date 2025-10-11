@@ -1368,6 +1368,18 @@ function holdCompetitionModal(comp){
     try{ game.suppressEventModalOnce = true; }catch(e){}
     renderAll();
   };
+
+  // 在应用比赛结果后，若当前周已达到赛季末且尚未结算，则立即触发赛季结算（确保最终比赛结果被纳入结算）
+  try{
+    if(game.week >= SEASON_WEEKS && !game.seasonEndTriggered){
+      // mark and save
+      game.seasonEndTriggered = true;
+      let ending = checkEnding();
+      try{ pushEvent(`赛季结束：${ending}`); }catch(e){}
+      try{ localStorage.setItem('oi_coach_save', JSON.stringify(game)); localStorage.setItem('oi_coach_ending', ending); }catch(e){}
+      showModal(`<h3>赛季结束</h3><div class="small">本轮赛季结算：${ending}</div><div style="text-align:right;margin-top:8px"><button class="btn" onclick="(function(){ closeModal(); window.location.href='end.html'; })()">查看结算页面</button></div>`);
+    }
+  }catch(e){ console.error('post-competition season-end check failed', e); }
 }
 
 /* 随机事件（和周结算） - 使用 events.js 的 EventManager 调度，可扩展 */
@@ -1450,19 +1462,29 @@ function weeklyUpdate(weeks=1){
   game.weeks_since_good_result += weeks;
   if(game.weeks_since_good_result > 12) game.had_good_result_recently = false;
   checkRandomEvents();
-  // 如果到达第二赛季末（累计周数 >= SEASON_WEEKS），触发赛季结算一次
+  // 如果到达第二赛季末（累计周数 >= SEASON_WEEKS），优先检查本周是否有未完成的正式比赛（如有则先打开比赛模态，赛季结算延后）
   if(game.week >= SEASON_WEEKS && !game.seasonEndTriggered){
-    game.seasonEndTriggered = true;
-    let ending = checkEnding();
-    try{ pushEvent(`赛季结束：${ending}`); }catch(e){}
-    // 保存结算到 localStorage 以便 end.html 展示，并跳转到结算页
     try{
-      // persist current game snapshot
-      localStorage.setItem('oi_coach_save', JSON.stringify(game));
-      localStorage.setItem('oi_coach_ending', ending);
-    }catch(e){}
-    // 同时弹窗提示并在关闭后跳转，或者直接跳转
-    showModal(`<h3>赛季结束</h3><div class="small">本轮赛季结算：${ending}</div><div style="text-align:right;margin-top:8px"><button class="btn" onclick="(function(){ closeModal(); window.location.href='end.html'; })()">查看结算页面</button></div>`);
+      const compThisWeek = Array.isArray(competitions) ? competitions.find(c => c.week === game.week) : null;
+      const halfIndex = (game.week > WEEKS_PER_HALF) ? 1 : 0;
+      const doneKey = compThisWeek ? `${halfIndex}_${compThisWeek.name}_${compThisWeek.week}` : null;
+      const isCompleted = compThisWeek && game.completedCompetitions && game.completedCompetitions.has(doneKey);
+      if(compThisWeek && !isCompleted){
+        // 在赛季最后一周有尚未完成的正式比赛：直接打开比赛模态，延后赛季结算
+        try{ holdCompetitionModal(compThisWeek); }catch(e){ console.error('open comp modal failed', e); }
+      } else {
+        // 无未完成比赛，正常触发赛季结算
+        game.seasonEndTriggered = true;
+        let ending = checkEnding();
+        try{ pushEvent(`赛季结束：${ending}`); }catch(e){}
+        // 保存结算到 localStorage 以便 end.html 展示，并跳转到结算页
+        try{
+          localStorage.setItem('oi_coach_save', JSON.stringify(game));
+          localStorage.setItem('oi_coach_ending', ending);
+        }catch(e){}
+        showModal(`<h3>赛季结束</h3><div class="small">本轮赛季结算：${ending}</div><div style="text-align:right;margin-top:8px"><button class="btn" onclick="(function(){ closeModal(); window.location.href='end.html'; })()">查看结算页面</button></div>`);
+      }
+    }catch(e){ console.error('season-end check failed', e); }
   }
   renderAll();
 }
@@ -1693,13 +1715,13 @@ function entertainmentUI(){
         if(opt.id === 1){ // 训话
           s.mental += uniform(3,7); s.pressure = Math.max(0, s.pressure - uniform(30,45));
         } else if(opt.id === 2){ // 吃饭
-          s.mental += uniform(8,20); s.pressure = Math.max(0, s.pressure - uniform(30,50));
+          s.mental += uniform(8,20); s.pressure = Math.max(0, s.pressure - uniform(40,55));
         } else if(opt.id === 3){ // 自由活动
-          let wf=1.0; if(game.weather==='雪') wf=2.0; else if(game.weather==='雨' && game.facilities.dorm<2) wf=0.5; s.pressure = Math.max(0, s.pressure - uniform(40,60)*wf); s.mental += uniform(3,8);
+          let wf=1.0; if(game.weather==='雪') wf=2.0; else if(game.weather==='雨' && game.facilities.dorm<2) wf=0.5; s.pressure = Math.max(0, s.pressure - uniform(20,35)*wf); s.mental += uniform(3,8);
         } else if(opt.id === 4){ // 打球
-          s.mental += uniform(8,16); s.pressure = Math.max(0, s.pressure - uniform(30,45));
+          s.mental += uniform(4,8); s.pressure = Math.max(0, s.pressure - uniform(20,35));
         } else if(opt.id === 5){ // 打CS
-          s.mental += uniform(10,24); s.coding += uniform(2.0,3.0); s.pressure = Math.max(0, s.pressure - uniform(30,50));
+          s.mental += uniform(1,5); s.coding += uniform(0.5,1.0); s.pressure = Math.max(0, s.pressure - uniform(10,20));
         }
         s.mental = Math.min(100, s.mental);
       }
