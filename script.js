@@ -1162,12 +1162,12 @@ function closeModal(){ $('modal-root').innerHTML = ''; }
 function trainStudentsUI(){
   // render training types as horizontal option cards (same style as 娱乐 modal)
   const types = [
-    {val:'数据结构', label:'数据结构', desc:'巩固常用数据结构与变形题型，提升解题效率'},
-    {val:'图论', label:'图论', desc:'图论基础与常见技巧，适合图论弱点补强'},
-    {val:'字符串', label:'字符串', desc:''},
-    {val:'数学', label:'数学', desc:''},
-    {val:'DP', label:'DP', desc:''},
-    {val:'综合', label:'综合训练', desc:'混合训练，覆盖多知识点，提升综合应对能力'}
+    {val:'数据结构', label:'数据结构', desc:'一定幅度提升数据结构技巧'},
+    {val:'图论', label:'图论', desc:'一定幅度提升图论技巧'},
+    {val:'字符串', label:'字符串', desc:'一定幅度提升字符串技巧'},
+    {val:'数学', label:'数学', desc:'一定幅度提升数学技巧'},
+    {val:'DP', label:'DP', desc:'一定幅度提升动态规划技巧'},
+    {val:'综合', label:'综合训练', desc:'混合训练，提升幅度细微，压力开销大'}
   ];
   const typeCards = types.map(t=>`
     <div class="prov-card option-card" data-val="${t.val}" style="min-width:140px;padding:10px;border-radius:6px;cursor:pointer;">
