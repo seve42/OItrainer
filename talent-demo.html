@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>天赋显示功能测试</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .demo-container {
+      max-width: 800px;
+      margin: 40px auto;
+      padding: 20px;
+    }
+    .demo-section {
+      margin-bottom: 30px;
+    }
+    .demo-controls {
+      margin: 20px 0;
+      padding: 15px;
+      background: #f0f0f0;
+      border-radius: 8px;
+    }
+    .demo-controls button {
+      margin: 5px;
+    }
+  </style>
+</head>
+<body>
+  <div class="demo-container">
+    <div class="panel">
+      <h1>天赋显示功能演示</h1>
+      <p class="small muted">此页面演示如何在学生卡片中显示天赋标签和悬停提示</p>
+    </div>
+
+    <div class="panel demo-section">
+      <h3>控制面板</h3>
+      <div class="demo-controls">
+        <button class="btn" onclick="addTalent()">添加随机天赋</button>
+        <button class="btn" onclick="removeTalent()">移除随机天赋</button>
+        <button class="btn" onclick="resetTalents()">重置天赋</button>
+        <button class="btn btn-ghost" onclick="addCustomTalent()">添加自定义天赋</button>
+      </div>
+    </div>
+
+    <div class="panel demo-section">
+      <h3>学生列表</h3>
+      <div id="student-list"></div>
+    </div>
+
+    <div class="panel demo-section">
+      <h3>当前已注册的天赋</h3>
+      <div id="talent-registry"></div>
+    </div>
+  </div>
+
+  <script src="lib/constants.js"></script>
+  <script src="lib/utils.js"></script>
+  <script src="lib/models.js"></script>
+  <script src="lib/talent.js"></script>
+  
+  <script>
+    // 初始化 TalentManager
+    window.TalentManager.registerDefaultTalents();
+
+    // 创建示例学生
+    const demoStudents = [
+      {
+        name: '张三',
+        thinking: 85,
+        coding: 80,
+        mental: 75,
+        talents: ['冷静', '好学']
+      },
+      {
+        name: '李四',
+        thinking: 78,
+        coding: 88,
+        mental: 82,
+        talents: ['天赋型', '专注', '敏锐']
+      },
+      {
+        name: '王五',
+        thinking: 92,
+        coding: 85,
+        mental: 70,
+        talents: ['稳健']
+      }
+    ];
+
+    let students = [];
+
+    function initStudents() {
+      students = demoStudents.map(data => {
+        const s = new Student(data.name, data.thinking, data.coding, data.mental);
+        data.talents.forEach(t => s.addTalent(t));
+        return s;
+      });
+    }
+
+    function renderStudents() {
+      const container = document.getElementById('student-list');
+      let html = '';
+
+      students.forEach((s, idx) => {
+        const comp = Math.floor(s.getComprehensiveAbility());
+        
+        // 生成天赋标签HTML
+        let talentsHtml = '';
+        if(s.talents && s.talents.size > 0){
+          const talentArray = Array.from(s.talents);
+          talentsHtml = talentArray.map(talentName => {
+            const talentInfo = window.TalentManager.getTalentInfo(talentName);
+            return `<span class="talent-tag" data-talent="${talentName}" style="background-color: ${talentInfo.color}20; color: ${talentInfo.color}; border-color: ${talentInfo.color}40;">
+              ${talentName}
+              <span class="talent-tooltip">${talentInfo.description}</span>
+            </span>`;
+          }).join('');
+        }
+
+        html += `<div class="student-box" style="margin-bottom:10px">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div><strong>${s.name}</strong></div>
+            <button class="btn btn-ghost" onclick="viewStudent(${idx})" style="padding: 4px 8px; font-size: 12px;">查看</button>
+          </div>
+          <div class="compact small" style="margin-top:3px">
+            实力: <progress value="${comp}" max="100" style="vertical-align:middle;width:70%;"></progress> ${comp}
+          </div>
+          <div class="compact small" style="margin-top:3px">
+            思维: ${s.thinking} | 编码: ${s.coding} | 心理: ${s.mental}
+          </div>
+          ${talentsHtml ? `<div class="student-talents" style="margin-top:8px">${talentsHtml}</div>` : '<div class="small muted" style="margin-top:8px">暂无天赋</div>'}
+        </div>`;
+      });
+
+      container.innerHTML = html || '<div class="muted">没有学生</div>';
+    }
+
+    function renderTalentRegistry() {
+      const container = document.getElementById('talent-registry');
+      const registered = window.TalentManager.getRegistered();
+      
+      let html = '<div class="student-talents" style="flex-wrap: wrap;">';
+      registered.forEach(name => {
+        const info = window.TalentManager.getTalentInfo(name);
+        html += `<span class="talent-tag" style="background-color: ${info.color}20; color: ${info.color}; border-color: ${info.color}40;">
+          ${name}
+          <span class="talent-tooltip">${info.description}</span>
+        </span>`;
+      });
+      html += '</div>';
+      
+      container.innerHTML = html;
+    }
+
+    // 控制函数
+    const availableTalents = ['冷静', '天赋型', '好学', '专注', '敏锐', '稳健', '顽强', '灵活'];
+
+    function addTalent() {
+      if (students.length === 0) return;
+      const student = students[Math.floor(Math.random() * students.length)];
+      const talent = availableTalents[Math.floor(Math.random() * availableTalents.length)];
+      
+      if (!student.hasTalent(talent)) {
+        student.addTalent(talent);
+        alert(`为 ${student.name} 添加了天赋：${talent}`);
+        renderStudents();
+      } else {
+        alert(`${student.name} 已经拥有天赋：${talent}`);
+      }
+    }
+
+    function removeTalent() {
+      if (students.length === 0) return;
+      const student = students[Math.floor(Math.random() * students.length)];
+      const talents = Array.from(student.talents);
+      
+      if (talents.length === 0) {
+        alert(`${student.name} 没有任何天赋可以移除`);
+        return;
+      }
+      
+      const talent = talents[Math.floor(Math.random() * talents.length)];
+      student.removeTalent(talent);
+      alert(`移除了 ${student.name} 的天赋：${talent}`);
+      renderStudents();
+    }
+
+    function resetTalents() {
+      initStudents();
+      alert('已重置所有学生的天赋');
+      renderStudents();
+    }
+
+    function addCustomTalent() {
+      const name = prompt('请输入天赋名称：');
+      if (!name) return;
+      
+      const description = prompt('请输入天赋描述：', '这是一个自定义天赋');
+      const color = prompt('请输入天赋颜色（十六进制）：', '#2b6cb0');
+      
+      // 注册自定义天赋
+      window.TalentManager.setTalentInfo(name, {
+        description: description || '这是一个自定义天赋',
+        color: color || '#2b6cb0'
+      });
+      
+      // 给第一个学生添加
+      if (students.length > 0) {
+        students[0].addTalent(name);
+        alert(`已为 ${students[0].name} 添加自定义天赋：${name}`);
+      }
+      
+      renderStudents();
+      renderTalentRegistry();
+    }
+
+    function viewStudent(idx) {
+      const s = students[idx];
+      const talents = Array.from(s.talents);
+      
+      let info = `学生信息：${s.name}\n\n`;
+      info += `思维能力: ${s.thinking}\n`;
+      info += `编码能力: ${s.coding}\n`;
+      info += `心理素质: ${s.mental}\n`;
+      info += `综合实力: ${Math.floor(s.getComprehensiveAbility())}\n\n`;
+      info += `拥有天赋 (${talents.length}):\n`;
+      
+      talents.forEach(t => {
+        const tInfo = window.TalentManager.getTalentInfo(t);
+        info += `  - ${t}: ${tInfo.description}\n`;
+      });
+      
+      alert(info);
+    }
+
+    // 初始化
+    initStudents();
+    renderStudents();
+    renderTalentRegistry();
+
+    console.log('天赋显示功能演示已加载！');
+    console.log('可用的控制函数：addTalent(), removeTalent(), resetTalents(), addCustomTalent()');
+    console.log('学生数组：', students);
+  </script>
+</body>
+</html>

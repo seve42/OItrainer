@@ -114,4 +114,228 @@ body.comp-week .action-cards .action-card:not(#comp-only-action) {
 	display: none;
 }
 
+/* ========== 新比赛系统样式 ========== */
+.contest-live-container {
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.contest-header {
+  margin-bottom: 20px;
+  padding: 12px;
+  background: #f9fafb;
+  border-radius: 8px;
+}
+
+.time-info {
+  font-size: 16px;
+  font-weight: 700;
+  margin-bottom: 8px;
+  color: #333;
+}
+
+.progress-bar-container {
+  width: 100%;
+  height: 20px;
+  background: #e5e7eb;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #38a169, #48bb78);
+  transition: width 0.3s ease;
+}
+
+.student-panels {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 12px;
+  margin: 16px 0;
+}
+
+.student-panel {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 12px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}
+
+.student-name {
+  font-weight: 700;
+  font-size: 15px;
+  margin-bottom: 6px;
+  color: #1a202c;
+}
+
+.student-score {
+  font-size: 14px;
+  margin-bottom: 4px;
+  color: #4a5568;
+}
+
+.student-score span {
+  font-weight: 700;
+  color: #2b6cb0;
+}
+
+.student-current-problem {
+  font-size: 13px;
+  margin-bottom: 8px;
+  color: #718096;
+}
+
+.student-current-problem span {
+  font-weight: 600;
+  color: #d97706;
+}
+
+.problem-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.problem-item {
+  background: #f3f4f6;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  padding: 8px 4px;
+  text-align: center;
+  transition: all 0.2s ease;
+}
+
+.problem-item.unattempted {
+  background: #f3f4f6;
+  border-color: #d1d5db;
+}
+
+.problem-item.partial {
+  background: #fef3c7;
+  border-color: #fbbf24;
+}
+
+.problem-item.solved {
+  background: #d1fae5;
+  border-color: #34d399;
+  font-weight: 700;
+}
+
+.problem-id {
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 2px;
+  color: #374151;
+}
+
+.problem-score {
+  font-size: 13px;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.contest-controls {
+  margin-top: 16px;
+  text-align: center;
+}
+
+.contest-controls .btn {
+  margin: 0 6px;
+  min-width: 80px;
+}
+
+/* 比赛结果表格 */
+.result-table {
+  width: 100%;
+  margin: 16px 0;
+  border-collapse: collapse;
+}
+
+.result-table th,
+.result-table td {
+  padding: 10px;
+  border: 1px solid #e5e7eb;
+  text-align: left;
+}
+
+.result-table th {
+  background: #f3f4f6;
+  font-weight: 700;
+  color: #374151;
+}
+
+.result-table tbody tr:hover {
+  background: #f9fafb;
+}
+
+/* 天赋标签样式 */
+.student-talents {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.talent-tag {
+  position: relative;
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  border: 1px solid;
+  cursor: help;
+  transition: all 0.2s ease;
+}
+
+.talent-tag:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* 天赋提示框 */
+.talent-tooltip {
+  visibility: hidden;
+  opacity: 0;
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%) translateY(-4px);
+  margin-bottom: 4px;
+  padding: 8px 12px;
+  background: #1f2937;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 400;
+  border-radius: 6px;
+  white-space: nowrap;
+  z-index: 100;
+  pointer-events: none;
+  transition: opacity 0.2s ease, visibility 0.2s ease, transform 0.2s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* 提示框箭头 */
+.talent-tooltip::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-top-color: #1f2937;
+}
+
+/* 悬停时显示提示框 */
+.talent-tag:hover .talent-tooltip {
+  visibility: visible;
+  opacity: 1;
+  transform: translateX(-50%) translateY(-8px);
+}
+
+
+
+
 

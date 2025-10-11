@@ -317,12 +317,23 @@
         id: 'genius_apply',
         name: '学生自荐',
         description: '外省空降学生申请加入',
-        check: c => c.game.reputation > 80 && Math.random() < 0.005,
+        check: c => c.game.reputation > 60 && Math.random() < 0.005,
         run: c => {
           const options = [
             { label: '接收', effect: () => {
                 c.game.budget = Math.max(0, c.game.budget - c.utils.uniformInt(10000, 20000));
-                c.game.students.push({ name: '新学生', active: true, thinking: 80, coding: 80, pressure: 30, comfort: 80 });
+                // create a proper Student instance so methods and talents work
+                try{
+                  const s = new Student('新学生', 80, 80, 80);
+                  s.pressure = 30; s.comfort = 80; s.active = true;
+                  if(window.TalentManager && typeof window.TalentManager.assignTalentsToStudent === 'function'){
+                    try{ window.TalentManager.assignTalentsToStudent(s); }catch(e){}
+                  }
+                  c.game.students.push(s);
+                }catch(e){
+                  // fallback to plain object if Student constructor unavailable
+                  c.game.students.push({ name: '新学生', active: true, thinking: 80, coding: 80, pressure: 30, comfort: 80 });
+                }
               }
             },
             { label: '拒绝', effect: () => {} }
@@ -332,7 +343,16 @@
           options[0].effect = () => {
             const cost = c.utils.uniformInt(10000, 20000);
             c.game.budget = Math.max(0, c.game.budget - cost);
-            c.game.students.push({ name: '新学生', active: true, thinking: 80, coding: 80, pressure: 30, comfort: 80 });
+            try{
+              const s = new Student('新学生', 80, 80, 80);
+              s.pressure = 30; s.comfort = 80; s.active = true;
+              if(window.TalentManager && typeof window.TalentManager.assignTalentsToStudent === 'function'){
+                try{ window.TalentManager.assignTalentsToStudent(s); }catch(e){}
+              }
+              c.game.students.push(s);
+            }catch(e){
+              c.game.students.push({ name: '新学生', active: true, thinking: 80, coding: 80, pressure: 30, comfort: 80 });
+            }
             const desc = `接收新学生：经费 -¥${cost}，获得一名能力较强学生`;
             window.pushEvent && window.pushEvent({ name: '学生自荐', description: desc, week: c.game.week });
             // 保持原行为（如果有）

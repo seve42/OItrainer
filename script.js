@@ -292,20 +292,37 @@ function renderAll(){
     if(!s.active) continue;
     let pressureLevel = s.pressure < 35 ? "低" : s.pressure < 65 ? "中" : "高";
     let pressureClass = s.pressure < 35 ? "pressure-low" : s.pressure < 65 ? "pressure-mid" : "pressure-high";
-  // 计算模糊资质与能力等级：思维能力 & 心理素质
-  let aptitudeVal = 0.5 * s.thinking + 0.5 * s.mental;
+  // 计算模糊资质与能力等级：思维能力 & 心理素质（确保为数字）
+  const thinkingVal = Number(s.thinking || 0);
+  const mentalVal = Number(s.mental || 0);
+  let aptitudeVal = 0.5 * thinkingVal + 0.5 * mentalVal;
   let aptitudeGrade = getLetterGrade(Math.floor(aptitudeVal));
   // 能力 = 各能力平均 + 各知识点方差加权
-  let abilityAvg = s.getAbilityAvg();
+  let abilityAvg = Number(s.getAbilityAvg ? s.getAbilityAvg() : 0) || 0;
   // 计算知识方差
-  let kArr = [s.knowledge_ds, s.knowledge_graph, s.knowledge_string, s.knowledge_math, s.knowledge_dp];
+  let kArr = [Number(s.knowledge_ds||0), Number(s.knowledge_graph||0), Number(s.knowledge_string||0), Number(s.knowledge_math||0), Number(s.knowledge_dp||0)];
   let kMean = kArr.reduce((a,v) => a+v, 0) / kArr.length;
   let variance = kArr.reduce((a,v) => a + Math.pow(v - kMean, 2), 0) / kArr.length;
   let varNorm = clamp(variance, 0, 100);
   // 50% 能力平均 + 50% 知识方差
   let abilityVal = abilityAvg * 0.5 + varNorm * 0.5;
   let abilityGrade = getLetterGrade(Math.floor(abilityVal));
-    const comp = Math.floor(s.getComprehensiveAbility());
+    const compRaw = Number(s.getComprehensiveAbility ? s.getComprehensiveAbility() : 0);
+    const comp = isFinite(compRaw) ? Math.floor(compRaw) : 0;
+    
+    // 生成天赋标签HTML
+    let talentsHtml = '';
+    if(s.talents && s.talents.size > 0){
+      const talentArray = Array.from(s.talents);
+      talentsHtml = talentArray.map(talentName => {
+        const talentInfo = window.TalentManager ? window.TalentManager.getTalentInfo(talentName) : { name: talentName, description: '暂无描述', color: '#2b6cb0' };
+        return `<span class="talent-tag" data-talent="${talentName}" style="background-color: ${talentInfo.color}20; color: ${talentInfo.color}; border-color: ${talentInfo.color}40;">
+          ${talentName}
+          <span class="talent-tooltip">${talentInfo.description}</span>
+        </span>`;
+      }).join('');
+    }
+    
     out += `<div class="student-box" style="margin-bottom:6px">
       <button class="evict-btn" data-idx="${game.students.indexOf(s)}" title="劝退">劝退</button>
       <div style="display:flex;justify-content:space-between;align-items:center">
@@ -314,6 +331,7 @@ function renderAll(){
       <div class="compact small" style="margin-top:3px">
         实力: <progress value="${comp}" max="100" style="vertical-align:middle;width:70%;"></progress> ${comp} | 资质:${aptitudeGrade} 能力:${abilityGrade}
       </div>
+      ${talentsHtml ? `<div class="student-talents" style="margin-top:6px">${talentsHtml}</div>` : ''}
     </div>`;
   }
   if(out==='') out = '<div class="muted">目前没有活跃学生</div>';
@@ -353,7 +371,14 @@ function renderAll(){
       const compCard = document.createElement('div');
       compCard.className = 'action-card'; compCard.id = 'comp-only-action'; compCard.setAttribute('role','button'); compCard.tabIndex = 0;
       compCard.innerHTML = `<div class="card-title">参加比赛【${compNow.name}】</div>`;
-      compCard.onclick = () => { holdCompetitionModal(compNow); };
+      compCard.onclick = () => { 
+        // 使用新的比赛模拟系统
+        if(typeof window.holdCompetitionModalNew === 'function'){
+          window.holdCompetitionModalNew(compNow);
+        } else {
+          holdCompetitionModal(compNow);
+        }
+      };
       actionContainer.appendChild(compCard);
     }
     document.body.classList.add('comp-week');
@@ -577,12 +602,13 @@ function holdMockContestModal(isPurchased, diffIdx, questionTagsArray){
   }
   html += `</tbody></table>`;
   html += `<div style="margin-top:8px">`;
-  html += `<table><thead><tr><th>名次</th><th>姓名</th><th>T1</th><th>T2</th><th>T3</th><th>T4</th><th>总分</th></tr></thead><tbody>`;
+  html += `<table><thead><tr><th>名次</th><th>姓名</th><th>T1</th><th>T2</th><th>T3</th><th>T4</th><th>总分</th><th>备注</th></tr></thead><tbody>`;
   for(let i=0;i<results.length;i++){
     let r = results[i];
     html += `<tr><td>${i+1}</td><td>${r.name}</td>`;
     for(let j=0;j<4;j++) html += `<td>${r.scores[j]}</td>`;
-    html += `<td>${r.total}</td></tr>`;
+    // placeholder for remark column (will be populated when applying)
+    html += `<td>${r.total}</td><td id="mock-remark-${i}"></td></tr>`;
   }
   html += `</tbody></table></div>`;
   html += `<div style="text-align:right;margin-top:8px"><button class="btn btn-ghost" onclick="closeModal()">关闭不应用</button> <button class="btn" id="mock-apply">应用结果并关闭</button></div>`;
@@ -593,31 +619,88 @@ function holdMockContestModal(isPurchased, diffIdx, questionTagsArray){
     // apply
     let base_knowledge_min = Math.floor(2 * (isPurchased?MOCK_CONTEST_GAIN_MULTIPLIER_PURCHASED:1.0));
     let base_knowledge_max = Math.floor(6 * (isPurchased?MOCK_CONTEST_GAIN_MULTIPLIER_PURCHASED:1.0));
+    // 模拟赛总知识增益上界（必须小于轻强度综合训练的上界），设为 3
+    const MOCK_TOTAL_KNOWLEDGE_CAP = 3;
     for(let s of game.students){
       if(!s.active) continue;
       let r = results.find(x=>x.name===s.name) || {total:0,scores:[0,0,0,0]};
       let total_score = r.total;
+      // 新规则：根据表现决定初始压力（如果总分 < 50% 或 最后一名，则 +20，否则 +5）
+      // 这里 total_score < 200 等价于 4 题总分低于 50%
+      // note: 是否为最后一名将在后面的结果遍历中判断并应用一次性额外压力，
+      // 为避免重复加压，我们先只按分数判定初始压力（最后一名将在备注段落处理）。
+      if((total_score || 0) < 200){
+        s.pressure += 20;
+      } else {
+        s.pressure += 5;
+      }
       let pressure_gain = 20; let mental_change=0; let overall_score_factor=1.0;
       if(total_score < 100){ mental_change = uniform(-16,-6); pressure_gain = 30; overall_score_factor = 0.3; }
       else if(total_score < 200){ mental_change = uniform(-2,4); pressure_gain = 20; overall_score_factor = 0.7; }
       else if(total_score <= 300){ mental_change = uniform(6,16); pressure_gain = 10; overall_score_factor = 1.0; }
       else { mental_change = uniform(2,6); pressure_gain = 16; overall_score_factor = 0.6; }
+      // 计算本次在四题中分配到的知识总量，先累加然后截断到 MOCK_TOTAL_KNOWLEDGE_CAP
+      let totalKnowledgeThisMock = 0;
+      let perProblemKnowledge = [];
       for(let i=0;i<4;i++){
-        let tags = questionTagsArray[i];
-        let totalK = 0; for(let t of tags) totalK += s.getKnowledgeByType(t);
-        let avgK = tags.length>0 ? Math.floor(totalK / tags.length) : 0;
         let problem_score = r.scores[i] || 0;
         let problem_score_factor = problem_score / 100.0;
         let growth_factor = (problem_score_factor * 0.7 + overall_score_factor * 0.3);
         let knowledge_gain = Math.max(0, Math.floor(uniform(base_knowledge_min, base_knowledge_max) * growth_factor));
-        // distribute to tags (均等分配)
-        if(tags.length>0){
+        perProblemKnowledge.push(knowledge_gain);
+        totalKnowledgeThisMock += knowledge_gain;
+      }
+      // 如果累计知识超过上界，则按比例缩放到上界（保持不同题贡献比例）
+      if(totalKnowledgeThisMock > MOCK_TOTAL_KNOWLEDGE_CAP){
+        const scale = MOCK_TOTAL_KNOWLEDGE_CAP / totalKnowledgeThisMock;
+        for(let i=0;i<perProblemKnowledge.length;i++) perProblemKnowledge[i] = Math.floor(perProblemKnowledge[i] * scale);
+      }
+      // 将分配后的知识按题目标签均分并应用
+      for(let i=0;i<4;i++){
+        let tags = questionTagsArray[i];
+        let knowledge_gain = perProblemKnowledge[i] || 0;
+        if(tags.length>0 && knowledge_gain>0){
           let per = Math.floor(knowledge_gain / tags.length);
           for(let t of tags) s.addKnowledge(t, per);
         }
       }
       s.mental = clamp(s.mental + mental_change, 0,100);
       s.pressure += pressure_gain;
+    }
+    // 额外处理：按与 200 分的差距来计算额外压力（分数远离200，压力越大），最大额外增加 +15
+    // 同时在备注栏注明“发挥不佳，压力升高”当 total < 200 或 最后一名
+    // 计算规则示例：extra = min(15, Math.ceil(Math.abs(total - 200) / 20)) -> 每差 20 分增加 1 点压力，最多 15
+    for(let i=0;i<results.length;i++){
+      const r = results[i];
+      const remarkElem = $('mock-remark-' + i);
+      if(!remarkElem) continue;
+      const stu = game.students.find(x=>x.name===r.name);
+      if(!stu) { remarkElem.innerText = ''; continue; }
+      // 默认备注为空
+      remarkElem.innerText = '';
+      // 计算额外压力
+      const scoreDiff = Math.abs((r.total || 0) - 200);
+      let extra = Math.min(15, Math.ceil(scoreDiff / 20));
+      // 对于总分 < 200 或 最后一名，显示发挥不佳提示并额外加压（注意：若已按分数给予初始 +20，则这里仍需应用额外差距压力）
+      if((r.total || 0) < 200 || i === results.length - 1){
+        remarkElem.innerText = '发挥不佳，压力升高';
+        stu.pressure += extra;
+        // 如果该学生是最后一名且其初始加压尚未反映（例如分数>=200但为最后一名），需要再加一次基础 +20 替代 +5
+        if(i === results.length - 1 && (r.total || 0) >= 200){
+          // 这位同学之前获得了 +5，替换为 +20：即额外再加 +15
+          stu.pressure += 15;
+        }
+      }
+    }
+
+    // 额外：模拟赛会小幅提升思维能力、中幅提升代码能力（使得模拟赛提升略微高于训练）
+    // 提升量示例（可调）：thinking += uniform(1.2,2.0); coding += uniform(1.6,2.4)
+    for(let s of game.students){
+      if(!s.active) continue;
+      const thinkingBoost = uniform(1.2,2.0);
+      const codingBoost = uniform(1.6,2.4);
+      s.thinking = Math.min(100, s.thinking + thinkingBoost);
+      s.coding = Math.min(100, s.coding + codingBoost);
     }
     closeModal();
     log("模拟赛结果已应用（1周结算后的效果）。");
@@ -1047,7 +1130,13 @@ function weeklyUpdate(weeks=1){
       const isCompleted = compThisWeek && game.completedCompetitions && game.completedCompetitions.has(doneKey);
       if(compThisWeek && !isCompleted){
         // 在赛季最后一周有尚未完成的正式比赛：直接打开比赛模态，延后赛季结算
-        try{ holdCompetitionModal(compThisWeek); }catch(e){ console.error('open comp modal failed', e); }
+        try{ 
+          if(typeof window.holdCompetitionModalNew === 'function'){
+            window.holdCompetitionModalNew(compThisWeek);
+          } else {
+            holdCompetitionModal(compThisWeek);
+          }
+        }catch(e){ console.error('open comp modal failed', e); }
       } else {
         // 无未完成比赛，正常触发赛季结算
         game.seasonEndTriggered = true;
@@ -1066,6 +1155,16 @@ function weeklyUpdate(weeks=1){
 }
 // 安全的周更新：在多周跳转时不跳过即将到来的比赛
 function safeWeeklyUpdate(weeks = 1) {
+  // If a contest live modal is active, defer the weekly advance until it closes.
+  try{
+    if(window.__contest_live_modal_active){
+      window.__deferred_week_advances = (window.__deferred_week_advances || 0) + Number(weeks || 0);
+      console.log('safeWeeklyUpdate: contest modal active, deferring', weeks, 'weeks (total deferred:', window.__deferred_week_advances, ')');
+      // also store a timestamp for debugging
+      window.__deferred_week_adv_last = Date.now();
+      return;
+    }
+  }catch(e){ /* ignore */ }
   // 如果当前经费不足以维持下一周，则直接触发坏结局并跳转到结算页
   try{
     const nextWeekCostRaw = game.getWeeklyCost();
@@ -1110,7 +1209,11 @@ function checkCompetitions(){
       continue;
     }
     // open modal for official competition and do application inside modal
-    holdCompetitionModal(comp);
+    if(typeof window.holdCompetitionModalNew === 'function'){
+      window.holdCompetitionModalNew(comp);
+    } else {
+      holdCompetitionModal(comp);
+    }
     break; // only one per week
   }
 }
@@ -1241,7 +1344,12 @@ function holdMockContestUI(){
       log("参加网赛（免费）");
     }
     // show modal results and apply after user confirms
-  holdMockContestModal(isPurchased, diffIdx, questionTagsArray);
+    // 使用新的比赛模拟系统
+    if(typeof window.holdMockContestModalNew === 'function'){
+      window.holdMockContestModalNew(isPurchased, diffIdx, questionTagsArray);
+    } else {
+      holdMockContestModal(isPurchased, diffIdx, questionTagsArray);
+    }
   safeWeeklyUpdate(1);
     renderAll();
   };
@@ -1421,15 +1529,39 @@ function rest1Week(){
 }
 
 /* 保存/载入（localStorage 简易） */
-function saveGame(){ try{ localStorage.setItem('oi_coach_save', JSON.stringify(game)); alert("已保存到 localStorage"); }catch(e){ alert("保存失败："+e); } }
+function saveGame(){ 
+  try{ 
+    // 创建深拷贝，将 Set 转换为数组以便序列化
+    const saveData = JSON.parse(JSON.stringify(game, (key, value) => {
+      if(value instanceof Set){
+        return Array.from(value);
+      }
+      return value;
+    }));
+    localStorage.setItem('oi_coach_save', JSON.stringify(saveData)); 
+    alert("已保存到 localStorage"); 
+  }catch(e){ 
+    alert("保存失败："+e); 
+  } 
+}
 function loadGame(){ try{ let raw = localStorage.getItem('oi_coach_save'); if(!raw){ alert("无存档"); return; } let o = JSON.parse(raw); // rehydrate
   game = Object.assign(new GameState(), o);
+  window.game = game; // 确保全局访问
   game.facilities = Object.assign(new Facilities(), o.facilities);
-  game.students = (o.students || []).map(s => Object.assign(new Student(), s));
+  game.students = (o.students || []).map(s => {
+    const student = Object.assign(new Student(), s);
+    // 恢复 talents Set（JSON 序列化会将 Set 转为数组）
+    if(s.talents && Array.isArray(s.talents)){
+      student.talents = new Set(s.talents);
+    } else if(s.talents && typeof s.talents === 'object'){
+      student.talents = new Set(Object.keys(s.talents).filter(k => s.talents[k]));
+    }
+    return student;
+  });
   renderAll(); alert("已载入存档"); }catch(e){ alert("载入失败："+e); } }
 
 // silent load used by index.html on startup (no alerts)
-function silentLoad(){ try{ let raw = localStorage.getItem('oi_coach_save'); if(!raw) return false; let o = JSON.parse(raw); game = Object.assign(new GameState(), o); game.facilities = Object.assign(new Facilities(), o.facilities); game.students = (o.students || []).map(s => Object.assign(new Student(), s)); return true; }catch(e){ return false; } }
+function silentLoad(){ try{ let raw = localStorage.getItem('oi_coach_save'); if(!raw) return false; let o = JSON.parse(raw); game = Object.assign(new GameState(), o); window.game = game; game.facilities = Object.assign(new Facilities(), o.facilities); game.students = (o.students || []).map(s => { const student = Object.assign(new Student(), s); if(s.talents && Array.isArray(s.talents)){ student.talents = new Set(s.talents); } else if(s.talents && typeof s.talents === 'object'){ student.talents = new Set(Object.keys(s.talents).filter(k => s.talents[k])); } return student; }); return true; }catch(e){ return false; } }
 
 /* 初始化游戏（modal） */
 function initGameUI(){
@@ -1537,6 +1669,7 @@ function renderEndSummary(){
 /* initGame 逻辑（与 C++ 一致） */
 function initGame(difficulty, province_choice, student_count){
   game = new GameState();
+  window.game = game; // 确保全局访问
   game.difficulty = clampInt(difficulty,1,3);
   let prov = PROVINCES[province_choice] || PROVINCES[1];
   game.province_name = prov.name; game.province_type = prov.type; game.is_north = prov.isNorth; game.budget = prov.baseBudget; game.base_comfort = prov.isNorth?BASE_COMFORT_NORTH:BASE_COMFORT_SOUTH;
@@ -1559,7 +1692,12 @@ function initGame(difficulty, province_choice, student_count){
     let thinking = clamp(normal(mean, stddev), 0, 100);
     let coding = clamp(normal(mean, stddev), 0, 100);
     let mental = clamp(normal(mean, stddev), 0, 100);
-    game.students.push(new Student(name, thinking, coding, mental));
+    const newStud = new Student(name, thinking, coding, mental);
+    // 如果有 TalentManager，按概率给学生分配天赋（每个天赋独立判断）
+    if(typeof window !== 'undefined' && window.TalentManager && typeof window.TalentManager.assignTalentsToStudent === 'function'){
+      try{ window.TalentManager.assignTalentsToStudent(newStud); }catch(e){ console.error('assignTalentsToStudent failed', e); }
+    }
+    game.students.push(newStud);
   }
   game.updateWeather();
   log("初始化完成，开始游戏！");
@@ -1589,6 +1727,14 @@ window.onload = ()=>{
       });
     }catch(e){ console.error('registerDefaultEvents failed', e); }
   }
+  
+  // 注册默认特质到特质管理器（如果可用）
+  if(window.TalentManager && typeof window.TalentManager.registerDefaultTalents === 'function'){
+    try{
+      window.TalentManager.registerDefaultTalents(game, { uniform, uniformInt, normal, clamp });
+    }catch(e){ console.error('registerDefaultTalents failed', e); }
+  }
+  
   // If we're on game.html (has action cards), load saved game silently and bind UI. Otherwise (start/end pages) skip game bindings.
   if(document.getElementById('action-train')){
     // If game.html was opened with new-game params, initialize from them
