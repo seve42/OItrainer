@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>OI 教练模拟器（网页单文件 — 优化版）</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="container">
+  <header>
+    <div>
+      <h1>OI 教练模拟器</h1>
+    </div>
+    <div class="topline">
+      <div id="header-week" class="small">第 1 周</div>
+      <div id="header-province" class="small">省份: -</div>
+      <div id="header-budget" class="small">经费: ¥0</div>
+      <div id="header-reputation" class="small">声誉: 0</div>
+      <!-- theme selector -->
+      <div class="small">主题:</div>
+      <div class="small">
+        <span class="theme-swatch" data-theme="theme-red" style="background:#e53e3e"></span>
+        <span class="theme-swatch" data-theme="theme-green" style="background:#38a169"></span>
+        <span class="theme-swatch" data-theme="theme-purple" style="background:#805ad5"></span>
+        <span class="theme-swatch" data-theme="" style="background:#f7f7f8;border:1px solid #ddd"></span>
+      </div>
+    </div>
+  </header>
+
+  <!-- 主面板：左 - 学生 / 右 - 操作 -->
+  <div class="row">
+    <div class="col panel" style="flex: 1 1 600px;">
+      <div class="flex-between">
+        <h3 style="margin:0">学生与状态</h3>
+        <div class="small">舒适度: <span id="comfort-val">50</span></div>
+      </div>
+      <div id="student-list" style="margin-top:10px;"></div>
+
+      <div style="margin-top:12px;">
+        <h4 style="margin:0">设施</h4>
+        <div class="facility-grid" style="margin-top:8px">
+          <div class="facility">
+            <div class="fac-label">计算机</div>
+            <div id="fac-computer" class="stat">1</div>
+            <div class="small muted">提升综合训练效率</div>
+            <div class="fac-action"><button class="btn upgrade" data-fac="computer" id="upgrade-computer">升级</button></div>
+          </div>
+
+          <div class="facility">
+            <div class="fac-label">资料库</div>
+            <div id="fac-library" class="stat">1</div>
+            <div class="small muted">提升知识训练效率</div>
+            <div class="fac-action"><button class="btn upgrade" data-fac="library" id="upgrade-library">升级</button></div>
+          </div>
+
+          <div class="facility">
+            <div class="fac-label">空调</div>
+            <div id="fac-ac" class="stat">1</div>
+            <div class="small muted">提升舒适度，缓解极端天气影响</div>
+            <div class="fac-action"><button class="btn upgrade" data-fac="ac" id="upgrade-ac">升级</button></div>
+          </div>
+
+          <div class="facility">
+            <div class="fac-label">宿舍</div>
+            <div id="fac-dorm" class="stat">1</div>
+            <div class="small muted">提升舒适度</div>
+            <div class="fac-action"><button class="btn upgrade" data-fac="dorm" id="upgrade-dorm">升级</button></div>
+          </div>
+
+          <div class="facility">
+            <div class="fac-label">食堂</div>
+            <div id="fac-canteen" class="stat">1</div>
+            <div class="small muted">减少训练压力</div>
+            <div class="fac-action"><button class="btn upgrade" data-fac="canteen" id="upgrade-canteen">升级</button></div>
+          </div>
+
+          <div class="facility">
+            <div class="fac-label">维护费/2周</div>
+            <div id="fac-maint" class="stat">0</div>
+            <div class="small muted">所有设施每2周维护费用</div>
+            <div class="fac-action"><button class="btn upgrade ghost" data-fac="maint" id="upgrade-maint">固定</button></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col panel" style="flex: 0 0 360px;">
+      <h3 style="margin-top:0">本周行动（每个行动持续2周）</h3>
+      <div class="action-cards">
+        <div class="action-card" id="action-train" role="button" tabindex="0">
+          <div class="card-title">训练</div>
+          <div class="card-desc">安排学生进行专项训练，提高实力</div>
+        </div>
+        <div class="action-card" id="action-entertain" role="button" tabindex="0">
+          <div class="card-title">娱乐</div>
+          <div class="card-desc">放松娱乐，缓解压力，提升舒适度</div>
+        </div>
+        <div class="action-card" id="action-mock" role="button" tabindex="0">
+          <div class="card-title">模拟赛</div>
+          <div class="card-desc">进行内部模拟比赛，检验训练成果</div>
+        </div>
+        <div class="action-card" id="action-outing" role="button" tabindex="0">
+          <div class="card-title">集训</div>
+          <div class="card-desc">外出集训，集中提升训练效率</div>
+        </div>
+        <div class="action-card empty" id="action-event-1" role="button" tabindex="0">
+          <div class="card-title">预留事件</div>
+          <div class="card-desc">用于突发事件或活动</div>
+          <div class="event-slot" id="event-slot-1" style="display:none"></div>
+        </div>
+        <div class="action-card empty" id="action-event-2" role="button" tabindex="0">
+          <div class="card-title">预留事件</div>
+          <div class="card-desc">用于突发事件或活动</div>
+          <div class="event-slot" id="event-slot-2" style="display:none"></div>
+        </div>
+
+        <div style="margin-top:8px">
+          <button class="btn btn-ghost" id="action-save">保存 / 载入</button>
+        </div>
+      </div>
+
+      <div style="margin-top:12px">
+        <h4 style="margin:0">周信息</h4>
+        <div class="small" style="margin-top:8px">
+          <div>第 <span id="info-week">1</span> 周 / 共 52 周</div>
+          <div>天气: <span id="info-weather">晴</span> / 温度: <span id="info-temp">20.0°C</span></div>
+          <div>预测 4 周 开支: ¥<span id="info-future-expense">0</span></div>
+          <div>教学点数: <span id="info-teach">10</span></div>
+          <div id="info-next-competition" class="small muted"></div>
+          <!-- 独立下场比赛模块 -->
+          <div id="next-competition-panel" class="next-panel normal">
+            <div style="font-weight:600">下场比赛</div>
+            <div id="next-comp" style="margin-top:6px">无</div>
+            <div id="daily-quote" class="small muted" style="margin-top:8px">一句话加载中...</div>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top:12px">
+        <h4 style="margin:0">日志（轻量）</h4>
+        <div id="log" style="height:80px;overflow:auto;border:1px solid #eee;padding:8px;border-radius:6px;background:#fff"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel" id="footer-panel">
+    <div class="row">
+      <div class="col small">
+        <strong>结算/季节设定</strong>
+        <div>赛季总周数: 52</div>
+      </div>
+      <div class="col small">
+        <strong>比赛日程</strong>
+        <div id="comp-schedule" class="small muted"></div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<!-- 模态区域 -->
+<div id="modal-root"></div>
+
+<script src="events.js"></script>
+<script src="script.js"></script>
+</body>
+</html>

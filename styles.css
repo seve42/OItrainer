@@ -1,0 +1,80 @@
+:root{--bg:#f7f7f8;--card:#ffffff;--muted:#666;--accent:#2b6cb0}
+body{font-family: "PingFang SC","Microsoft YaHei",Arial,Helvetica,sans-serif;background:var(--bg);margin:0;color:#222}
+.container{max-width:1100px;margin:20px auto;padding:16px}
+header{background:var(--card);border-radius:8px;padding:16px;box-shadow:0 1px 3px rgba(0,0,0,.06);display:flex;align-items:center;justify-content:space-between;gap:12px}
+header h1{margin:0;font-size:18px}
+.topline{display:flex;gap:12px;align-items:center}
+.panel{background:var(--card);border-radius:8px;padding:12px;margin-top:12px;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+.row{display:flex;gap:12px;flex-wrap:wrap}
+.col{flex:1;min-width:240px}
+.small{font-size:13px;color:var(--muted)}
+.btn{background:var(--accent);color:#fff;border:none;padding:8px 12px;border-radius:6px;cursor:pointer}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn-ghost{background:transparent;border:1px solid #ddd;color:#333;padding:6px 10px;border-radius:6px;cursor:pointer}
+ul.list{list-style:none;padding:0;margin:0}
+li.item{padding:6px 8px;border-bottom:1px dashed #eee;display:flex;justify-content:space-between;align-items:center}
+label.block{display:block;margin:6px 0;font-weight:600}
+input[type="number"], select, input[type="text"]{width:100%;padding:6px;border:1px solid #ddd;border-radius:6px}
+.muted{color:var(--muted);font-size:13px}
+.stat{font-weight:700}
+.facility-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+/* province selection grid */
+.prov-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:4px}
+.prov-btn{background:var(--accent);color:#fff;border:none;padding:8px 12px;border-radius:6px;cursor:pointer}
+.prov-btn.selected{box-shadow:0 0 0 2px #333 inset}
+/* theme swatches */
+.theme-swatch{display:inline-block;width:16px;height:16px;border-radius:50%;cursor:pointer;margin-left:4px;border:1px solid #ccc;vertical-align:middle}
+body.theme-red{--accent:#e53e3e;--bg:#fff5f5;--card:#ffffff;--muted:#666}
+body.theme-green{--accent:#38a169;--bg:#f0fff4;--card:#ffffff;--muted:#666}
+body.theme-purple{--accent:#805ad5;--bg:#faf5ff;--card:#ffffff;--muted:#666}
+.facility{padding:8px;border-radius:6px;border:1px solid #eee;background:#fafafa;text-align:center}
+.fac-label{font-weight:700;margin-bottom:6px}
+.fac-action{margin-top:8px}
+.btn.upgrade{background:#38a169;color:#fff;padding:6px 8px;font-size:13px;border-radius:6px}
+.btn.upgrade.ghost{background:transparent;border:1px solid #ddd;color:#333}
+.modal{position:fixed;left:0;top:0;right:0;bottom:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:999}
+.dialog{width:820px;max-width:96%;background:#fff;padding:14px;border-radius:8px;max-height:85vh;overflow:auto}
+.dialog h3{margin-top:0}
+.flex-between{display:flex;justify-content:space-between;align-items:center}
+footer{margin-top:16px;text-align:center;color:var(--muted)}
+.tag{display:inline-block;padding:4px 8px;border-radius:999px;background:#eef6ff;color:#1b4f8a;font-size:12px;margin-left:6px}
+.warn{color:#b45309}
+.status-row{display:flex;gap:12px;flex-wrap:wrap}
+.student-box{border:1px solid #eee;padding:8px;border-radius:6px;background:#fff}
+.score{font-weight:700}
+.compact{font-size:13px}
+.stars{color:#d97706}
+table{width:100%;border-collapse:collapse}
+th,td{padding:6px;border:1px solid #eee;text-align:center}
+.label-pill{display:inline-block;padding:4px 8px;border-radius:999px;background:#f3f4f6;color:#111;font-size:13px}
+.label-pill.pressure-low{background:#e0f7fa;color:#00796b}
+.label-pill.pressure-mid{background:#fff9c4;color:#bfa100}
+.label-pill.pressure-high{background:#ffebee;color:#c62828}
+.highlight-next-comp{background: #fffde7; color: #d84315; padding: 2px 6px; border-radius: 5px; font-weight: bold}
+.next-panel{margin-top:8px;padding:8px;border-radius:6px}
+.next-panel.normal{background:#fff;border:1px solid #eee}
+.next-panel.highlight{background:#fffde7;border:1px solid #ffd29b}
+
+/* Action card vertical list */
+.action-cards{display:flex;flex-direction:column;gap:8px;margin-top:8px}
+.action-card{background:#fff;border:1px solid #eee;border-radius:8px;padding:10px;cursor:pointer;box-shadow:0 1px 2px rgba(0,0,0,.03);display:flex;flex-direction:column}
+.action-card:focus,.action-card:hover{box-shadow:0 4px 10px rgba(0,0,0,.06);outline:none}
+.action-card .card-title{font-weight:700;margin-bottom:6px}
+.action-card .card-desc{font-size:13px;color:var(--muted)}
+.action-card.empty{background:#f9fafb;border:1px dashed #eee;color:var(--muted)}
+
+/* 默认不显示空的预留事件卡片（JS 根据事件存在与否切换显示） */
+.action-card.empty { display: none; }
+.action-card.event-active{ display:flex; border:2px solid var(--accent); box-shadow:0 4px 12px rgba(43,108,176,0.08); background:var(--card); }
+.event-slot{margin-top:8px;padding:6px;background:#fff;border-radius:6px;border:1px solid #eee;font-size:13px}
+.event-slot p{margin:0}
+
+/* Make sure smaller save button aligns */
+.action-cards > div > .btn-ghost{margin-left:0}
+
+/* 突发事件卡片 */
+.event-card{border:2px solid var(--accent);border-radius:8px;padding:10px;background:var(--card);box-shadow:0 2px 6px rgba(43,108,176,0.06);margin-top:12px}
+.event-card h4{margin:0 0 6px 0}
+.event-list{max-height:140px;overflow:auto;padding:6px;border-radius:6px;background:linear-gradient(180deg, rgba(0,0,0,0.01), transparent)}
+.event-item{padding:6px;border-bottom:1px dashed #eee;font-size:13px}
+.event-item:last-child{border-bottom:none}
