@@ -683,12 +683,12 @@ function holdMockContestModal(isPurchased, diffIdx, questionTagsArray){
       let extra = Math.min(15, Math.ceil(scoreDiff / 20));
       // 对于总分 < 200 或 最后一名，显示发挥不佳提示并额外加压（注意：若已按分数给予初始 +20，则这里仍需应用额外差距压力）
       if((r.total || 0) < 200 || i === results.length - 1){
+        // 只在 UI 中显示备注并记录额外压力值到 results（实际加压将在用户点击“应用结果”时统一应用并乘以 2）
         remarkElem.innerText = '发挥不佳，压力升高';
-        stu.pressure += extra;
-        // 如果该学生是最后一名且其初始加压尚未反映（例如分数>=200但为最后一名），需要再加一次基础 +20 替代 +5
+        results[i].__extraPressure = extra;
+        // 如果是最后一名且其初始加压尚未反映（例如分数>=200但为最后一名），保留原逻辑中额外 +15 的影响，记录在 __extraPressure
         if(i === results.length - 1 && (r.total || 0) >= 200){
-          // 这位同学之前获得了 +5，替换为 +20：即额外再加 +15
-          stu.pressure += 15;
+          results[i].__extraPressure = (results[i].__extraPressure || 0) + 15;
         }
       }
     }
@@ -701,6 +701,19 @@ function holdMockContestModal(isPurchased, diffIdx, questionTagsArray){
       const codingBoost = uniform(1.6,2.4);
       s.thinking = Math.min(100, s.thinking + thinkingBoost);
       s.coding = Math.min(100, s.coding + codingBoost);
+    }
+    // 统一应用之前记录的模拟赛额外惩罚：实际增加的压力 = 记录值 * 2
+    for(let i=0;i<results.length;i++){
+      const r = results[i];
+      const extraRec = Number(r.__extraPressure || 0);
+      if(extraRec > 0){
+        const stu = game.students.find(x=>x.name===r.name);
+        if(stu){
+          const applied = Math.min(100, Number(stu.pressure || 0) + extraRec * 2) - Number(stu.pressure || 0);
+          stu.pressure = Math.min(100, Number(stu.pressure || 0) + extraRec * 2);
+          try{ if(typeof log === 'function') log(`[模拟赛惩罚] ${stu.name} 额外压力 +${applied} (记录 ${extraRec})`); }catch(e){}
+        }
+      }
     }
     closeModal();
     log("模拟赛结果已应用（1周结算后的效果）。");
@@ -765,6 +778,19 @@ function holdCompetitionModal(comp){
     const maxAllowed = Math.floor(compMax * 0.9);
     if(pass_line > maxAllowed) pass_line = maxAllowed;
   }catch(e){ /* ignore if comp data is malformed */ }
+  // Apply minimum/maximum pass line bounds per new rules:
+  try{
+    const compMax = (typeof comp.maxScore === 'number') ? comp.maxScore : ( (comp.numProblems||4) * 100 );
+    if(comp.name === 'NOI'){
+      const minLine = Math.floor(compMax * 0.8);
+      if(pass_line < minLine) pass_line = minLine;
+    } else {
+      const minLine = Math.floor(compMax * 0.3);
+      const maxLine = Math.floor(compMax * 0.9);
+      if(pass_line < minLine) pass_line = minLine;
+      if(pass_line > maxLine) pass_line = maxLine;
+    }
+  }catch(e){ /* ignore malformed comp */ }
   // evaluate students using Student.getPerformanceScore for each problem
   // Determine current half-season index (0 or 1) and enforce chain qualification
   const halfIndex = (currWeek() > WEEKS_PER_HALF) ? 1 : 0;
@@ -828,9 +854,10 @@ function holdCompetitionModal(comp){
     if(r.eligible === false){ remark = '未参加'; }
     else if(r.total >= pass_line) remark = '晋级';
     if(comp.name === "NOI"){
-      if(r.eligible === true && r.total >= comp.maxScore * NOI_GOLD_THRESHOLD) remark += (remark? "；":"") + "🥇金牌";
-      else if(r.eligible === true && r.total >= comp.maxScore * NOI_SILVER_THRESHOLD) remark += (remark? "；":"") + "🥈银牌";
-      else if(r.eligible === true && r.total >= comp.maxScore * NOI_BRONZE_THRESHOLD) remark += (remark? "；":"") + "🥉铜牌";
+      // Medal thresholds are relative to the pass_line: 100%, 70%, 50%
+      if(r.eligible === true && r.total >= pass_line * 1.0) remark += (remark? "；":"") + "🥇金牌";
+      else if(r.eligible === true && r.total >= pass_line * 0.7) remark += (remark? "；":"") + "🥈银牌";
+      else if(r.eligible === true && r.total >= pass_line * 0.5) remark += (remark? "；":"") + "🥉铜牌";
     }
     html += `<tr><td>${i+1}</td><td>${r.name}</td>`;
     if(r.eligible === false){
