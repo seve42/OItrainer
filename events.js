@@ -136,6 +136,8 @@
           return msg;
         }
       });
+
+      
       // 金牌教练来访
       this.register({
         id: 'gold_coach_visit',

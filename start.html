@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>开始 — OI 教练模拟器</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>OI 教练模拟器 — 开始</h1>
+  </header>
+  <div class="panel">
+    <h3>新游戏设置</h3>
+    <label class="block">选择难度</label>
+    <select id="start-diff"><option value="1">简单</option><option value="2" selected>普通</option><option value="3">困难</option></select>
+
+    <label class="block" style="margin-top:10px">选择省份</label>
+    <div id="start-prov-grid" class="prov-grid"></div>
+
+    <label class="block" style="margin-top:10px">学生人数 (3-10)</label>
+    <input id="start-stu" type="number" min="3" max="10" value="5" />
+
+    <div style="text-align:right;margin-top:12px">
+      <button class="btn btn-ghost" id="start-help">帮助</button>
+      <button class="btn" id="start-button">开始游戏</button>
+    </div>
+  </div>
+</div>
+
+<script src="events.js"></script>
+<script src="script.js"></script>
+<script>
+  // render province buttons using PROVINCES from script.js
+  if(typeof PROVINCES !== 'undefined'){
+    renderStartPageUI && renderStartPageUI();
+  }
+  document.getElementById('start-button').onclick = ()=>{ startFromStartPage && startFromStartPage(); };
+  document.getElementById('start-help').onclick = ()=>{ window.open('help.html','_blank'); };
+</script>
+</body>
+</html>

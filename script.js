@@ -28,6 +28,8 @@ const COMPETITION_SCHEDULE = [
   {week:37, name:"省选", difficulty:200, maxScore:400},
   {week:50, name:"NOI", difficulty:300, maxScore:400}
 ];
+// 明确的比赛链顺序（用于链式晋级判断）
+const COMPETITION_ORDER = ["CSP-S1","CSP-S2","NOIP","省选","NOI"];
 /* 晋级线基准 */
 const WEAK_PROVINCE_BASE_PASS_RATE = 0.4;
 const NORMAL_PROVINCE_BASE_PASS_RATE = 0.5;
@@ -299,6 +301,10 @@ class GameState {
     this.weeks_since_good_result=0;
     this.noi_rankings=[];
     this.teaching_points=NORMAL_MODE_TEACHING_POINTS;
+    // qualification: per-season (two halves) per-competition qualified student names (Set)
+    // qualification[0] -> 第一半赛季, qualification[1] -> 第二半赛季
+    this.qualification = [ {}, {} ];
+    for(let name of COMPETITION_ORDER){ this.qualification[0][name] = new Set(); this.qualification[1][name] = new Set(); }
     // 标记赛季结束结算（避免重复触发）
     this.seasonEndTriggered = false;
   }
@@ -430,9 +436,11 @@ const QUOTES = [
 /* =========== UI 辅助 =========== */
 const $ = id => document.getElementById(id);
 function log(msg){
-  let el = $('log');
-  let p = document.createElement('div'); p.innerText = `[周${game.week}] ${msg}`;
-  el.prepend(p);
+  try{
+    let el = $('log');
+    if(el){ let p = document.createElement('div'); p.innerText = `[周${game.week}] ${msg}`; el.prepend(p); }
+    else { console.log(`[周${game.week}] ${msg}`); }
+  }catch(e){ console.log(`[周${game.week}] ${msg}`); }
 }
 // 将事件推入突发事件卡片（并保留日志）
 // store recent events (用于填充两个预留事件卡)
@@ -851,9 +859,25 @@ function holdCompetitionModal(comp){
   let dynamic_factor = 1.0 - (game.reputation - 50) * 0.01;
   let pass_line = Math.floor(base_pass_line * dynamic_factor);
   // evaluate students using Student.getPerformanceScore for each problem
+  // Determine current half-season index (0 or 1) and enforce chain qualification
+  const halfIndex = (game.week > WEEKS_PER_HALF) ? 1 : 0;
   let results = [];
   for(let s of game.students){
     if(!s.active) continue;
+    // determine eligibility based on competition chain
+    let isEligible = true;
+    const compIdx = COMPETITION_ORDER.indexOf(comp.name);
+    if(compIdx > 0){
+      const prevComp = COMPETITION_ORDER[compIdx - 1];
+      if(!game.qualification[halfIndex] || !game.qualification[halfIndex][prevComp] || !game.qualification[halfIndex][prevComp].has(s.name)){
+        isEligible = false;
+      }
+    }
+    if(!isEligible){
+      // not allowed to participate this competition in current half-season
+      results.push({name:s.name,total:null,scores:null,eligible:false});
+      continue;
+    }
     let total = 0; let scores = [];
     for(let i=0;i<4;i++){
       let tags = problems[i].tags;
@@ -866,9 +890,15 @@ function holdCompetitionModal(comp){
       scores.push(final);
       total += final;
     }
-    results.push({name:s.name,total,scores});
+    results.push({name:s.name,total,scores,eligible:true});
   }
-  results.sort((a,b)=>b.total - a.total);
+  // sort: participants by total desc first, then non-participants at end
+  results.sort((a,b)=>{
+    if(a.eligible === false && b.eligible !== false) return 1;
+    if(b.eligible === false && a.eligible !== false) return -1;
+    if(a.total == null && b.total == null) return 0;
+    return (b.total || 0) - (a.total || 0);
+  });
   // Build modal HTML
   let html = `<h3>${comp.name} - 正式比赛结果</h3>`;
   html += `<div class="small">晋级线: ${pass_line.toFixed(1)} 分</div>`;
@@ -882,40 +912,72 @@ function holdCompetitionModal(comp){
   html += `<table><thead><tr><th>名次</th><th>姓名</th><th>T1</th><th>T2</th><th>T3</th><th>T4</th><th>总分</th><th>备注</th></tr></thead><tbody>`;
   for(let i=0;i<results.length;i++){
     let r = results[i];
-    let remark = r.total >= pass_line ? "晋级" : "";
+    let remark = '';
+    if(r.eligible === false){ remark = '未参加'; }
+    else if(r.total >= pass_line) remark = '晋级';
     if(comp.name === "NOI"){
-      if(r.total >= comp.maxScore * NOI_GOLD_THRESHOLD) remark += (remark? "；":"") + "🥇金牌";
-      else if(r.total >= comp.maxScore * NOI_SILVER_THRESHOLD) remark += (remark? "；":"") + "🥈银牌";
-      else if(r.total >= comp.maxScore * NOI_BRONZE_THRESHOLD) remark += (remark? "；":"") + "🥉铜牌";
+      if(r.eligible === true && r.total >= comp.maxScore * NOI_GOLD_THRESHOLD) remark += (remark? "；":"") + "🥇金牌";
+      else if(r.eligible === true && r.total >= comp.maxScore * NOI_SILVER_THRESHOLD) remark += (remark? "；":"") + "🥈银牌";
+      else if(r.eligible === true && r.total >= comp.maxScore * NOI_BRONZE_THRESHOLD) remark += (remark? "；":"") + "🥉铜牌";
     }
     html += `<tr><td>${i+1}</td><td>${r.name}</td>`;
-    for(let j=0;j<4;j++) html += `<td>${r.scores[j]}</td>`;
-    html += `<td>${r.total}</td><td>${remark}</td></tr>`;
+    if(r.eligible === false){
+      html += `<td colspan="4" style="text-align:center;color:#999">未参加</td>`;
+      html += `<td>—</td><td>${remark}</td></tr>`;
+    } else {
+      for(let j=0;j<4;j++) html += `<td>${r.scores[j]}</td>`;
+      html += `<td>${r.total}</td><td>${remark}</td></tr>`;
+    }
   }
   html += `</tbody></table></div>`;
   html += `<div style="text-align:right;margin-top:8px"><button class="btn" id="comp-apply">关闭并应用影响</button></div>`;
   // Show modal (important: per user's request, 比赛周只弹窗显示比赛)
   showModal(html);
   $('comp-apply').onclick = ()=>{
-    // apply effects (mirrors C++ logic)
-    let pass_count = results.filter(r=>r.total >= pass_line).length;
+    // apply effects (mirrors C++ logic) but only for eligible participants
+    const halfIndexApply = (game.week > WEEKS_PER_HALF) ? 1 : 0;
+    // ensure qualification structure exists
+    if(!game.qualification[halfIndexApply]) game.qualification[halfIndexApply] = {};
+    if(!game.qualification[halfIndexApply][comp.name]) game.qualification[halfIndexApply][comp.name] = new Set();
+
+    // count passes only among eligible participants and record qualifications
+    let pass_count = 0;
+    for(let r of results){
+      if(r.eligible === true && r.total >= pass_line){
+        game.qualification[halfIndexApply][comp.name].add(r.name);
+        pass_count++;
+      }
+    }
+
     let gold=0,silver=0,bronze=0;
     if(comp.name==="NOI"){
       for(let r of results){
+        if(r.eligible !== true) continue;
         if(r.total >= comp.maxScore * NOI_GOLD_THRESHOLD) gold++;
         else if(r.total >= comp.maxScore * NOI_SILVER_THRESHOLD) silver++;
         else if(r.total >= comp.maxScore * NOI_BRONZE_THRESHOLD) bronze++;
       }
     }
+
     // update students' pressure/mental and game state (rewards)
     for(let s of game.students){
       if(!s.active) continue;
+      // find this student's result
+      let r = results.find(x=>x.name === s.name) || null;
+      if(r && r.eligible === false){
+        // Did not participate this competition in current half-season
+        // They receive no score; small morale/pressure change to reflect absence
+        s.pressure += 5;
+        s.mental += uniform(-6,-2);
+        continue;
+      }
+      // participant: apply normal effects
       if(comp.name==="NOI"){
         s.pressure += 40;
         for(let i=0;i<results.length;i++){
           if(results[i].name === s.name){
             game.noi_rankings.push({name:s.name,rank:i+1});
-            if(results[i].total >= comp.maxScore * NOI_SILVER_THRESHOLD) s.mental += uniform(-5,5);
+            if(results[i].eligible === true && results[i].total >= comp.maxScore * NOI_SILVER_THRESHOLD) s.mental += uniform(-5,5);
             else s.mental += uniform(-15,-5);
             break;
           }
@@ -929,6 +991,7 @@ function holdCompetitionModal(comp){
         s.pressure += uniform(5,10);
       }
     }
+
     if(comp.name==="NOI"){
       if(gold>0 || silver>0){
         let reward = uniformInt(NOI_REWARD_MIN, NOI_REWARD_MAX);
@@ -956,7 +1019,9 @@ function holdCompetitionModal(comp){
         game.reputation += uniformInt(10,20);
       }
     } else if(comp.name==="CSP-S2"){
-      if(pass_count >= results.length * 0.7){
+      // NOTE: results.length includes non-participants; use number of eligible participants
+      let eligibleCount = results.filter(r=>r.eligible===true).length;
+      if(pass_count >= eligibleCount * 0.7){
         let reward = uniformInt(CSP_S2_REWARD_MIN, CSP_S2_REWARD_MAX);
         game.reputation += uniformInt(5,10);
         game.budget += reward;
@@ -966,7 +1031,8 @@ function holdCompetitionModal(comp){
         game.mockBlockedReason = "CSP-S2 未达到要求，无法参加本年度比赛";
       }
     } else if(comp.name==="CSP-S1"){
-      if(pass_count >= results.length * 0.8){
+      let eligibleCount = results.filter(r=>r.eligible===true).length;
+      if(pass_count >= eligibleCount * 0.8){
         let reward = uniformInt(CSP_S1_REWARD_MIN, CSP_S1_REWARD_MAX);
         game.reputation += uniformInt(2,5);
         game.budget += reward;
@@ -1029,8 +1095,14 @@ function weeklyUpdate(weeks=1){
     game.seasonEndTriggered = true;
     let ending = checkEnding();
     try{ pushEvent(`赛季结束：${ending}`); }catch(e){}
-    // 弹窗提示结局
-    showModal(`<h3>赛季结束</h3><div class="small">本轮赛季结算：${ending}</div><div style="text-align:right;margin-top:8px"><button class="btn" onclick="closeModal()">关闭</button></div>`);
+    // 保存结算到 localStorage 以便 end.html 展示，并跳转到结算页
+    try{
+      // persist current game snapshot
+      localStorage.setItem('oi_coach_save', JSON.stringify(game));
+      localStorage.setItem('oi_coach_ending', ending);
+    }catch(e){}
+    // 同时弹窗提示并在关闭后跳转，或者直接跳转
+    showModal(`<h3>赛季结束</h3><div class="small">本轮赛季结算：${ending}</div><div style="text-align:right;margin-top:8px"><button class="btn" onclick="(function(){ closeModal(); window.location.href='end.html'; })()">查看结算页面</button></div>`);
   }
   renderAll();
 }
@@ -1088,17 +1160,25 @@ function closeModal(){ $('modal-root').innerHTML = ''; }
 
 /* 训练 UI */
 function trainStudentsUI(){
-  // render as horizontal button groups instead of selects
+  // render training types as horizontal option cards (same style as 娱乐 modal)
+  const types = [
+    {val:'数据结构', label:'数据结构', desc:'巩固常用数据结构与变形题型，提升解题效率'},
+    {val:'图论', label:'图论', desc:'图论基础与常见技巧，适合图论弱点补强'},
+    {val:'字符串', label:'字符串', desc:''},
+    {val:'数学', label:'数学', desc:''},
+    {val:'DP', label:'DP', desc:''},
+    {val:'综合', label:'综合训练', desc:'混合训练，覆盖多知识点，提升综合应对能力'}
+  ];
+  const typeCards = types.map(t=>`
+    <div class="prov-card option-card" data-val="${t.val}" style="min-width:140px;padding:10px;border-radius:6px;cursor:pointer;">
+      <div class="card-title">${t.label}</div>
+      <div class="card-desc small muted">${t.desc}</div>
+    </div>
+  `).join('');
+
   showModal(`<h3>训练学生</h3>
     <label class="block">训练类型</label>
-    <div id="train-type-grid" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">
-      <button class="prov-btn option-btn" data-val="数据结构">数据结构</button>
-      <button class="prov-btn option-btn" data-val="图论">图论</button>
-      <button class="prov-btn option-btn" data-val="字符串">字符串</button>
-      <button class="prov-btn option-btn" data-val="数学">数学</button>
-      <button class="prov-btn option-btn" data-val="DP">DP</button>
-      <button class="prov-btn option-btn" data-val="综合">综合</button>
-    </div>
+    <div id="train-type-grid" style="display:flex;gap:12px;flex-wrap:wrap;margin-top:6px;overflow-x:auto">${typeCards}</div>
     <label class="block" style="margin-top:10px">强度</label>
     <div id="train-int-grid" style="display:flex;gap:8px;margin-top:6px">
       <button class="prov-btn option-btn" data-val="1">轻</button>
@@ -1107,19 +1187,20 @@ function trainStudentsUI(){
     </div>
     <div style="margin-top:12px;text-align:right">
       <button class="btn btn-ghost" onclick="closeModal()">取消</button>
-  <button class="btn" id="train-confirm">开始训练（1周）</button>
+      <button class="btn" id="train-confirm">开始训练（1周）</button>
     </div>`);
 
-  // wire up selection behavior
-  document.querySelectorAll('#train-type-grid .option-btn').forEach(b=>{
-    b.onclick = ()=>{ document.querySelectorAll('#train-type-grid .option-btn').forEach(x=>x.classList.remove('selected')); b.classList.add('selected'); };
-  });
+  // wire up selection behavior for type cards (use option-card style like entertainment)
+  const tCards = Array.from(document.querySelectorAll('#train-type-grid .option-card'));
+  if(tCards.length>0) tCards[0].classList.add('selected');
+  tCards.forEach(c=>{ c.onclick = ()=>{ tCards.forEach(x=>x.classList.remove('selected')); c.classList.add('selected'); }; });
+  // intensity buttons behavior
   document.querySelectorAll('#train-int-grid .option-btn').forEach(b=>{
     b.onclick = ()=>{ document.querySelectorAll('#train-int-grid .option-btn').forEach(x=>x.classList.remove('selected')); b.classList.add('selected'); };
   });
 
   $('train-confirm').onclick = ()=>{
-    let topicBtn = document.querySelector('#train-type-grid .option-btn.selected');
+    let topicBtn = document.querySelector('#train-type-grid .option-card.selected');
     let intBtn = document.querySelector('#train-int-grid .option-btn.selected');
     let topic = topicBtn ? topicBtn.dataset.val : '综合';
     let intensity = intBtn ? parseInt(intBtn.dataset.val) : 2;
@@ -1360,6 +1441,9 @@ function loadGame(){ try{ let raw = localStorage.getItem('oi_coach_save'); if(!r
   game.students = (o.students || []).map(s => Object.assign(new Student(), s));
   renderAll(); alert("已载入存档"); }catch(e){ alert("载入失败："+e); } }
 
+// silent load used by index.html on startup (no alerts)
+function silentLoad(){ try{ let raw = localStorage.getItem('oi_coach_save'); if(!raw) return false; let o = JSON.parse(raw); game = Object.assign(new GameState(), o); game.facilities = Object.assign(new Facilities(), o.facilities); game.students = (o.students || []).map(s => Object.assign(new Student(), s)); return true; }catch(e){ return false; } }
+
 /* 初始化游戏（modal） */
 function initGameUI(){
   showModal(`<h3>欢迎 — OI 教练模拟器</h3>
@@ -1380,6 +1464,58 @@ function initGameUI(){
     initGame(diff,prov,count);
     renderAll();
   };
+}
+
+// Render helpers for Start page (start.html)
+function renderStartPageUI(){
+  const grid = document.getElementById('start-prov-grid');
+  if(!grid) return;
+  grid.innerHTML = '';
+  for(let k in PROVINCES){ let p=PROVINCES[k]; let btn=document.createElement('button'); btn.className='prov-btn'; btn.textContent=p.name; btn.dataset.val=k; btn.onclick=()=>{document.querySelectorAll('#start-prov-grid .prov-btn').forEach(b=>b.classList.remove('selected'));btn.classList.add('selected');}; grid.appendChild(btn);}  
+  if(grid.firstChild) grid.firstChild.classList.add('selected');
+}
+
+function startFromStartPage(){
+  let diff = parseInt(document.getElementById('start-diff').value);
+  let provBtn = document.querySelector('#start-prov-grid .prov-btn.selected');
+  let prov = provBtn ? parseInt(provBtn.dataset.val) : 1;
+  let count = clampInt(parseInt(document.getElementById('start-stu').value),3,10);
+  // init game and persist to localStorage, then go to game.html
+  // To avoid timing issues with localStorage availability during navigation,
+  // pass initialization params via query string and let game.html initialize.
+  const url = `game.html?new=1&d=${encodeURIComponent(diff)}&p=${encodeURIComponent(prov)}&c=${encodeURIComponent(count)}`;
+  window.location.href = url;
+}
+
+// Render end summary on end.html
+function renderEndSummary(){
+  const el = document.getElementById('end-summary');
+  if(!el) return;
+  // try to read saved game from localStorage
+  try{
+    let raw = localStorage.getItem('oi_coach_save');
+    if(!raw){ el.innerText = '无结算记录，无法显示结局。'; return; }
+    let o = JSON.parse(raw);
+    // small summary
+    let active = (o.students || []).filter(s=>s.active).length;
+    let initial = o.initial_students || (o.students? o.students.length : 0);
+    let rep = o.reputation || 0;
+    let budget = o.budget || 0;
+    // compute avg pressure if available
+    let avgP = 0; if(o.students && o.students.length>0){ avgP = Math.round(o.students.filter(s=>s.active).reduce((a,s)=>a+(s.pressure||0),0) / Math.max(1, active)); }
+    // decide ending text using checkEnding logic by temporarily rehydrating minimal game
+    let tmp = Object.assign(new GameState(), o);
+    tmp.students = (o.students || []).map(s => Object.assign(new Student(), s));
+    let ending = checkEnding.call({ game: tmp, students: tmp.students, budget: tmp.budget }) ;
+    // fallback: call checkEnding directly (it uses global game) - so set global game to tmp then restore
+    let prev = game; game = tmp; ending = checkEnding(); game = prev;
+    el.innerHTML = `<div>初始人数: <strong>${initial}</strong></div>
+      <div>当前在队: <strong>${active}</strong></div>
+      <div>平均压力: <strong>${avgP}</strong></div>
+      <div>经费: <strong>¥${budget}</strong></div>
+      <div>声誉: <strong>${rep}</strong></div>
+      <div style="margin-top:8px;font-weight:600">结局： ${ending}</div>`;
+  }catch(e){ el.innerText = '读取结算数据失败：'+e; }
 }
 
 /* initGame 逻辑（与 C++ 一致） */
@@ -1437,12 +1573,26 @@ window.onload = ()=>{
       });
     }catch(e){ console.error('registerDefaultEvents failed', e); }
   }
-  initGameUI();
-  // bindings
-  document.getElementById('action-train').onclick = ()=>{ trainStudentsUI(); };
-  document.getElementById('action-entertain').onclick = ()=>{ entertainmentUI(); };
-  document.getElementById('action-mock').onclick = ()=>{ holdMockContestUI(); };
-  document.getElementById('action-outing').onclick = ()=>{ // show outing modal
+  // If we're on game.html (has action cards), load saved game silently and bind UI. Otherwise (start/end pages) skip game bindings.
+  if(document.getElementById('action-train')){
+    // If game.html was opened with new-game params, initialize from them
+    const qs = (function(){ try{ return new URLSearchParams(window.location.search); }catch(e){ return null; } })();
+    if(qs && qs.get('new') === '1'){
+      const diff = clampInt(parseInt(qs.get('d')||2),1,3);
+      const prov = clampInt(parseInt(qs.get('p')||1),1,Object.keys(PROVINCES).length);
+      const count = clampInt(parseInt(qs.get('c')||5),3,10);
+      initGame(diff, prov, count);
+      try{ localStorage.setItem('oi_coach_save', JSON.stringify(game)); }catch(e){}
+    } else {
+      // try to load saved game; if none, redirect to start page
+      const ok = silentLoad();
+      if(!ok){ window.location.href = 'start.html'; return; }
+    }
+    // bindings
+    document.getElementById('action-train').onclick = ()=>{ trainStudentsUI(); };
+    document.getElementById('action-entertain').onclick = ()=>{ entertainmentUI(); };
+    document.getElementById('action-mock').onclick = ()=>{ holdMockContestUI(); };
+    document.getElementById('action-outing').onclick = ()=>{ // show outing modal
     showModal(`<h3>外出集训</h3>
       <label class="block">难度</label>
       <select id="out-diff"><option value="1">基础班</option><option value="2">提高班</option><option value="3">冲刺班</option></select>
@@ -1478,17 +1628,20 @@ window.onload = ()=>{
       renderAll();
     };
   };
-  document.getElementById('action-save').onclick = ()=>{ if(confirm("保存进度？（将覆盖本地存档）")) saveGame(); else if(confirm("载入存档？")) loadGame(); };
-  // action-evict 在某些 UI 版本中可能不存在，添加存在性检查以免抛出错误中断后续绑定
-  const actionEvictBtn = document.getElementById('action-evict');
-  if(actionEvictBtn) actionEvictBtn.onclick = ()=>{ evictStudentUI(); };
-  // bind inline upgrade buttons under facilities (if present)
-  document.querySelectorAll('.btn.upgrade').forEach(b => {
-    b.onclick = (e) => {
-      const fac = b.dataset.fac;
-      if(fac) upgradeFacility(fac);
-    };
-  });
-  renderAll();
+    document.getElementById('action-save').onclick = ()=>{ if(confirm("保存进度？（将覆盖本地存档）")) saveGame(); else if(confirm("载入存档？")) loadGame(); };
+    // bind inline upgrade buttons under facilities (if present)
+    document.querySelectorAll('.btn.upgrade').forEach(b => {
+      b.onclick = (e) => {
+        const fac = b.dataset.fac;
+        if(fac) upgradeFacility(fac);
+      };
+    });
+    // action-evict in some UI versions may not exist
+    const actionEvictBtn = document.getElementById('action-evict');
+    if(actionEvictBtn) actionEvictBtn.onclick = ()=>{ evictStudentUI(); };
+    renderAll();
+  } else {
+    // not index page: do nothing. start.html will call renderStartPageUI; end.html will call renderEndSummary.
+  }
 };
 
