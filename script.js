@@ -635,20 +635,31 @@ function holdMockContestModal(isPurchased, diffIdx, questionTagsArray){
    - 比赛周触发时只弹窗显示比赛（要求 5 ）
 */
 function holdCompetitionModal(comp){
-  // comp: {week,name,difficulty,maxScore}
-  // Build problems: 4 problems each with 1..3 tags (like C++ implementation)
+  // comp: {week,name,difficulty,maxScore,numProblems}
+  // Build problems dynamically according to comp.numProblems
   const knowledge_types = ["数据结构","图论","字符串","数学","DP"];
   let problems = [];
-  for(let i=0;i<4;i++){
-    let num_tags = uniformInt(1,3);
-    let selected_indices = [];
-    while(selected_indices.length < num_tags){
-      let idx = uniformInt(0,4);
-      if(!selected_indices.includes(idx)) selected_indices.push(idx);
+  const numProblems = (comp && comp.numProblems) ? Math.max(1, comp.numProblems) : 4;
+  for(let i=0;i<numProblems;i++){
+    let tags = [];
+    // CSP-S1: single problem contains all tags
+    if(comp.name === 'CSP-S1'){
+      tags = knowledge_types.slice();
+    } else if(comp.name === 'NOI' && i === 0){
+      // NOI: first problem contains all tags
+      tags = knowledge_types.slice();
+    } else {
+      // other problems: 1..3 random tags (distinct)
+      let num_tags = uniformInt(1,3);
+      let selected_indices = [];
+      while(selected_indices.length < num_tags){
+        let idx = uniformInt(0, knowledge_types.length-1);
+        if(!selected_indices.includes(idx)) selected_indices.push(idx);
+      }
+      tags = selected_indices.map(j => knowledge_types[j]);
     }
-    let tags = selected_indices.map(j => knowledge_types[j]);
-    let min_diff = comp.difficulty * (0.6 + 0.2 * i);
-    let max_diff = comp.difficulty * (0.8 + 0.2 * i);
+    let min_diff = comp.difficulty * (0.6 + 0.2 * Math.min(i, 3));
+    let max_diff = comp.difficulty * (0.8 + 0.2 * Math.min(i, 3));
     let difficulty = uniform(min_diff, max_diff);
     problems.push({tags,difficulty});
   }
@@ -665,11 +676,12 @@ function holdCompetitionModal(comp){
   }
   let dynamic_factor = 1.0 - (game.reputation - 50) * 0.01;
   let pass_line = Math.floor(base_pass_line * dynamic_factor);
-  // Ensure pass line does not exceed 90% of the competition's max score
+  // Ensure pass line does not exceed 90% of the competition's max score (use computed maxScore)
   try{
-    const maxAllowed = Math.floor(comp.maxScore * 0.9);
+    const compMax = (typeof comp.maxScore === 'number') ? comp.maxScore : ( (comp.numProblems||4) * 100 );
+    const maxAllowed = Math.floor(compMax * 0.9);
     if(pass_line > maxAllowed) pass_line = maxAllowed;
-  }catch(e){ /* ignore if comp.maxScore is not present */ }
+  }catch(e){ /* ignore if comp data is malformed */ }
   // evaluate students using Student.getPerformanceScore for each problem
   // Determine current half-season index (0 or 1) and enforce chain qualification
   const halfIndex = (currWeek() > WEEKS_PER_HALF) ? 1 : 0;
@@ -691,10 +703,11 @@ function holdCompetitionModal(comp){
       continue;
     }
     let total = 0; let scores = [];
-    for(let i=0;i<4;i++){
+    // each problem is scored out of 100; total max is numProblems * 100
+    for(let i=0;i<problems.length;i++){
       let tags = problems[i].tags;
       let totalK = 0; for(let t of tags) totalK += s.getKnowledgeByType(t);
-      let avgK = Math.floor(totalK / tags.length);
+      let avgK = tags.length>0 ? Math.floor(totalK / tags.length) : 0;
       let score = s.getPerformanceScore(problems[i].difficulty, 100, avgK);
       let final = Math.floor(score);
       final = Math.floor(final/10)*10;
@@ -716,12 +729,16 @@ function holdCompetitionModal(comp){
   html += `<div class="small">晋级线: ${pass_line.toFixed(1)} 分</div>`;
   html += `<div style="margin-top:8px">`;
   html += `<table><thead><tr><th>题号</th><th>难度(内部)</th><th>标签</th></tr></thead><tbody>`;
-  for(let i=0;i<4;i++){
-    html += `<tr><td>T${i+1}</td><td>${problems[i].difficulty.toFixed(1)}</td><td>${problems[i].tags.join(", ")}</td></tr>`;
+  for(let i=0;i<problems.length;i++){
+    const pd = problems[i] || {difficulty:0,tags:[]};
+    html += `<tr><td>T${i+1}</td><td>${pd.difficulty.toFixed(1)}</td><td>${(pd.tags||[]).join(", ")}</td></tr>`;
   }
   html += `</tbody></table></div>`;
   html += `<div style="margin-top:8px">`;
-  html += `<table><thead><tr><th>名次</th><th>姓名</th><th>T1</th><th>T2</th><th>T3</th><th>T4</th><th>总分</th><th>备注</th></tr></thead><tbody>`;
+  // build header with dynamic problem columns
+  html += `<table><thead><tr><th>名次</th><th>姓名</th>`;
+  for(let i=0;i<problems.length;i++) html += `<th>T${i+1}</th>`;
+  html += `<th>总分</th><th>备注</th></tr></thead><tbody>`;
   for(let i=0;i<results.length;i++){
     let r = results[i];
     let remark = '';
@@ -734,10 +751,10 @@ function holdCompetitionModal(comp){
     }
     html += `<tr><td>${i+1}</td><td>${r.name}</td>`;
     if(r.eligible === false){
-      html += `<td colspan="4" style="text-align:center;color:#999">未参加</td>`;
+      html += `<td colspan="${problems.length}" style="text-align:center;color:#999">未参加</td>`;
       html += `<td>—</td><td>${remark}</td></tr>`;
     } else {
-      for(let j=0;j<4;j++) html += `<td>${r.scores[j]}</td>`;
+      for(let j=0;j<problems.length;j++) html += `<td>${r.scores && typeof r.scores[j] !== 'undefined' ? r.scores[j] : ''}</td>`;
       html += `<td>${r.total}</td><td>${remark}</td></tr>`;
     }
   }
@@ -915,7 +932,7 @@ function holdCompetitionModal(comp){
           halfIndex: halfIndexApply,
           name: comp.name,
           passLine: pass_line,
-          maxScore: comp.maxScore || 400,
+          maxScore: (typeof comp.maxScore === 'number') ? comp.maxScore : ((comp.numProblems||problems.length||4) * 100),
           entries: results.map((r, idx) => ({ name: r.name, total: r.total, eligible: r.eligible, remark: (r.eligible===false? '未参加' : (r.total>=pass_line? '晋级':'')), rank: r.eligible? (r.total!=null? (results.filter(x=>x.eligible===true).map(x=>x.name).indexOf(r.name)+1) : null) : null }))
         };
         if(!game.careerCompetitions) game.careerCompetitions = [];
