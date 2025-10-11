@@ -173,8 +173,48 @@ function getLetterGrade(val) {
 }
 
 /* =========== 名字生成 =========== */
-const surnames = ["张","李","王","刘","陈","杨","黄","赵","周","吴","徐","孙","马","朱","胡","郭","何","林","罗","高","梁","宋","郑","谢","韩","唐","冯","于","董","萧"];
-const namesPool = ["明","华","强","军","伟","磊","杰","涛","超","鹏","娜","敏","静","丽","芳","莉","婷","雪","玲","晨","宇","昊","睿","轩","博","辰","泽","瑞","翔","凯","文","武","勇","智","俊","豪","琪","悦","欣","雨"];
+/* =========== 名字生成（男性单字） =========== */
+const surnames = [
+  "张","李","王","刘","陈","杨","黄","赵","周","吴",
+  "徐","孙","马","朱","胡","郭","何","林","罗","高",
+  "梁","宋","郑","谢","韩","唐","冯","于","董","萧","曹",
+  "潘","袁","许","曾","蒋","蔡","余","杜","叶","程",
+  "苏","魏","吕","丁","任","沈","姚","卢","姜","崔"
+];
+
+const namesPool = [
+  "伟","刚","勇","毅","俊","峰","强","军","平","保",
+  "东","文","辉","力","明","永","健","世","广","志",
+  "义","兴","良","海","山","仁","波","宁","贵","福",
+  "生","龙","元","全","国","胜","学","祥","才","发",
+  "武","新","利","清","飞","彬","富","顺","信","杰",
+  "涛","昌","成","康","星","光","天","达","安","岩",
+  "中","茂","进","林","有","坚","和","彪","博","诚",
+  "先","敬","震","振","壮","会","思","群","豪","心",
+  "邦","承","乐","绍","功","松","善","厚","庆","民",
+  "友","裕","河","哲","江","超","浩","亮","政","谦",
+  "亨","奇","固","之","翰","朗","伯","宏","言","鸣",
+  "朋","斌","梁","栋","维","启","克","伦","翔","旭",
+  "鹏","泽","晨","辰","士","建","家","致","树","炎",
+  "德","行","时","泰","盛","雄","琛","钧","冠","策",
+  "腾","楠","榕","岳","然","煜","鑫","骏","宸","珩",
+  "骁","恒","博","尧","奕","澄","峻","逸","尘","晟",
+  "烨","翎","晗","卓","麟","皓","煦","栩","瀚","燊",
+  "烁","霖","屹","骞","嵩","澜","漾","渊","峥","祺",
+  "淞","珺","珞","瑜","瑾","琨","铠","铭","锴","锋",
+  "铎","锐","剑","戎","霆","震","骢","骥","昊","煊",
+  "炜","昱","曜","桦","槐","栋","森","澔","淳","湛",
+  "涵","灿","焱","燎","炎","尧","哲","航","睿","凯",
+  "琪","澔","玮","珂","洺","源","湧","鸣","俊","煜",
+  "翰","云","哲","诚","邦","尘","恒","鸣","渊","森",
+  "桓","泽","弘","川","渝","岳","帆","栋","弈","奇",
+  "锐","琪","嵩","铠","恺","诚","轩","峰","晟","远",
+  "铭","凯","炜","煜","杰","烽","志","朗","逸","骞",
+  "宸","烨","骁","尧","腾","珩","霖","泽","航","瑞",
+  "煊","岳","麟","博","晗","昀","嘉","澄","桦","骅",
+  "澜","然","尘","奕","翰","栩","祺","瑜","珺","骏",
+  "峻","晟","尧","钧","骋","锐","承","炎","帆","弘"
+];
 function generateName(){
   let s = surnames[uniformInt(0,surnames.length-1)];
   let n = namesPool[uniformInt(0,namesPool.length-1)];
@@ -307,6 +347,8 @@ class GameState {
     for(let name of COMPETITION_ORDER){ this.qualification[0][name] = new Set(); this.qualification[1][name] = new Set(); }
     // 标记赛季结束结算（避免重复触发）
     this.seasonEndTriggered = false;
+    // 记录已完成的比赛（按唯一键：`${halfIndex}_${compName}_${week}`），用于避免在同一赛季重复触发
+    this.completedCompetitions = new Set();
   }
   getWeatherFactor(){
     let factor=1.0;
@@ -339,13 +381,13 @@ class GameState {
     return 1.0;
   }
   getNextCompetition(){
-    // 使用运行时生成的 `competitions`（已为两季）来计算下场比赛
-    if(typeof competitions !== 'undefined'){
-      for(let comp of competitions){
-        if(comp.week > this.week){
-          let weeks_left = comp.week - this.week;
-          return comp.name + " (还有" + weeks_left + "周)";
-        }
+    // 使用运行时生成的 `competitions`（已为两季），按周排序后计算下场比赛
+    if(Array.isArray(competitions) && competitions.length > 0){
+      const sorted = competitions.slice().sort((a, b) => a.week - b.week);
+      const next = sorted.find(c => c.week > this.week);
+      if(next){
+        let weeks_left = next.week - this.week;
+        return next.name + ` (还有${weeks_left}周)`;
       }
     }
     return "无";
@@ -561,7 +603,9 @@ function renderAll(){
   const panel = $('next-competition-panel');
   if(weeksLeft !== null && weeksLeft <= 4){ panel.className = 'next-panel highlight'; }
   else { panel.className = 'next-panel normal'; }
-  $('comp-schedule').innerText = competitions.map(c=>`${c.week}:${c.name}`).join("  |  ");
+  // 比赛时间轴按周次排序展示
+  const scheduleComps = competitions.slice().sort((a, b) => a.week - b.week);
+  $('comp-schedule').innerText = scheduleComps.map(c => `${c.week}:${c.name}`).join("  |  ");
   // facilities
   $('fac-computer').innerText = game.facilities.computer;
   $('fac-library').innerText = game.facilities.library;
@@ -615,11 +659,23 @@ function renderAll(){
   // render dynamic event cards
   renderEventCards();
 
-  // Competition-week: inject single "参加比赛" action and hide others
-  const compNow = competitions.find(c => c.week === game.week);
+  // Competition-week: 如果当前周有未完成的比赛，则注入 "参加比赛" 按钮
+  // 只处理尚未完成的比赛
+  let compNow = null;
+  const sortedComps = Array.isArray(competitions) ? competitions.slice().sort((a,b)=>a.week - b.week) : [];
+  for (let comp of sortedComps) {
+    if (comp.week === game.week) {
+      const half = (game.week > WEEKS_PER_HALF) ? 1 : 0;
+      const key = `${half}_${comp.name}_${comp.week}`;
+      if (!game.completedCompetitions || !game.completedCompetitions.has(key)) {
+        compNow = comp;
+      }
+      break;
+    }
+  }
+  // render competition action card
   const actionContainer = document.querySelector('.action-cards');
   if (compNow) {
-    // inject comp-only action if not exists
     if (!document.getElementById('comp-only-action')) {
       const compCard = document.createElement('div');
       compCard.className = 'action-card'; compCard.id = 'comp-only-action'; compCard.setAttribute('role','button'); compCard.tabIndex = 0;
@@ -874,6 +930,11 @@ function holdCompetitionModal(comp){
   }
   let dynamic_factor = 1.0 - (game.reputation - 50) * 0.01;
   let pass_line = Math.floor(base_pass_line * dynamic_factor);
+  // Ensure pass line does not exceed 90% of the competition's max score
+  try{
+    const maxAllowed = Math.floor(comp.maxScore * 0.9);
+    if(pass_line > maxAllowed) pass_line = maxAllowed;
+  }catch(e){ /* ignore if comp.maxScore is not present */ }
   // evaluate students using Student.getPerformanceScore for each problem
   // Determine current half-season index (0 or 1) and enforce chain qualification
   const halfIndex = (game.week > WEEKS_PER_HALF) ? 1 : 0;
@@ -1019,16 +1080,20 @@ function holdCompetitionModal(comp){
       }
     } else if(comp.name==="NOIP"){
       if(pass_count>0){
+        // 晋级参加 NOIP
         let reward = uniformInt(NOIP_REWARD_MIN, NOIP_REWARD_MAX);
         game.reputation += uniformInt(15,25);
         game.budget += reward;
         game.had_good_result_recently = true;
         game.weeks_since_good_result = 0;
         game.teaching_points += 5 * pass_count;
-        game.mockBlockedThisYear = false; game.mockBlockedReason = "";
+        // 重置模拟赛/正式赛阻塞状态
+        game.mockBlockedThisYear = false;
+        game.mockBlockedReason = "";
       } else {
+        // 未晋级时设置阻塞原因
         game.mockBlockedThisYear = true;
-        game.mockBlockedReason = "NOIP 未晋级，无法参加本年度比赛赛";
+        game.mockBlockedReason = "CSP-S2 未晋级，无法参加 NOIP";
       }
     } else if(comp.name==="省选"){
       if(pass_count>0){
@@ -1055,9 +1120,16 @@ function holdCompetitionModal(comp){
       }
     }
     closeModal();
+    // 标记为已完成，使用唯一键避免重复触发
+    try{
+      const halfIndexApply = (game.week > WEEKS_PER_HALF) ? 1 : 0;
+      const doneKey = `${halfIndexApply}_${comp.name}_${comp.week}`;
+      if(!game.completedCompetitions) game.completedCompetitions = new Set();
+      game.completedCompetitions.add(doneKey);
+    }catch(e){ console.error('mark completion error', e); }
     log(`${comp.name} 结果已应用`);
-    // advance to next week after competition
-    safeWeeklyUpdate(1);
+    // 比赛不再消耗周数：保留一次性事件模态抑制以避免弹窗干扰
+    try{ game.suppressEventModalOnce = true; }catch(e){}
     renderAll();
   };
 }
@@ -1065,7 +1137,37 @@ function holdCompetitionModal(comp){
 /* 随机事件（和周结算） - 使用 events.js 的 EventManager 调度，可扩展 */
 function checkRandomEvents(){
   if(window.EventManager && typeof window.EventManager.checkRandomEvents === 'function'){
-  try{ window.EventManager.checkRandomEvents(game); window.renderAll(); }
+    try{
+      // If current week is a competition week, suppress event modals so they don't conflict
+      // with the competition modal. We still let events run and be recorded (pushEvent),
+      // but avoid opening modals that may trigger user actions or navigation.
+      // Two situations when we want to silence event modals:
+      // 1) It's currently a competition week (to avoid conflicting modals)
+      // 2) A one-time suppression flag is set on the game (used after applying competition results
+      //    to advance week without allowing event modals to steal focus). See where
+      //    `game.suppressEventModalOnce` is set in the competition flow.
+      const compNow = (typeof competitions !== 'undefined') ? competitions.find(c => c.week === game.week) : null;
+      const suppressOnce = game && game.suppressEventModalOnce;
+      if(compNow || suppressOnce){
+        // temporarily replace modal showing functions with safe variants that only push events
+        const origShowEventModal = window.showEventModal;
+        const origShowChoiceModal = window.showChoiceModal;
+        try{
+          window.showEventModal = function(evt){ try{ if(window.pushEvent) window.pushEvent(evt); }catch(e){} };
+          window.showChoiceModal = function(evt){ try{ if(window.pushEvent) window.pushEvent({ name: evt.name || '选择事件', description: evt.description || '', week: evt.week || game.week }); }catch(e){} };
+          window.EventManager.checkRandomEvents(game);
+        }finally{
+          // restore originals
+          window.showEventModal = origShowEventModal;
+          window.showChoiceModal = origShowChoiceModal;
+          // clear the one-time suppression flag after use
+          if(suppressOnce){ try{ game.suppressEventModalOnce = false; }catch(e){} }
+        }
+      } else {
+        window.EventManager.checkRandomEvents(game);
+      }
+      window.renderAll();
+    }
     catch(e){ console.error('EventManager.checkRandomEvents error', e); }
   } else {
     // fallback: no events manager available
@@ -1124,28 +1226,51 @@ function weeklyUpdate(weeks=1){
 }
 // 安全的周更新：在多周跳转时不跳过即将到来的比赛
 function safeWeeklyUpdate(weeks = 1) {
-  let nextComp = competitions.find(c => c.week > game.week);
-  let weeksToComp = nextComp ? (nextComp.week - game.week) : Infinity;
-    if (weeksToComp <= weeks) {
-      // 跳转至比赛周
-      weeklyUpdate(weeksToComp);
-      // Removed automatic competition popup; user must click button
-      // 剩余周数继续更新
-      let rem = weeks - weeksToComp;
-      if (rem > 0) weeklyUpdate(rem);
-    } else {
-      weeklyUpdate(weeks);
+  // 如果当前经费不足以维持下一周，则直接触发坏结局并跳转到结算页
+  try{
+    const nextWeekCost = game.getWeeklyCost();
+    if(typeof nextWeekCost === 'number' && game.budget < nextWeekCost){
+      try{ pushEvent('经费不足，无法继续下一周，触发坏结局'); }catch(e){}
+      try{
+        localStorage.setItem('oi_coach_save', JSON.stringify(game));
+        localStorage.setItem('oi_coach_ending', '💸 经费枯竭');
+      }catch(e){}
+      showModal(`<h3>经费不足</h3><div class="small">经费不足，项目无法继续，已进入结算页面。</div><div style="text-align:right;margin-top:8px"><button class="btn" onclick="(function(){ closeModal(); window.location.href='end.html'; })()">查看结算页面</button></div>`);
+      renderAll();
+      return;
     }
+  }catch(e){ /* ignore */ }
+  // 查找按周排序后的下场比赛
+  const sorted = Array.isArray(competitions) ? competitions.slice().sort((a, b) => a.week - b.week) : [];
+  let nextComp = sorted.find(c => c.week > game.week);
+  let weeksToComp = nextComp ? (nextComp.week - game.week) : Infinity;
+  if (weeksToComp <= weeks) {
+    // 跳转至比赛周
+    weeklyUpdate(weeksToComp);
+    // 剩余周数继续更新
+    let rem = weeks - weeksToComp;
+    if (rem > 0) weeklyUpdate(rem);
+  } else {
+    weeklyUpdate(weeks);
+  }
 }
 
 /* 检查并在比赛周“只弹窗显示比赛” */
 function checkCompetitions(){
-  for(let comp of competitions){
-    if(comp.week === game.week){
-      // open modal for official competition and do application inside modal
-      holdCompetitionModal(comp);
-      break; // only one per week
+  // 遍历按周排序后的比赛，确保与周次对齐
+  const sorted = Array.isArray(competitions) ? competitions.slice().sort((a,b)=>a.week - b.week) : [];
+  for(let comp of sorted){
+    if(comp.week !== game.week) continue;
+    // 构建唯一键：半季索引 + 比赛名 + 周数，避免误触发
+    const halfIndex = (game.week > WEEKS_PER_HALF) ? 1 : 0;
+    const key = `${halfIndex}_${comp.name}_${comp.week}`;
+    if(game.completedCompetitions && game.completedCompetitions.has(key)){
+      // 已完成，跳过
+      continue;
     }
+    // open modal for official competition and do application inside modal
+    holdCompetitionModal(comp);
+    break; // only one per week
   }
 }
 
