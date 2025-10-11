@@ -1179,7 +1179,7 @@ function holdCompetitionModal(comp){
     try{
       if(pass_count > 0){
         // 比赛等级映射（用户要求）
-        const levelMap = { 'CSP-S1': 1, 'CSP-S2': 2, 'NOIP': 5 };
+        const levelMap = { 'CSP-S1': 0.3, 'CSP-S2': 1, 'NOIP': 2 };
         const level = levelMap[comp.name] || 1;
         // 省份强弱系数：根据 game.province_type（'强省','普通省','弱省'）决定
         let provinceCoef = 1.0;
@@ -1195,9 +1195,10 @@ function holdCompetitionModal(comp){
         const rand = uniformInt(perPassMin, perPassMax);
         const grant = Math.round(pass_count * level * rand * provinceCoef);
         game.budget = (game.budget || 0) + grant;
-        const msg = `上级拨款：由于 ${comp.name} 有 ${pass_count} 人晋级，获得拨款 ¥${grant}（等级${level}，省系数${provinceCoef}）`;
-        log && log(`[拨款] ${msg}`);
-        pushEvent && pushEvent({ name:'上级拨款', description: msg, week: game.week });
+  const msg = `上级拨款：由于 ${comp.name} 有 ${pass_count} 人晋级，获得拨款 ¥${grant}（等级${level}，省系数${provinceCoef}）`;
+  log && log(`[拨款] ${msg}`);
+  // 事件卡显示只保留金额，以保持简洁
+  pushEvent && pushEvent({ name:'上级拨款', description: `¥${grant}`, week: game.week });
       }
     }catch(e){ console.error('grant error', e); }
 

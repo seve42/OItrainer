@@ -189,7 +189,8 @@
           c.game.reputation = Math.min(100, c.game.reputation + 3);
           const msg = `收到上级拨款 ¥${gain}，声誉提升 +3`;
           c.log && c.log(`[上级拨款] ${msg}`);
-          window.pushEvent && window.pushEvent({ name:'上级拨款', description: msg, week: c.game.week });
+          // 事件卡仅显示金额以保持简洁
+          window.pushEvent && window.pushEvent({ name:'上级拨款', description: `¥${gain}`, week: c.game.week });
           return msg;
         }
       });
