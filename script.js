@@ -531,6 +531,79 @@ function pushEvent(msg){
   renderEventCards();
 }
 
+// ===== 状态快照与差异汇总工具 =====
+function __createSnapshot(){
+  return {
+    budget: game.budget || 0,
+    reputation: game.reputation || 0,
+    students: game.students.map(s=>({
+      name: s.name,
+      active: !!s.active,
+      pressure: Number((s.pressure||0).toFixed(2)),
+      thinking: Number((s.thinking||0).toFixed(2)),
+      coding: Number((s.coding||0).toFixed(2)),
+      knowledge: Number((typeof s.getKnowledgeTotal === 'function') ? s.getKnowledgeTotal() : (
+        ((s.knowledge_ds||0)+(s.knowledge_graph||0)+(s.knowledge_string||0)+(s.knowledge_math||0)+(s.knowledge_dp||0))
+      ))
+    })),
+  };
+}
+
+function __summarizeSnapshot(before, after, title){
+  try{
+    const parts = [];
+    const db = (after.budget||0) - (before.budget||0);
+    if(db !== 0) parts.push(`经费 ${db>0?'+':'-'}¥${Math.abs(db)}`);
+    const dr = (after.reputation||0) - (before.reputation||0);
+    if(dr !== 0) parts.push(`声誉 ${dr>0?'+':''}${dr}`);
+
+    // students map
+    const beforeMap = new Map();
+    for(const s of before.students) beforeMap.set(s.name, s);
+    const afterMap = new Map();
+    for(const s of after.students) afterMap.set(s.name, s);
+
+    // additions
+    const added = [];
+    for(const [name, s] of afterMap){ if(!beforeMap.has(name)) added.push(name); }
+    if(added.length) parts.push(`加入: ${added.join('、')}`);
+    // removals
+    const removed = [];
+    for(const [name, s] of beforeMap){ if(!afterMap.has(name)) removed.push(name); }
+    if(removed.length) parts.push(`退队: ${removed.join('、')}`);
+
+    // per-student diffs (only for those present both times)
+    const stuParts = [];
+    for(const [name, beforeS] of beforeMap){
+      if(!afterMap.has(name)) continue;
+      const afterS = afterMap.get(name);
+      const dP = Number((afterS.pressure - beforeS.pressure).toFixed(2));
+      const dT = Number((afterS.thinking - beforeS.thinking).toFixed(2));
+      const dC = Number((afterS.coding - beforeS.coding).toFixed(2));
+      const dK = Number((afterS.knowledge - beforeS.knowledge).toFixed(2));
+      const changes = [];
+      if(dP !== 0) changes.push(`压力 ${dP>0?'+':''}${dP}`);
+      if(dT !== 0) changes.push(`思维 ${dT>0?'+':''}${dT}`);
+      if(dC !== 0) changes.push(`编程 ${dC>0?'+':''}${dC}`);
+      if(dK !== 0) changes.push(`知识 ${dK>0?'+':''}${dK}`);
+      if(changes.length) stuParts.push(`${name}: ${changes.join('，')}`);
+    }
+    if(stuParts.length) parts.push(stuParts.join('； '));
+
+    const summary = parts.length ? parts.join('； ') : '无显著变化';
+    // push concise event card
+    pushEvent({ name: title || '变动汇总', description: summary, week: game.week });
+    // also log the detailed version
+    log(`[${title||'变动'}] ${summary}`);
+    return summary;
+  }catch(e){ console.error('summarize error', e); return null; }
+}
+
+// 便捷接口
+window.__createSnapshot = __createSnapshot;
+window.__summarizeSnapshot = __summarizeSnapshot;
+
+
 // 渲染所有突发事件卡（任意数量）到 #event-cards-container
 function renderEventCards(){
   const container = document.getElementById('event-cards-container');
@@ -756,6 +829,7 @@ function renderAll(){
 /* 训练（1周） */
 function trainStudents(topic,intensity){
   log(`开始 ${topic} 训练（${intensity===1?'轻':intensity===2?'中':'重'}）`);
+  const __before = typeof __createSnapshot === 'function' ? __createSnapshot() : null;
   let weather_factor = game.getWeatherFactor();
   let comfort = game.getComfort();
   let comfort_factor = 1.0 + Math.max(0.0, (50 - comfort) / 100.0);
@@ -803,11 +877,14 @@ function trainStudents(topic,intensity){
   }
   game.weeks_since_entertainment += 1;
     log("训练结束（1周）。");
+  const __after = typeof __createSnapshot === 'function' ? __createSnapshot() : null;
+  if(__before && __after) __summarizeSnapshot(__before, __after, `训练：${topic}`);
 }
 
 /* 外出集训（略） - 保持与前版本一致（不改动逻辑，仅 UI 触发） */
 function outingTraining(difficulty_choice, province_choice){
   let target = PROVINCES[province_choice];
+  const __before = typeof __createSnapshot === 'function' ? __createSnapshot() : null;
   let base_cost = OUTFIT_BASE_COST_BASIC;
   if(difficulty_choice===2) base_cost = OUTFIT_BASE_COST_INTERMEDIATE;
   else if(difficulty_choice===3) base_cost = OUTFIT_BASE_COST_ADVANCED;
@@ -868,6 +945,8 @@ function outingTraining(difficulty_choice, province_choice){
   }
   game.weeks_since_entertainment += 1;
     log("外出集训完成（1周）。");
+  const __after = typeof __createSnapshot === 'function' ? __createSnapshot() : null;
+  if(__before && __after) __summarizeSnapshot(__before, __after, `外出集训：${target.name} 难度${difficulty_choice}`);
 }
 
 // 辅助：为单个学生运行一次隐藏模拟赛，返回总分（0..400），不弹窗
@@ -967,6 +1046,7 @@ function holdMockContestModal(isPurchased, diffIdx, questionTagsArray){
   showModal(html);
   // on apply: perform exact same updates as previous C++ logic (knowledge gain, mental changes, pressure)
   $('mock-apply').onclick = ()=>{
+    const __before = typeof __createSnapshot === 'function' ? __createSnapshot() : null;
     // apply
     let base_knowledge_min = Math.floor(2 * (isPurchased?MOCK_CONTEST_GAIN_MULTIPLIER_PURCHASED:1.0));
     let base_knowledge_max = Math.floor(6 * (isPurchased?MOCK_CONTEST_GAIN_MULTIPLIER_PURCHASED:1.0));
@@ -999,9 +1079,15 @@ function holdMockContestModal(isPurchased, diffIdx, questionTagsArray){
     closeModal();
     log("模拟赛结果已应用（1周结算后的效果）。");
     renderAll();
+    // 尝试在内部创建 after 快照并调用汇总（使用 handler 内的 __before）
+    try{
+      const __after = typeof __createSnapshot === 'function' ? __createSnapshot() : null;
+      if(typeof __before !== 'undefined' && __before && __after && typeof __summarizeSnapshot === 'function'){
+        __summarizeSnapshot(__before, __after, `模拟赛（${base_difficulty_label}）`);
+      }
+    }catch(e){ /* 忽略汇总错误 */ }
   };
 }
-
 /* 正式比赛：使用 C++ 一致的 getPerformanceScore，且以弹窗显示每题成绩、总分、晋级/奖牌
    - 比赛周触发时只弹窗显示比赛（要求 5 ）
 */
@@ -1117,6 +1203,7 @@ function holdCompetitionModal(comp){
   // Show modal (important: per user's request, 比赛周只弹窗显示比赛)
   showModal(html);
   $('comp-apply').onclick = ()=>{
+    const __before = typeof __createSnapshot === 'function' ? __createSnapshot() : null;
     // apply effects (mirrors C++ logic) but only for eligible participants
     const halfIndexApply = (game.week > WEEKS_PER_HALF) ? 1 : 0;
     // ensure qualification structure exists
@@ -1252,7 +1339,9 @@ function holdCompetitionModal(comp){
         game.budget += reward;
       }
     }
-    closeModal();
+  closeModal();
+  const __after = typeof __createSnapshot === 'function' ? __createSnapshot() : null;
+  if(__before && __after) __summarizeSnapshot(__before, __after, `比赛：${comp.name}`);
     // 标记为已完成，使用唯一键避免重复触发
     try{
       const halfIndexApply = (game.week > WEEKS_PER_HALF) ? 1 : 0;

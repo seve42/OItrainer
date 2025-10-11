@@ -393,7 +393,20 @@
       for(let evt of this._events.slice()){
         try{
           if(evt.check(c)){
+            // 尝试在事件执行前后创建快照（如果脚本中已定义相关工具）
+            let beforeSnap = null;
+            try{ if (typeof window.__createSnapshot === 'function') beforeSnap = window.__createSnapshot(); }catch(e){ beforeSnap = null; }
+
             const runResult = evt.run && evt.run(c);
+
+            // 事件执行后尝试创建快照并调用汇总函数以生成简要日志（如果可用）
+            try{
+              if (typeof window.__createSnapshot === 'function' && typeof window.__summarizeSnapshot === 'function' && runResult !== null) {
+                const afterSnap = window.__createSnapshot();
+                try{ window.__summarizeSnapshot(beforeSnap, afterSnap, '事件：' + evt.name); }catch(e){ /* 忽略汇总内部错误 */ }
+              }
+            }catch(e){ /* 忽略快照/汇总错误 */ }
+
             // 如果 run 返回了具体的消息，则使用该消息，否则使用通用描述
             if (runResult !== null) { // 仅当事件实际发生时才显示弹窗
                 const description = typeof runResult === 'string' ? runResult : evt.description;
