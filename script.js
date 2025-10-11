@@ -579,6 +579,63 @@ function showEventModal(evt){
     showModal(html);
   }catch(e){ console.error('showEventModal error', e); }
 }
+
+// 显示需要玩家选择的事件弹窗：evt = {name, description, week, options: [{label, effect}]}
+function showChoiceModal(evt){
+  try{
+    const title = (evt && evt.name) ? evt.name : '选择事件';
+    const desc = (evt && evt.description) ? evt.description : '';
+    const weekInfo = (evt && evt.week) ? `[周${evt.week}] ` : `[周${game.week}] `;
+    // build option buttons
+    let opts = '';
+    const options = (evt && Array.isArray(evt.options)) ? evt.options : [];
+    if(options.length === 0){
+      opts = `<div style="text-align:right;margin-top:12px"><button class="btn" onclick="closeModal()">关闭</button></div>`;
+    } else {
+      opts = '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">';
+      for(let i=0;i<options.length;i++){
+        const o = options[i];
+        const label = o && o.label ? o.label : `选项 ${i+1}`;
+        // create a unique handler that calls the effect safely
+        opts += `<button class="btn" id="choice-opt-${i}">${label}</button>`;
+      }
+      opts += `<button class="btn" style="margin-left:6px" id="choice-cancel">取消</button>`;
+      opts += '</div>';
+    }
+
+    const html = `<h3>${weekInfo}${title}</h3><div class="small" style="margin-top:6px">${desc}</div>${opts}`;
+    showModal(html);
+
+    // push event to recent events log for visibility
+    try{ if(window.pushEvent) window.pushEvent({ name: title, description: desc, week: evt && evt.week ? evt.week : game.week }); }catch(e){}
+
+    // wire up handlers (effects may be functions passed by EventManager)
+    for(let i=0;i<options.length;i++){
+      const btn = document.getElementById(`choice-opt-${i}`);
+      if(!btn) continue;
+      ((idx, opt)=>{
+        btn.addEventListener('click', ()=>{
+          try{ closeModal(); if(opt && typeof opt.effect === 'function') opt.effect(); }
+          catch(e){ console.error('choice effect error', e); }
+          try{ window.renderAll && window.renderAll(); }catch(e){}
+        });
+      })(i, options[i]);
+    }
+    const cancelBtn = document.getElementById('choice-cancel');
+    if(cancelBtn){ cancelBtn.addEventListener('click', ()=>{ closeModal(); }); }
+
+  }catch(e){ console.error('showChoiceModal error', e); }
+}
+
+// Debug helper: 在控制台调用 testShowChoiceModal() 可以弹出一个示例选择弹窗
+function testShowChoiceModal(){
+  const options = [
+    { label: '接受', effect: () => { game.budget = Math.max(0, game.budget - 5000); log('测试：已接受，扣除经费'); } },
+    { label: '拒绝', effect: () => { log('测试：已拒绝'); } }
+  ];
+  showChoiceModal({ name: '测试选择事件', description: '这是一个用于验证的测试弹窗。', week: game.week, options });
+}
+window.testShowChoiceModal = testShowChoiceModal;
 /* 渲染：主页去数值化（不显示学生具体能力/压力数值） */
 function renderAll(){
   $('header-week').innerText = `第 ${game.week} 周`;
