@@ -40,7 +40,23 @@ footer{margin-top:16px;text-align:center;color:var(--muted)}
 .tag{display:inline-block;padding:4px 8px;border-radius:999px;background:#eef6ff;color:#1b4f8a;font-size:12px;margin-left:6px}
 .warn{color:#b45309}
 .status-row{display:flex;gap:12px;flex-wrap:wrap}
-.student-box{border:1px solid #eee;padding:8px;border-radius:6px;background:#fff}
+.student-box{border:1px solid #eee;padding:6px;border-radius:6px;background:#fff}
+.student-box{position:relative;padding-top:24px}
+.evict-btn{
+	position:absolute;
+	top:3px;
+	right:3px;
+	background:#e53e3e;
+	color:#fff;
+	border:none;
+	padding:2px 6px;
+	border-radius:4px;
+	font-size:10px;
+	cursor:pointer;
+	z-index:2;
+	box-shadow:0 1px 3px rgba(0,0,0,0.06);
+}
+.evict-btn:disabled{opacity:.5;cursor:not-allowed}
 .score{font-weight:700}
 .compact{font-size:13px}
 .stars{color:#d97706}

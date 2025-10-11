@@ -12,8 +12,9 @@
       if(!evt || !evt.id) throw new Error('event must have id');
       this._events.push(evt);
     },
-    clear(){ this._events = []; },
-    // ctx: {game, PROVINCES, constants: {...}, utils: {...}, log}
+    clear(){
+      this._events = [];
+    },
     registerDefaultEvents(ctx){
       this.clear();
       this._ctx = ctx || {};
@@ -22,63 +23,95 @@
 
       // 台风（沿海）
       this.register({
-        id: 'typhoon', name: '台风', description: '沿海省份夏秋季台风，影响舒适度/压力/经费',
-        check: (c) => {
-          const coastalProvinces = ["广东","浙江","上海","福建","江苏","山东","辽宁","海南","天津"];
-          if(!coastalProvinces.includes(c.game.province_name)) return false;
+        id: 'typhoon',
+        name: '台风',
+        description: '沿海省份夏秋季台风，影响舒适度/压力/经费',
+        check: c => {
+          const coastal = ["广东","浙江","上海","福建","江苏","山东","辽宁","海南","天津"];
+          if(!coastal.includes(c.game.province_name)) return false;
           const w = c.game.week;
-          let typhoonProb = 0;
-          if (w >= 20 && w <= 39) typhoonProb = 0.08;
-          else if (w >= 14 && w <= 19) typhoonProb = 0.03;
-          else if (w >= 40 && w <= 45) typhoonProb = 0.03;
-          return Math.random() < typhoonProb;
+          let p = 0;
+          if (w >= 20 && w <= 39) p = 0.08;
+          else if ((w >= 14 && w <= 19) || (w >= 40 && w <= 45)) p = 0.03;
+          return Math.random() < p;
         },
-        run: (c) => {
-          for(let s of c.game.students){ if(!s.active) continue; s.pressure = Math.min(100, s.pressure + 15); s.comfort = Math.max(0, s.comfort - 10); }
+        run: c => {
+          for(let s of c.game.students){
+            if(!s.active) continue;
+            s.pressure = Math.min(100, s.pressure + 15);
+            s.comfort  = Math.max(0,   s.comfort  - 10);
+          }
           const loss = utils.uniformInt(10000, 20000);
           c.game.budget = Math.max(0, c.game.budget - loss);
-          c.log && c.log(`[台风] 台风来袭，训练受阻，学生压力上升，舒适度下降，经费损失¥${loss}`);
+          const msg = `台风来袭，经费损失 ¥${loss}`;
+          log && log(`[台风] ${msg}`);
+          window.pushEvent && window.pushEvent({ name:'台风', description: msg, week: c.game.week });
         }
       });
 
       // 感冒（生病）
       this.register({
-        id: 'sickness', name: '感冒', description: '天气/舒适度导致学生生病',
-        check: (c) => {
-          // check per-student later in run; here we just return true to indicate sickness logic should be evaluated
-          return true;
-        },
-        run: (c) => {
+        id: 'sickness',
+        name: '感冒',
+        description: '天气/舒适度导致学生生病',
+        check: c => true,
+        run: c => {
           const {BASE_SICK_PROB, SICK_PROB_FROM_COLD_HOT, EXTREME_COLD_THRESHOLD, EXTREME_HOT_THRESHOLD} = c.constants;
-          const difficulty_mod = c.game.getDifficultyModifier ? c.game.getDifficultyModifier() : 1.0;
-          const comfort = c.game.getComfort ? c.game.getComfort() : (c.game.base_comfort || 50);
+          const comfort = c.game.getComfort();
+          const sickList = [];
           for(let s of c.game.students){
             if(!s.active || s.sick_weeks > 0) continue;
-            let sick_prob = BASE_SICK_PROB + Math.max(0.0, (30 - comfort)/50.0);
-            if(c.game.temperature < EXTREME_COLD_THRESHOLD || c.game.temperature > EXTREME_HOT_THRESHOLD) sick_prob += SICK_PROB_FROM_COLD_HOT;
-            sick_prob *= difficulty_mod;
-            if(Math.random() < sick_prob){ s.sick_weeks = utils.uniformInt(1,2); c.log && c.log(`[事件] ${s.name} 感冒了`); }
+            let pr = BASE_SICK_PROB + Math.max(0, (30 - comfort)/50);
+            if(c.game.temperature < EXTREME_COLD_THRESHOLD || c.game.temperature > EXTREME_HOT_THRESHOLD){
+              pr += SICK_PROB_FROM_COLD_HOT;
+            }
+            if(Math.random() < pr){
+              s.sick_weeks = utils.uniformInt(1,2);
+              sickList.push(s.name);
+            }
+          }
+          if(sickList.length){
+            const msg = `${sickList.join('、')} 感冒了`;
+            window.pushEvent && window.pushEvent({ name:'感冒', description: msg, week: c.game.week });
           }
         }
       });
 
       // 压力过高导致退队
       this.register({
-        id: 'burnout', name: '退队/倦怠', description: '压力累计导致学生退队',
-        check: (c) => true,
-        run: (c) => {
+        id: 'burnout',
+        name: '退队/倦怠',
+        description: '压力累计导致学生退队',
+        check: c => true,
+        run: c => {
           const {QUIT_PROB_BASE, QUIT_PROB_PER_EXTRA_PRESSURE} = c.constants;
-          for(let s of c.game.students){
+          const quitList = [];
+          // 从后往前遍历，以便安全地从数组中移除学生
+          for(let i = c.game.students.length - 1; i >= 0; i--){
+            const s = c.game.students[i];
             if(!s.active) continue;
             if(s.pressure >= 90){
-              s.burnout_weeks = (s.burnout_weeks||0) + 1;
+              s.burnout_weeks = (s.burnout_weeks || 0) + 1;
               if(s.burnout_weeks >= 3){
-                let quit_prob = QUIT_PROB_BASE + QUIT_PROB_PER_EXTRA_PRESSURE * (s.pressure - 90);
-                if(Math.random() < quit_prob){ s.active = false; c.game.quit_students = (c.game.quit_students||0)+1; c.game.reputation = (c.game.reputation||0)-10; c.log && c.log(`[事件] ${s.name} 退队`); }
+                const prob = QUIT_PROB_BASE + QUIT_PROB_PER_EXTRA_PRESSURE * (s.pressure - 90);
+                if(Math.random() < prob){
+                  quitList.push(s.name);
+                  c.game.students.splice(i, 1); // 直接从数组中移除学生，与劝退逻辑一致
+                  c.game.quit_students = (c.game.quit_students||0) + 1;
+                  c.game.reputation = Math.max(0, c.game.reputation - 10);
+                }
               }
             } else {
               s.burnout_weeks = 0;
             }
+          }
+          // 如果有学生退队，则统一记录日志和事件
+          if(quitList.length){
+            const msg = `${quitList.join('、')} 因压力过大退队`;
+            log && log(`[事件] ${msg}`);
+            window.pushEvent && window.pushEvent({ name:'退队', description: msg, week: c.game.week });
+            // 刷新 UI 以移除学生
+            window.renderAll && window.renderAll();
           }
         }
       });
@@ -87,9 +120,8 @@
     // 主调度：逐个事件执行 check/run
     checkRandomEvents(game){
       const ctx = this._ctx || {};
-      // Provide a convenient context to handlers
       const c = {
-        game: game,
+        game,
         PROVINCES: ctx.PROVINCES || window.PROVINCES,
         constants: Object.assign({}, ctx.constants || {}, {
           BASE_SICK_PROB: window.BASE_SICK_PROB,
@@ -100,17 +132,23 @@
           EXTREME_HOT_THRESHOLD: window.EXTREME_HOT_THRESHOLD
         }),
         utils: ctx.utils || {
-          uniform: window.uniform, uniformInt: window.uniformInt, normal: window.normal, clamp: window.clamp, clampInt: window.clampInt
+          uniform: window.uniform,
+          uniformInt: window.uniformInt,
+          normal: window.normal,
+          clamp: window.clamp,
+          clampInt: window.clampInt
         },
         log: ctx.log || window.log
       };
-
-      for(let evt of this._events.slice()){ // iterate copy so handlers can register/unregister
+      for(let evt of this._events.slice()){
         try{
-          if(evt.check && evt.check(c)){
+          if(evt.check(c)){
             evt.run && evt.run(c);
+            window.showEventModal && window.showEventModal({ name: evt.name, description: evt.description, week: game.week });
           }
-        }catch(e){ console.error('EventManager error in event', evt.id, e); }
+        }catch(e){
+          console.error('EventManager error', evt.id, e);
+        }
       }
     }
   };

@@ -96,6 +96,7 @@ const MOCK_CONTEST_PURCHASE_MIN_COST = 3000;
 const MOCK_CONTEST_PURCHASE_MAX_COST = 8000;
 const MOCK_CONTEST_GAIN_MULTIPLIER_PURCHASED = 1.8;
 const MOCK_CONTEST_DIFFICULTIES = ["入门级","普及级","NOIP级","省选级","NOI级"]; // 去数值化：只显示等级
+const MOCK_CONTEST_DIFF_VALUES = [30, 50, 120, 360, 420];
 /* 娱乐 */
 const ENTERTAINMENT_COST_MEAL = 3000;
 const ENTERTAINMENT_COST_CS = 1000;
@@ -118,6 +119,8 @@ const BASE_SICK_PROB = 0.025;
 const SICK_PROB_FROM_COLD_HOT = 0.03;
 const QUIT_PROB_BASE = 0.22;
 const QUIT_PROB_PER_EXTRA_PRESSURE = 0.02;
+/* 劝退消耗声誉 */
+const EVICT_REPUTATION_COST = 10;
 
 /* =========== 省份数据 =========== */
 const PROVINCES = {
@@ -403,35 +406,57 @@ function log(msg){
 // store recent events (用于填充两个预留事件卡)
 const recentEvents = [];
 function pushEvent(msg){
-  // 保留原有日志简短记录
-  log(msg);
-  // push to recent list
-  recentEvents.unshift({week: game.week, text: msg});
-  if(recentEvents.length > 8) recentEvents.pop();
+  // 支持传入字符串或对象 {name, description, week}
+  let ev = null;
+  if(typeof msg === 'string') ev = { name: null, description: msg, week: game.week };
+  else if(typeof msg === 'object' && msg !== null) ev = { name: msg.name || null, description: msg.description || msg.text || '', week: msg.week || game.week };
+  else ev = { name: null, description: String(msg), week: game.week };
 
-  // populate up to two event slots
-  const slot1 = document.getElementById('event-slot-1');
-  const slot2 = document.getElementById('event-slot-2');
-  const card1 = document.getElementById('action-event-1');
-  const card2 = document.getElementById('action-event-2');
+  // 保留日志
+  log(`[${ev.week}] ${ev.name? ev.name + '：' : ''}${ev.description}`);
+  // push to recent list (keep up to 12 events)
+  recentEvents.unshift(ev);
+  if(recentEvents.length > 12) recentEvents.pop();
 
-  // helper to show/hide card
-  function showCard(card){ if(card){ card.classList.remove('empty'); card.classList.add('event-active'); card.style.display = 'flex'; } }
-  function hideCard(card){ if(card){ card.classList.add('empty'); card.classList.remove('event-active'); card.style.display = 'none'; } }
+  // render dynamic event cards container
+  renderEventCards();
+}
 
-  if(slot1 && slot2){
-    if(recentEvents[0]){
-      slot1.style.display = 'block';
-      slot1.innerHTML = `<p><strong>[周${recentEvents[0].week}]</strong> ${recentEvents[0].text}</p>`;
-      showCard(card1);
-    } else { slot1.style.display='none'; slot1.innerHTML=''; hideCard(card1); }
-
-    if(recentEvents[1]){
-      slot2.style.display = 'block';
-      slot2.innerHTML = `<p><strong>[周${recentEvents[1].week}]</strong> ${recentEvents[1].text}</p>`;
-      showCard(card2);
-    } else { slot2.style.display='none'; slot2.innerHTML=''; hideCard(card2); }
+// 渲染所有突发事件卡（任意数量）到 #event-cards-container
+function renderEventCards(){
+  const container = document.getElementById('event-cards-container');
+  if(!container) return;
+  container.innerHTML = '';
+  if(recentEvents.length === 0){
+    // show placeholder card similar to original
+    const el = document.createElement('div');
+    el.className = 'action-card empty';
+    el.innerHTML = `<div class="card-title">预留事件</div><div class="card-desc">用于突发事件或活动</div>`;
+    container.appendChild(el);
+    return;
   }
+  // for each recent event create a card with title=event name or '突发事件', desc=description
+  for(let ev of recentEvents){
+    let card = document.createElement('div');
+    card.className = 'action-card event-active';
+    let title = ev.name || '突发事件';
+    let desc = ev.description || '';
+    card.innerHTML = `<div class="card-title">${title}</div><div class="card-desc">${desc}</div>`;
+    container.appendChild(card);
+  }
+}
+
+// 显示随机事件弹窗：接收事件对象或{name, description, week}
+function showEventModal(evt){
+  try{
+    let title = evt && evt.name ? evt.name : '事件';
+    let desc = evt && evt.description ? evt.description : (evt && evt.text ? evt.text : '暂无描述');
+    let weekInfo = evt && evt.week ? `[周${evt.week}] ` : `[周${game.week}] `;
+    // 不再在这里重复 pushEvent（pushEvent 在事件触发处负责），仅展示弹窗
+    let html = `<h3>${weekInfo}${title}</h3><div class="small" style="margin-top:6px">${desc}</div>`;
+    html += `<div style="text-align:right;margin-top:12px"><button class="btn" onclick="closeModal()">关闭</button></div>`;
+    showModal(html);
+  }catch(e){ console.error('showEventModal error', e); }
 }
 /* 渲染：主页去数值化（不显示学生具体能力/压力数值） */
 function renderAll(){
@@ -485,21 +510,31 @@ function renderAll(){
   let abilityVal = abilityAvg * 0.5 + varNorm * 0.5;
   let abilityGrade = getLetterGrade(Math.floor(abilityVal));
     const comp = Math.floor(s.getComprehensiveAbility());
-    out += `<div class="student-box" style="margin-bottom:8px">
+    out += `<div class="student-box" style="margin-bottom:6px">
+      <button class="evict-btn" data-idx="${game.students.indexOf(s)}" title="劝退">劝退</button>
       <div style="display:flex;justify-content:space-between;align-items:center">
-        <div><strong>${s.name}</strong> ${s.sick_weeks>0?'<span class="warn">[生病]</span>':''}</div>
-        <div><span class="label-pill ${pressureClass}">压力: ${pressureLevel}</span></div>
+        <div><strong>${s.name}</strong> ${s.sick_weeks>0?'<span class="warn">[生病]</span>':''} <span class="label-pill ${pressureClass}">压力:${pressureLevel}</span></div>
       </div>
-      <div class="compact small" style="margin-top:6px">
-        综合实力: <progress value="${comp}" max="100" style="vertical-align:middle;width:80%;"></progress> ${comp}/100
-      </div>
-      <div class="compact small" style="margin-top:4px">
-        资质: ${aptitudeGrade} &nbsp; 能力: ${abilityGrade}
+      <div class="compact small" style="margin-top:3px">
+        实力: <progress value="${comp}" max="100" style="vertical-align:middle;width:70%;"></progress> ${comp} | 资质:${aptitudeGrade} 能力:${abilityGrade}
       </div>
     </div>`;
   }
   if(out==='') out = '<div class="muted">目前没有活跃学生</div>';
   $('student-list').innerHTML = out;
+  // bind per-student evict buttons
+  document.querySelectorAll('#student-list .evict-btn').forEach(b=>{
+    b.onclick = (e) => {
+      const idx = parseInt(b.dataset.idx,10);
+      if(isNaN(idx)) return;
+      // confirm and evict single
+      if(game.reputation < EVICT_REPUTATION_COST){ alert('声誉不足，无法劝退'); return; }
+      if(!confirm(`确认劝退 ${game.students[idx].name}？将消耗声誉 ${EVICT_REPUTATION_COST}`)) return;
+      evictSingle(idx);
+    };
+  });
+  // render dynamic event cards
+  renderEventCards();
 }
 
 /* ======= 主要逻辑函数（训练/集训/活动/周结算/随机事件/比赛等） ======= */
@@ -629,14 +664,14 @@ function holdMockContestModal(isPurchased, diffIdx, questionTagsArray){
       let mental_idx = s.getMentalIndex();
       // compute a performance ratio similar to C++ but with modified knowledge weight
       let perf = sigmoid((ability_avg + avgK * knowledge_multiplier - /*difficulty proxy*/ 0) / 15.0);
-      // Since we don't expose numeric difficulty, we keep uniform relative scaling across difficulty levels:
-      // map diffIdx to a difficulty scaling factor:
-      let difficulty_scale = [0.7, 0.9, 1.0, 1.2, 1.5][diffIdx]; // internal scaling only
-      let stability = mental_idx / 100.0;
-      let sigma = (100 - mental_idx) / 150.0 + 0.08;
-      let random_factor = normal(0, sigma);
-      // final ratio includes difficulty_scale influence (higher difficulty reduces score)
-      let final_ratio = perf * stability * (1 + random_factor) / difficulty_scale;
+  // 使用指定的难度数值作为内部 difficulty proxy，使模拟赛与正式赛难度一致
+  let difficulty_proxy = MOCK_CONTEST_DIFF_VALUES[diffIdx] || 30;
+  let stability = mental_idx / 100.0;
+  let sigma = (100 - mental_idx) / 150.0 + 0.08;
+  let random_factor = normal(0, sigma);
+  // 把 difficulty_proxy 引入 perf 计算：类似正式比赛用 (ability - difficulty)/scale 的思路
+  // 这里我们将 difficulty_proxy 映射到与能力尺度相近的影响：除以 10
+  let final_ratio = perf * stability * (1 + random_factor) * sigmoid((ability_avg + avgK * knowledge_multiplier - difficulty_proxy) / 10.0);
       final_ratio = clamp(final_ratio, 0, 1);
       // score out of 100 per problem
       let score = Math.floor(final_ratio * 100 / 10) * 10;
@@ -735,7 +770,7 @@ function holdCompetitionModal(comp){
     if(comp.name === "省选") base_rate += PROVINCIAL_SELECTION_BONUS;
     base_pass_line = comp.maxScore * base_rate;
   }
-  let dynamic_factor = 1.0 - (game.reputation - 50) * 0.005;
+  let dynamic_factor = 1.0 - (game.reputation - 50) * 0.01;
   let pass_line = Math.floor(base_pass_line * dynamic_factor);
   // evaluate students using Student.getPerformanceScore for each problem
   let results = [];
@@ -868,12 +903,13 @@ function holdCompetitionModal(comp){
 /* 随机事件（和周结算） - 使用 events.js 的 EventManager 调度，可扩展 */
 function checkRandomEvents(){
   if(window.EventManager && typeof window.EventManager.checkRandomEvents === 'function'){
-    try{ window.EventManager.checkRandomEvents(game); }
+  try{ window.EventManager.checkRandomEvents(game); window.renderAll(); }
     catch(e){ console.error('EventManager.checkRandomEvents error', e); }
   } else {
     // fallback: no events manager available
     console.warn('EventManager 未注册，跳过随机事件处理');
   }
+  window.renderAll();
 }
 
 /* 周结算（默认 2 周） */
@@ -942,7 +978,11 @@ function checkEnding(){
   let active_count = game.students.filter(s=>s.active).length;
   let avg_pressure = 0;
   if(active_count>0) avg_pressure = game.students.filter(s=>s.active).reduce((a,s)=>a+s.pressure,0)/active_count;
-  if(game.budget < 0) return "💸 经费枯竭";
+  if(game.budget <= 0) {
+    // 当经费耗尽或为 0 时触发坏结局，同时记录事件日志
+    try{ pushEvent('经费耗尽，项目无法继续（坏结局触发）'); }catch(e){}
+    return "💸 经费枯竭";
+  }
   if(active_count < game.initial_students * 0.5) return "😵 心理崩溃";
   let has_gold=false, has_medal=false;
   for(let r of game.noi_rankings){ if(r.rank <= 3) has_gold=true; if(r.rank <=10) has_medal=true; }
@@ -1130,6 +1170,43 @@ function takeVacationUI(){
   };
 }
 
+/* 劝退学生 UI */
+function evictStudentUI(){
+  // 列出所有在队学生供选择
+  let options = game.students.map((s,i) => s.active ? `<option value="${i}">${s.name}</option>` : '').join('');
+  showModal(
+    `<h3>劝退学生</h3>
+     <label class="block">选择要劝退的学生</label>
+     <select id="evict-student">${options}</select>
+     <div class="small" style="margin-top:4px">消耗声誉：${EVICT_REPUTATION_COST}</div>
+     <div style="text-align:right;margin-top:8px">
+       <button class="btn btn-ghost" onclick="closeModal()">取消</button>
+       <button class="btn" id="evict-confirm">确认</button>
+     </div>`
+  );
+  $('evict-confirm').onclick = () => {
+    let idx = parseInt($('evict-student').value);
+    let student = game.students[idx];
+    if(game.reputation < EVICT_REPUTATION_COST){ alert('声誉不足，无法劝退'); return; }
+    student.active = false;
+    game.reputation -= EVICT_REPUTATION_COST;
+    log(`劝退学生 ${student.name}，声誉 -${EVICT_REPUTATION_COST}`);
+    closeModal();
+    renderAll();
+  };
+}
+
+// 劝退单个学生（从学生卡角落触发）
+function evictSingle(idx){
+  const student = game.students[idx];
+  if(!student || !student.active) return;
+  student.active = false;
+  game.reputation -= EVICT_REPUTATION_COST;
+  if(game.reputation < 0) game.reputation = 0;
+  log(`劝退学生 ${student.name}，声誉 -${EVICT_REPUTATION_COST}`);
+  renderAll();
+}
+
 /* 升级设施 UI */
 function upgradeFacilitiesUI(){
   const facs = [{id:"computer",label:"计算机"},{id:"library",label:"资料库"},{id:"ac",label:"空调"},{id:"dorm",label:"宿舍"},{id:"canteen",label:"食堂"}];
@@ -1308,6 +1385,7 @@ window.onload = ()=>{
     };
   };
   document.getElementById('action-save').onclick = ()=>{ if(confirm("保存进度？（将覆盖本地存档）")) saveGame(); else if(confirm("载入存档？")) loadGame(); };
+  document.getElementById('action-evict').onclick = ()=>{ evictStudentUI(); };
   // bind inline upgrade buttons under facilities (if present)
   document.querySelectorAll('.btn.upgrade').forEach(b => {
     b.onclick = (e) => {
