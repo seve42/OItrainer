@@ -1175,6 +1175,32 @@ function holdCompetitionModal(comp){
       }
     }
 
+    // --- 新增：当有学生晋级时触发上级拨款 ---
+    try{
+      if(pass_count > 0){
+        // 比赛等级映射（用户要求）
+        const levelMap = { 'CSP-S1': 1, 'CSP-S2': 2, 'NOIP': 5 };
+        const level = levelMap[comp.name] || 1;
+        // 省份强弱系数：根据 game.province_type（'强省','普通省','弱省'）决定
+        let provinceCoef = 1.0;
+        try{
+          const t = (game.province_type || '').toString();
+          if(t.includes('强')) provinceCoef = 1.2;
+          else if(t.includes('弱')) provinceCoef = 0.8;
+          else provinceCoef = 1.0;
+        }catch(e){ provinceCoef = 1.0; }
+
+        const perPassMin = 8000;
+        const perPassMax = 20000;
+        const rand = uniformInt(perPassMin, perPassMax);
+        const grant = Math.round(pass_count * level * rand * provinceCoef);
+        game.budget = (game.budget || 0) + grant;
+        const msg = `上级拨款：由于 ${comp.name} 有 ${pass_count} 人晋级，获得拨款 ¥${grant}（等级${level}，省系数${provinceCoef}）`;
+        log && log(`[拨款] ${msg}`);
+        pushEvent && pushEvent({ name:'上级拨款', description: msg, week: game.week });
+      }
+    }catch(e){ console.error('grant error', e); }
+
     if(comp.name==="NOI"){
       if(gold>0 || silver>0){
         let reward = uniformInt(NOI_REWARD_MIN, NOI_REWARD_MAX);
