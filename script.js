@@ -442,6 +442,8 @@ function trainStudents(topic,intensity){
     let pressure_increase = base_pressure * weather_factor * canteen_reduction * comfort_factor;
     if(s.sick_weeks > 0) pressure_increase += 10;
     s.pressure += pressure_increase;
+    // trigger talent event: pressure change from training
+    try{ if(typeof s.triggerTalents === 'function'){ s.triggerTalents('pressure_change', { source: 'training', amount: pressure_increase, topic: topic, intensity: intensity }); } }catch(e){ console.error('triggerTalents pressure_change', e); }
   }
   game.weeks_since_entertainment += 1;
     log("训练结束（1周）。");
@@ -508,6 +510,10 @@ function outingTraining(difficulty_choice, province_choice){
     // apply pressure (base pressure + per-student delta)
     s.pressure += pressure_gain + pressure_delta;
     s.comfort -= 10;
+    // trigger talent event: pressure change from outing
+    try{ if(typeof s.triggerTalents === 'function'){ s.triggerTalents('pressure_change', { source: 'outing', amount: pressure_gain + pressure_delta, province: target && target.name, difficulty_choice: difficulty_choice }); } }catch(e){ console.error('triggerTalents pressure_change', e); }
+    // trigger talent event: outing finished per student
+    try{ if(typeof s.triggerTalents === 'function'){ s.triggerTalents('outing_finished', { province: target && target.name, difficulty: difficulty_choice, knowledge_gain: knowledge_gain }); } }catch(e){ console.error('triggerTalents outing_finished', e); }
     // 记录隐藏模拟赛分数供调试（不会在 UI 自动显示）
     s.hiddenMockScore = hiddenScore;
   }
@@ -631,8 +637,10 @@ function holdMockContestModal(isPurchased, diffIdx, questionTagsArray){
       // 为避免重复加压，我们先只按分数判定初始压力（最后一名将在备注段落处理）。
       if((total_score || 0) < 200){
         s.pressure += 20;
+        try{ if(typeof s.triggerTalents === 'function'){ s.triggerTalents('pressure_change', { source: 'mock_result', amount: 20, total_score: total_score }); } }catch(e){ console.error('triggerTalents pressure_change', e); }
       } else {
         s.pressure += 5;
+        try{ if(typeof s.triggerTalents === 'function'){ s.triggerTalents('pressure_change', { source: 'mock_result', amount: 5, total_score: total_score }); } }catch(e){ console.error('triggerTalents pressure_change', e); }
       }
       let pressure_gain = 20; let mental_change=0; let overall_score_factor=1.0;
       if(total_score < 100){ mental_change = uniform(-16,-6); pressure_gain = 30; overall_score_factor = 0.3; }
@@ -666,6 +674,7 @@ function holdMockContestModal(isPurchased, diffIdx, questionTagsArray){
       }
       s.mental = clamp(s.mental + mental_change, 0,100);
       s.pressure += pressure_gain;
+      try{ if(typeof s.triggerTalents === 'function'){ s.triggerTalents('pressure_change', { source: 'mock_result', amount: pressure_gain, total_score: total_score }); } }catch(e){ console.error('triggerTalents pressure_change', e); }
     }
     // 额外处理：按与 200 分的差距来计算额外压力（分数远离200，压力越大），最大额外增加 +15
     // 同时在备注栏注明“发挥不佳，压力升高”当 total < 200 或 最后一名
@@ -851,7 +860,7 @@ function holdCompetitionModal(comp){
   for(let i=0;i<results.length;i++){
     let r = results[i];
     let remark = '';
-    if(r.eligible === false){ remark = '未参加'; }
+  if(r.eligible === false){ remark = '未参加'; }
     else if(r.total >= pass_line) remark = '晋级';
     if(comp.name === "NOI"){
       // Medal thresholds are relative to the pass_line: 100%, 70%, 50%
@@ -925,12 +934,14 @@ function holdCompetitionModal(comp){
         // Did not participate this competition in current half-season
         // They receive no score; small morale/pressure change to reflect absence
         s.pressure += 5;
+        try{ if(typeof s.triggerTalents === 'function'){ s.triggerTalents('pressure_change', { source: 'competition', amount: 5, competition: comp.name }); } }catch(e){ console.error('triggerTalents pressure_change', e); }
         s.mental += uniform(-6,-2);
         continue;
       }
       // participant: apply normal effects
       if(comp.name==="NOI"){
         s.pressure += 40;
+        try{ if(typeof s.triggerTalents === 'function'){ s.triggerTalents('pressure_change', { source: 'competition', amount: 40, competition: comp.name }); } }catch(e){ console.error('triggerTalents pressure_change', e); }
         for(let i=0;i<results.length;i++){
           if(results[i].name === s.name){
             game.noi_rankings.push({name:s.name,rank:i+1});
@@ -940,12 +951,18 @@ function holdCompetitionModal(comp){
           }
         }
       } else if(comp.name==="省选"){
-        s.pressure += uniform(20,35);
+        const delta = uniform(20,35);
+        s.pressure += delta;
+        try{ if(typeof s.triggerTalents === 'function'){ s.triggerTalents('pressure_change', { source: 'competition', amount: delta, competition: comp.name }); } }catch(e){ console.error('triggerTalents pressure_change', e); }
         s.mental += uniform(-5,5);
       } else if(comp.name==="NOIP"){
-        s.pressure += uniform(15,25);
+        const delta = uniform(15,25);
+        s.pressure += delta;
+        try{ if(typeof s.triggerTalents === 'function'){ s.triggerTalents('pressure_change', { source: 'competition', amount: delta, competition: comp.name }); } }catch(e){ console.error('triggerTalents pressure_change', e); }
       } else {
-        s.pressure += uniform(5,10);
+        const delta = uniform(5,10);
+        s.pressure += delta;
+        try{ if(typeof s.triggerTalents === 'function'){ s.triggerTalents('pressure_change', { source: 'competition', amount: delta, competition: comp.name }); } }catch(e){ console.error('triggerTalents pressure_change', e); }
       }
     }
 
@@ -1435,6 +1452,7 @@ function entertainmentUI(){
           s.mental += uniform(1,5); s.coding += uniform(0.5,1.0); s.pressure = Math.max(0, s.pressure - uniform(10,20));
         }
         s.mental = Math.min(100, s.mental);
+        try{ if(typeof s.triggerTalents === 'function'){ s.triggerTalents('entertainment_finished', { entertainmentId: opt.id, entertainmentName: opt.val, cost: opt.cost }); } }catch(e){ console.error('triggerTalents entertainment_finished', e); }
       }
   game.weeks_since_entertainment += 1;
   safeWeeklyUpdate(1);

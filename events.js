@@ -38,8 +38,11 @@
         run: c => {
           for(let s of c.game.students){
             if(!s.active) continue;
-            s.pressure = Math.min(100, s.pressure + 15);
+            const oldP = Number(s.pressure || 0);
+            s.pressure = Math.min(100, oldP + 15);
             s.comfort  = Math.max(0,   s.comfort  - 10);
+            // trigger talent: pressure change due to typhoon
+            try{ if(typeof s.triggerTalents === 'function'){ s.triggerTalents('pressure_change', { source: 'typhoon', amount: s.pressure - oldP }); } }catch(e){ console.error('triggerTalents pressure_change', e); }
           }
           const loss = utils.uniformInt(10000, 20000);
           c.game.budget = Math.max(0, c.game.budget - loss);
@@ -69,6 +72,8 @@
             if(Math.random() < pr){
               s.sick_weeks = utils.uniformInt(1,2);
               sickList.push(s.name);
+              // trigger talent: sickness event for this student
+              try{ if(typeof s.triggerTalents === 'function'){ s.triggerTalents('sickness', { weeks: s.sick_weeks }); } }catch(e){ console.error('triggerTalents sickness', e); }
             }
           }
           if(sickList.length){
@@ -102,6 +107,7 @@
                   c.game.students.splice(i, 1);
                   c.game.quit_students = (c.game.quit_students||0) + 1;
                   c.game.reputation = Math.max(0, c.game.reputation - 10);
+                  try{ if(typeof s.triggerTalents === 'function'){ s.triggerTalents('quit', { reason: 'burnout' }); } }catch(e){ console.error('triggerTalents quit', e); }
                 }
               }
             } else {
@@ -149,7 +155,9 @@
           for(const s of c.game.students){ if(!s.active) continue;
             s.thinking = Math.min(100, (s.thinking||0) + c.utils.uniformInt(1,3));
             s.coding   = Math.min(100, (s.coding  ||0) + c.utils.uniformInt(1,3));
-            s.pressure = Math.max(0,   (s.pressure||0) - c.utils.uniformInt(1,3));
+            const oldP = Number(s.pressure || 0);
+            s.pressure = Math.max(0,   oldP - c.utils.uniformInt(1,3));
+            try{ if(typeof s.triggerTalents === 'function'){ s.triggerTalents('pressure_change', { source: 'coach_visit', amount: s.pressure - oldP }); } }catch(e){ console.error('triggerTalents pressure_change', e); }
           }
           const msg = `金牌教练来访，教学点 +10，学生能力微增，压力微降`;
           c.log && c.log(`[金牌教练] ${msg}`);
@@ -234,7 +242,9 @@
             if (!s.active) continue;
             s.comfort = Math.max(0, s.comfort - c.utils.uniformInt(2, 5));
             s.mental = Math.max(0, (s.mental || 100) - c.utils.uniformInt(1, 3));
-            s.pressure = Math.min(100, s.pressure + c.utils.uniformInt(1, 4));
+            const oldP = Number(s.pressure || 0);
+            s.pressure = Math.min(100, oldP + c.utils.uniformInt(1, 4));
+            try{ if(typeof s.triggerTalents === 'function'){ s.triggerTalents('pressure_change', { source: 'internal_conflict', amount: s.pressure - oldP }); } }catch(e){ console.error('triggerTalents pressure_change', e); }
           }
           const msg = '团队内部矛盾爆发，舒适度和心理素质下降，压力上升';
           c.log && c.log(`[内部矛盾] ${msg}`);
@@ -291,7 +301,9 @@
                 for (const s of c.game.students) if (s.active) {
                   s.thinking = Math.min(100, s.thinking + 1);
                   s.coding = Math.min(100, s.coding + 1);
-                  s.pressure = Math.min(100, s.pressure + 2);
+                  const oldP = Number(s.pressure || 0);
+                  s.pressure = Math.min(100, oldP + 2);
+                  try{ if(typeof s.triggerTalents === 'function'){ s.triggerTalents('pressure_change', { source: 'exchange_invite', amount: s.pressure - oldP }); } }catch(e){ console.error('triggerTalents pressure_change', e); }
                 }
                 // 推送事件卡说明：显示选择结果和造成的影响
                 const desc = `接受友校交流：经费 -¥5000，学生能力小幅提升，压力略增`;
