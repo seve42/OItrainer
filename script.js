@@ -43,12 +43,18 @@ function pushEvent(msg){
   const wkDefault = currWeek();
   const ev = (typeof msg === 'string') 
     ? { name: null, description: msg, week: wkDefault }
-    : { name: msg.name || null, description: msg.description || msg.text || '', week: msg.week || wkDefault };
+    : { 
+        name: msg.name || null, 
+        description: msg.description || msg.text || '', 
+        week: msg.week || wkDefault,
+        options: msg.options || null,  // 支持选项
+        eventId: msg.eventId || null   // 用于区分同一事件的不同实例
+      };
 
   log(`${ev.name ? ev.name + '：' : ''}${ev.description}`);
   
-  const key = `${ev.week}::${ev.name||''}::${ev.description||''}`;
-  if(!recentEvents.some(r => `${r.week}::${r.name||''}::${r.description||''}` === key)){
+  const key = `${ev.week}::${ev.name||''}::${ev.description||''}::${ev.eventId||''}`;
+  if(!recentEvents.some(r => `${r.week}::${r.name||''}::${r.description||''}::${r.eventId||''}` === key)){
     recentEvents.unshift(ev);
     if(recentEvents.length > 24) recentEvents.pop();
   }
@@ -71,8 +77,9 @@ function __createSnapshot(){
   };
 }
 
-function __summarizeSnapshot(before, after, title){
+function __summarizeSnapshot(before, after, title, opts){
   try{
+    opts = opts || {};
     const parts = [];
     const db = (after.budget||0) - (before.budget||0);
     if(db !== 0) parts.push(`经费 ${db>0?'+':'-'}¥${Math.abs(db)}`);
@@ -106,7 +113,10 @@ function __summarizeSnapshot(before, after, title){
     if(stuParts.length) parts.push(stuParts.join('； '));
 
     const summary = parts.length ? parts.join('； ') : '无显著变化';
-    pushEvent({ name: title || '变动汇总', description: summary, week: currWeek() });
+    // 默认为推送事件卡片；当 opts.suppressPush 为 true 时仅返回汇总，不产生卡片
+    if (!opts.suppressPush) {
+      pushEvent({ name: title || '变动汇总', description: summary, week: currWeek() });
+    }
     return summary;
   }catch(e){ console.error('summarize error', e); return null; }
 }
@@ -127,13 +137,54 @@ function renderEventCards(){
 
   const nowWeek = currWeek();
   let shown = 0;
-  for(let ev of recentEvents){
+  for(let i = 0; i < recentEvents.length; i++){
+    const ev = recentEvents[i];
     if(ev.week && (nowWeek - ev.week) > 2) continue; // 只显示最近2周内
-  const card = document.createElement('div');
-  // 使用专门的 event-card 类，避免被 body.comp-week .action-cards .action-card:not(#comp-only-action) 隐藏
-  card.className = 'event-card event-active';
-    card.innerHTML = `<div class="card-title">${ev.name || '突发事件'}</div><div class="card-desc">${ev.description || ''}</div>`;
+    
+    const card = document.createElement('div');
+    // 使用专门的 event-card 类，避免被 body.comp-week .action-cards .action-card:not(#comp-only-action) 隐藏
+    card.className = 'event-card event-active';
+    
+    let cardHTML = `<div class="card-title">${ev.name || '突发事件'}</div><div class="card-desc">${ev.description || ''}</div>`;
+    
+    // 如果有选项，添加选项按钮
+    if(ev.options && ev.options.length > 0){
+      cardHTML += '<div class="event-options" style="margin-top:10px; display:flex; gap:8px;">';
+      ev.options.forEach((opt, idx) => {
+        cardHTML += `<button class="btn event-choice-btn" data-event-index="${i}" data-option-index="${idx}">${opt.label || `选项${idx+1}`}</button>`;
+      });
+      cardHTML += '</div>';
+    }
+    
+    card.innerHTML = cardHTML;
     container.appendChild(card);
+    
+    // 为选项按钮添加事件监听器
+    if(ev.options && ev.options.length > 0){
+      ev.options.forEach((opt, idx) => {
+        const btn = card.querySelector(`[data-event-index="${i}"][data-option-index="${idx}"]`);
+        if(btn){
+          btn.addEventListener('click', () => {
+            // 执行选项的效果
+            try{
+              opt?.effect?.();
+            }catch(e){
+              console.error('执行事件选项效果时出错:', e);
+            }
+            
+            // 移除该事件的选项（将options设为null）
+            recentEvents[i].options = null;
+            
+            // 重新渲染事件卡片
+            renderEventCards();
+            
+            // 刷新游戏界面
+            window.renderAll?.();
+          });
+        }
+      });
+    }
+    
     if(++shown >= 6) break; // 最多显示6个
   }
 }
@@ -143,36 +194,26 @@ function showEventModal(evt){
   const title = evt?.name || '事件';
   const desc = evt?.description || evt?.text || '暂无描述';
   const weekInfo = `[周${evt?.week || currWeek()}] `;
-  showModal(`<h3>${weekInfo}${title}</h3><div class="small" style="margin-top:6px">${desc}</div><div style="text-align:right;margin-top:12px"><button class="btn" onclick="closeModal()">关闭</button></div>`);
+  showModal(`<h3>${weekInfo}${title}</h3><div class="small" style="margin-top:6px">${desc}</div><div class="modal-actions"><button class="btn" onclick="closeModal()">关闭</button></div>`);
 }
 
-// 显示选择事件弹窗
+// 显示选择事件弹窗（现改为推送到信息卡片）
 function showChoiceModal(evt){
   const title = evt?.name || '选择事件';
   const desc = evt?.description || '';
-  const weekInfo = `[周${evt?.week || currWeek()}] `;
   const options = evt?.options || [];
   
-  let opts = '';
-  if(options.length === 0){
-    opts = '<div style="text-align:right;margin-top:12px"><button class="btn" onclick="closeModal()">关闭</button></div>';
-  } else {
-    opts = '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">';
-    options.forEach((o, i) => opts += `<button class="btn" id="choice-opt-${i}">${o?.label || `选项${i+1}`}</button>`);
-    opts += '<button class="btn" style="margin-left:6px" id="choice-cancel">取消</button></div>';
-  }
-
-  showModal(`<h3>${weekInfo}${title}</h3><div class="small" style="margin-top:6px">${desc}</div>${opts}`);
-  pushEvent({ name: title, description: desc, week: evt?.week || currWeek() });
-
-  options.forEach((opt, i) => {
-    $(`choice-opt-${i}`)?.addEventListener('click', () => {
-      closeModal();
-      opt?.effect?.();
-      window.renderAll?.();
-    });
+  // 生成唯一的事件ID，避免重复
+  const eventId = `choice_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  
+  // 直接推送到事件卡片而不是弹窗
+  pushEvent({ 
+    name: title, 
+    description: desc, 
+    week: evt?.week || currWeek(),
+    options: options,
+    eventId: eventId
   });
-  $('choice-cancel')?.addEventListener('click', closeModal);
 }
 
 // Debug helper: 在控制台调用 testShowChoiceModal() 可以弹出一个示例选择弹窗
@@ -180,9 +221,16 @@ function testShowChoiceModal(){
   const options = [
     { label: '接受', effect: () => { 
         const raw = 5000; const adj = Math.round(raw * (game.getExpenseMultiplier ? game.getExpenseMultiplier() : 1));
-        game.budget = Math.max(0, game.budget - adj); log(`测试：已接受，扣除经费 ¥${adj}`);
-      } },
-    { label: '拒绝', effect: () => { log('测试：已拒绝'); } }
+        game.budget = Math.max(0, game.budget - adj); 
+        log(`测试：已接受，扣除经费 ¥${adj}`);
+        pushEvent({ name: '选择结果', description: `已接受测试事件，扣除经费 ¥${adj}`, week: currWeek() });
+      } 
+    },
+    { label: '拒绝', effect: () => { 
+        log('测试：已拒绝');
+        pushEvent({ name: '选择结果', description: '已拒绝测试事件', week: currWeek() });
+      } 
+    }
   ];
   showChoiceModal({ name: '测试选择事件', description: '这是一个用于验证的测试弹窗。', week: currWeek(), options });
 }
@@ -645,7 +693,7 @@ function holdMockContestModal(isPurchased, diffIdx, questionTagsArray){
     html += `<td>${r.total}</td><td id="mock-remark-${i}"></td></tr>`;
   }
   html += `</tbody></table></div>`;
-  html += `<div style="text-align:right;margin-top:8px"><button class="btn btn-ghost" onclick="closeModal()">关闭不应用</button> <button class="btn" id="mock-apply">应用结果并关闭</button></div>`;
+  html += `<div class="modal-actions"><button class="btn btn-ghost" onclick="closeModal()">关闭不应用</button> <button class="btn" id="mock-apply">应用结果并关闭</button></div>`;
   showModal(html);
   // on apply: perform exact same updates as previous C++ logic (knowledge gain, mental changes, pressure)
   $('mock-apply').onclick = ()=>{
@@ -906,7 +954,7 @@ function holdCompetitionModal(comp){
     }
   }
   html += `</tbody></table></div>`;
-  html += `<div style="text-align:right;margin-top:8px"><button class="btn" id="comp-apply">关闭并应用影响</button></div>`;
+  html += `<div class="modal-actions" style="margin-top:8px"><button class="btn" id="comp-apply">关闭并应用影响</button></div>`;
   // Show modal (important: per user's request, 比赛周只弹窗显示比赛)
   showModal(html);
   $('comp-apply').onclick = ()=>{
@@ -937,7 +985,7 @@ function holdCompetitionModal(comp){
         try{ game.seasonEndTriggered = true; localStorage.setItem('oi_coach_save', JSON.stringify(game)); localStorage.setItem('oi_coach_ending', ending); }catch(e){}
         // 显示结算提示并跳转到结算页面
         closeModal();
-        showModal(`<h3>赛季结束</h3><div class="small">${ending}</div><div style="text-align:right;margin-top:8px"><button class="btn" onclick="(function(){ closeModal(); window.location.href='end.html'; })()">查看结算页面</button></div>`);
+  showModal(`<h3>赛季结束</h3><div class="small">${ending}</div><div class="modal-actions" style="margin-top:8px"><button class="btn" onclick="(function(){ closeModal(); window.location.href='end.html'; })()">查看结算页面</button></div>`);
         renderAll();
         return; // 中止后续比赛应用逻辑
       }
@@ -1124,7 +1172,7 @@ function holdCompetitionModal(comp){
       let ending = checkEnding();
   try{ pushEvent({ name: '赛季结束', description: `赛季结束：${ending}`, week: currWeek() }); }catch(e){}
       try{ localStorage.setItem('oi_coach_save', JSON.stringify(game)); localStorage.setItem('oi_coach_ending', ending); }catch(e){}
-      showModal(`<h3>赛季结束</h3><div class="small">本轮赛季结算：${ending}</div><div style="text-align:right;margin-top:8px"><button class="btn" onclick="(function(){ closeModal(); window.location.href='end.html'; })()">查看结算页面</button></div>`);
+  showModal(`<h3>赛季结束</h3><div class="small">本轮赛季结算：${ending}</div><div class="modal-actions" style="margin-top:8px"><button class="btn" onclick="(function(){ closeModal(); window.location.href='end.html'; })()">查看结算页面</button></div>`);
     }
   }catch(e){ console.error('post-competition season-end check failed', e); }
 }
@@ -1235,7 +1283,7 @@ function weeklyUpdate(weeks=1){
           localStorage.setItem('oi_coach_save', JSON.stringify(game));
           localStorage.setItem('oi_coach_ending', ending);
         }catch(e){}
-        showModal(`<h3>赛季结束</h3><div class="small">本轮赛季结算：${ending}</div><div style="text-align:right;margin-top:8px"><button class="btn" onclick="(function(){ closeModal(); window.location.href='end.html'; })()">查看结算页面</button></div>`);
+  showModal(`<h3>赛季结束</h3><div class="small">本轮赛季结算：${ending}</div><div class="modal-actions" style="margin-top:8px"><button class="btn" onclick="(function(){ closeModal(); window.location.href='end.html'; })()">查看结算页面</button></div>`);
       }
     }catch(e){ console.error('season-end check failed', e); }
   }
@@ -1263,7 +1311,7 @@ function safeWeeklyUpdate(weeks = 1) {
         localStorage.setItem('oi_coach_save', JSON.stringify(game));
         localStorage.setItem('oi_coach_ending', '💸 经费枯竭');
       }catch(e){}
-      showModal(`<h3>经费不足</h3><div class="small">经费不足，项目无法继续，已进入结算页面。</div><div style="text-align:right;margin-top:8px"><button class="btn" onclick="(function(){ closeModal(); window.location.href='end.html'; })()">查看结算页面</button></div>`);
+  showModal(`<h3>经费不足</h3><div class="small">经费不足，项目无法继续，已进入结算页面。</div><div class="modal-actions" style="margin-top:8px"><button class="btn" onclick="(function(){ closeModal(); window.location.href='end.html'; })()">查看结算页面</button></div>`);
       renderAll();
       return;
     }
@@ -1358,7 +1406,7 @@ function trainStudentsUI(){
       <button class="prov-btn option-btn" data-val="2">中</button>
       <button class="prov-btn option-btn" data-val="3">重</button>
     </div>
-    <div style="margin-top:12px;text-align:right">
+    <div class="modal-actions" style="margin-top:12px">
       <button class="btn btn-ghost" onclick="closeModal()">取消</button>
       <button class="btn" id="train-confirm">开始训练（1周）</button>
     </div>`);
@@ -1400,7 +1448,7 @@ function holdMockContestUI(){
     <div style="margin-top:8px"><div class="small">为每题选择 1 或多个 知识点 标签：</div>
       ${[1,2,3,4].map(i=>`<div style="margin-top:6px"><strong>第 ${i} 题</strong><br/>${kpHtml}</div>`).join('')}
     </div>
-    <div style="margin-top:10px;text-align:right">
+    <div class="modal-actions" style="margin-top:10px">
       <button class="btn btn-ghost" onclick="closeModal()">取消</button>
   <button class="btn" id="mock-submit">开始模拟赛（1周）</button>
     </div>`);
@@ -1461,7 +1509,7 @@ function entertainmentUI(){
   `).join('');
   showModal(`<h3>娱乐活动（1周）</h3>
     <div style="display:flex;gap:12px;overflow-x:auto;">${cardsHtml}</div>
-    <div style="margin-top:12px;text-align:right">
+    <div class="modal-actions" style="margin-top:12px">
       <button class="btn btn-ghost" onclick="closeModal()">取消</button>
       <button class="btn" id="ent-confirm">确认</button>
     </div>`);
@@ -1534,7 +1582,7 @@ function entertainmentUI(){
 /* 放假 UI */
 function takeVacationUI(){
   showModal(`<h3>放假</h3><label class="block">放假天数 (1-${VACATION_MAX_DAYS})</label><input id="vac-days" type="number" min="1" max="${VACATION_MAX_DAYS}" value="1" />
-    <div style="text-align:right;margin-top:8px"><button class="btn btn-ghost" onclick="closeModal()">取消</button><button class="btn" id="vac-confirm">确认</button></div>`);
+    <div class="modal-actions" style="margin-top:8px"><button class="btn btn-ghost" onclick="closeModal()">取消</button><button class="btn" id="vac-confirm">确认</button></div>`);
   $('vac-confirm').onclick = ()=>{
     let days = clampInt(parseInt($('vac-days').value),1,VACATION_MAX_DAYS);
     closeModal();
@@ -1581,7 +1629,7 @@ function evictStudentUI(){
      <label class="block">选择要劝退的学生</label>
      <select id="evict-student">${options}</select>
      <div class="small" style="margin-top:4px">消耗声誉：${EVICT_REPUTATION_COST}</div>
-     <div style="text-align:right;margin-top:8px">
+     <div class="modal-actions" style="margin-top:8px">
        <button class="btn btn-ghost" onclick="closeModal()">取消</button>
        <button class="btn" id="evict-confirm">确认</button>
      </div>`
@@ -1624,7 +1672,7 @@ function upgradeFacilitiesUI(){
       <div style="margin-top:8px"><button class="btn upgrade" data-fac="${f.id}">升级</button></div>
     </div>`;
   }
-  html += `</div><div style="text-align:right;margin-top:8px"><button class="btn btn-ghost" onclick="closeModal()">关闭</button></div>`;
+  html += `</div><div class="modal-actions" style="margin-top:8px"><button class="btn btn-ghost" onclick="closeModal()">关闭</button></div>`;
   showModal(html);
   // bind upgrade buttons inside modal
   const modalUpgrades = document.querySelectorAll('#modal-root .btn.upgrade');
@@ -1704,7 +1752,7 @@ function initGameUI(){
     <label class="block">选择难度</label><select id="init-diff"><option value="1">简单</option><option value="2" selected>普通</option><option value="3">困难</option></select>
     <label class="block">选择省份</label><div id="init-prov-grid" class="prov-grid"></div>
     <label class="block">学生人数 (3-10)</label><input id="init-stu" type="number" min="3" max="10" value="5" />
-    <div style="text-align:right;margin-top:8px"><button class="btn btn-ghost" onclick="closeModal()">取消</button><button class="btn" id="init-start">开始</button></div>`);
+  <div class="modal-actions" style="margin-top:8px"><button class="btn btn-ghost" onclick="closeModal()">取消</button><button class="btn" id="init-start">开始</button></div>`);
   // render province buttons
   let grid = document.getElementById('init-prov-grid');
   for(let k in PROVINCES){ let p=PROVINCES[k]; let btn=document.createElement('button'); btn.className='prov-btn'; btn.textContent=p.name; btn.dataset.val=k; btn.onclick=()=>{document.querySelectorAll('#init-prov-grid .prov-btn').forEach(b=>b.classList.remove('selected'));btn.classList.add('selected');}; grid.appendChild(btn);}  
@@ -1901,10 +1949,10 @@ window.onload = ()=>{
         <div>预计费用: <strong id="out-cost-preview">¥0</strong></div>
         <div style="font-size:12px;color:#666">费用与人数有关</div>
       </div>
-      <div style="text-align:right;margin-top:8px">
-        <button class="btn btn-ghost" onclick="closeModal()">取消</button>
-        <button class="btn" id="out-go">前往</button>
-      </div>`);
+      <div class="modal-actions" style="margin-top:8px">
+          <button class="btn btn-ghost" onclick="closeModal()">取消</button>
+          <button class="btn" id="out-go">前往</button>
+        </div>`);
     // render province buttons for outing
     const outGrid = document.getElementById('out-prov-grid');
     Object.keys(PROVINCES).forEach(k => {

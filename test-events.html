@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>事件测试（临时） - 用完即删</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    body{padding:18px;font-family:Segoe UI, Roboto, "Helvetica Neue", Arial}
+    .panel{max-width:900px;margin:0 auto}
+    .btn{padding:8px 12px;border-radius:6px;border:1px solid #2b6cb0;background:#eaf4ff;cursor:pointer}
+    .row{display:flex;gap:8px;flex-wrap:wrap}
+    #event-cards-container{margin-top:12px}
+    .hint{color:#666;margin-top:8px}
+  </style>
+</head>
+<body>
+  <div class="panel">
+    <h2>事件测试页面（临时）</h2>
+    <p class="hint">说明：本页面包含用于触发项目中所有事件的测试代码，仅用于开发测试，用完请删除此文件。</p>
+
+    <div class="row">
+      <button id="btn-trigger-all" class="btn">触发所有事件</button>
+      <button id="btn-trigger-random" class="btn">运行 EventManager.checkRandomEvents()</button>
+      <button id="btn-clear-events" class="btn">清空事件卡片</button>
+      <button id="btn-reset-game" class="btn">重置游戏（尝试）</button>
+    </div>
+
+    <div id="outputs" style="margin-top:12px"></div>
+
+    <h3 style="margin-top:18px">事件卡片预览</h3>
+    <div id="event-cards-container"></div>
+
+    <script src="events.js"></script>
+    <script src="lib/constants.js"></script>
+    <script src="lib/utils.js"></script>
+    <script src="lib/models.js"></script>
+    <script src="lib/talent.js"></script>
+    <script src="lib/competitions.js"></script>
+    <script src="lib/contest-ui.js"></script>
+    <script src="lib/contest-integration.js"></script>
+    <script src="script.js"></script>
+
+    <script>
+      // Test helper: build a minimal game state if not already present
+      function ensureGame(){
+        if(window.game) return window.game;
+        try{ window.game = new GameState(); }catch(e){
+          // minimal fallback
+          window.game = { week:1, budget:50000, reputation:50, students: [ {name:'张三', active:true, pressure:10, thinking:40, coding:40, comfort:80}, {name:'李四', active:true, pressure:20, thinking:50, coding:50, comfort:80} ], province_name: '广东', temperature: 25 };
+        }
+        return window.game;
+      }
+
+      function appendOut(txt){ const d = document.createElement('div'); d.innerText = txt; document.getElementById('outputs').prepend(d); }
+
+      document.getElementById('btn-clear-events').addEventListener('click', ()=>{ recentEvents.splice(0); renderEventCards(); appendOut('已清空事件卡片'); });
+
+      document.getElementById('btn-reset-game').addEventListener('click', ()=>{ try{ localStorage.removeItem('oi_coach_save'); location.reload(); }catch(e){ appendOut('重置失败: '+e.message); } });
+
+      document.getElementById('btn-trigger-random').addEventListener('click', ()=>{
+        ensureGame();
+        if(window.EventManager && typeof window.EventManager.checkRandomEvents === 'function'){
+          try{ window.EventManager.checkRandomEvents(window.game); appendOut('已运行 EventManager.checkRandomEvents()'); renderAll(); }catch(e){ appendOut('运行失败: '+e.message); }
+        } else appendOut('EventManager 未找到');
+      });
+
+      document.getElementById('btn-trigger-all').addEventListener('click', ()=>{
+        const g = ensureGame();
+        // Prepare ctx similar to registerDefaultEvents
+        const ctx = { game: g, PROVINCES: window.PROVINCES, constants: window, utils: window, log: console.log };
+        if(!window.EventManager || !window.EventManager._events) return appendOut('EventManager 或事件列表未加载');
+
+        // Run each event.run with ctx. This is only for testing — some events may mutate game heavily.
+        window.EventManager._events.forEach(evt => {
+          try{
+            appendOut(`触发事件: ${evt.id} (${evt.name || ''})`);
+            const res = evt.run && evt.run(ctx);
+            appendOut(`  run 返回: ${String(res)}`);
+          }catch(e){ appendOut(`  执行失败: ${e.message}`); }
+        });
+        renderAll();
+        renderEventCards();
+      });
+
+      // Expose convenience
+      window.appendOut = appendOut;
+    </script>
+  </div>
+</body>
+</html>

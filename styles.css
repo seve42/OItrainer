@@ -109,6 +109,28 @@ th,td{padding:6px;border:1px solid #eee;text-align:center}
 .event-item{padding:6px;border-bottom:1px dashed #eee;font-size:13px}
 .event-item:last-child{border-bottom:none}
 
+/* 事件选项按钮 */
+.event-options{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+.event-choice-btn{
+  padding:6px 14px;
+  font-size:13px;
+  border:1px solid var(--accent);
+  background:linear-gradient(135deg, rgba(43,108,176,0.08), rgba(43,108,176,0.04));
+  color:var(--text);
+  border-radius:6px;
+  cursor:pointer;
+  transition:all 0.2s ease;
+}
+.event-choice-btn:hover{
+  background:linear-gradient(135deg, rgba(43,108,176,0.15), rgba(43,108,176,0.08));
+  box-shadow:0 2px 6px rgba(43,108,176,0.15);
+  transform:translateY(-1px);
+}
+.event-choice-btn:active{
+  transform:translateY(0);
+  box-shadow:0 1px 3px rgba(43,108,176,0.1);
+}
+
 /* Competition-week mode: only show the '参加比赛' card */
 body.comp-week .action-cards .action-card:not(#comp-only-action) {
 	display: none;
@@ -273,6 +295,14 @@ body.comp-week .action-cards .action-card:not(#comp-only-action) {
 .result-table tbody tr:hover {
   background: #f9fafb;
 }
+
+/* Modal actions: 统一弹窗底部按钮布局
+   - 左下角排列（从用户要求）
+   - 按钮间距一致，较小的次要按钮使用 .btn-ghost
+*/
+.modal-actions{display:flex;gap:8px;justify-content:flex-start;align-items:center;margin-top:12px}
+.modal-actions .btn{margin:0}
+.modal-actions .btn + .btn{margin-left:6px}
 
 /* 天赋标签样式 */
 .student-talents {

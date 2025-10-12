@@ -84,8 +84,9 @@
           if(sickList.length){
             const msg = `${sickList.join('、')} 感冒了`;
             log && log(`[事件] ${msg}`);
+            // 仅推送到信息卡片，不再返回字符串以触发弹窗
             window.pushEvent && window.pushEvent({ name:'感冒', description: msg, week: c.game.week });
-            return msg; // 返回具体消息以供调度器显示弹窗
+            return null;
           }
           return null;
         }
@@ -319,18 +320,16 @@
                 }
                 // 推送事件卡说明：显示选择结果和造成的影响
                 const desc = `接受友校交流：经费 -¥5000，学生能力小幅提升，压力略增`;
-                window.pushEvent && window.pushEvent({ name: '友校交流邀请', description: desc, week: c.game.week });
+                window.pushEvent && window.pushEvent({ name: '选择结果', description: desc, week: c.game.week });
               }
             },
-            { label: '婉拒邀请', effect: () => { c.game.reputation = Math.max(0, c.game.reputation - 1); } }
+            { label: '婉拒邀请', effect: () => { 
+                c.game.reputation = Math.max(0, c.game.reputation - 1);
+                const desc = `婉拒友校交流：声誉 -1`;
+                window.pushEvent && window.pushEvent({ name: '选择结果', description: desc, week: c.game.week });
+              }
+            }
           ];
-          // 为拒绝选项也加入 pushEvent 描述，需在 effect 内部处理
-          // 包装拒绝选项以便在执行时发送描述
-          options[1].effect = () => {
-            c.game.reputation = Math.max(0, c.game.reputation - 1);
-            const desc = `婉拒友校交流：声誉 -1`;
-            window.pushEvent && window.pushEvent({ name: '友校交流邀请', description: desc, week: c.game.week });
-          };
 
           window.showChoiceModal && window.showChoiceModal({ name: '友校交流邀请', description: '是否接受友校交流邀请？', week: c.game.week, options });
           return null;
@@ -345,7 +344,8 @@
         run: c => {
           const options = [
             { label: '接收', effect: () => {
-                c.game.budget = Math.max(0, c.game.budget - c.utils.uniformInt(10000, 20000));
+                const cost = c.utils.uniformInt(10000, 20000);
+                c.game.budget = Math.max(0, c.game.budget - cost);
                 // create a proper Student instance so methods and talents work
                 try{
                   const s = new Student('新学生', 80, 80, 80);
@@ -358,37 +358,16 @@
                   // fallback to plain object if Student constructor unavailable
                   c.game.students.push({ name: '新学生', active: true, thinking: 80, coding: 80, pressure: 30, comfort: 80 });
                 }
+                const desc = `接收新学生：经费 -¥${cost}，获得一名能力较强学生`;
+                window.pushEvent && window.pushEvent({ name: '选择结果', description: desc, week: c.game.week });
               }
             },
-            { label: '拒绝', effect: () => {} }
-          ];
-          // 给选项 effect 添加事件卡描述
-          const origAccept = options[0].effect;
-          options[0].effect = () => {
-            const cost = c.utils.uniformInt(10000, 20000);
-            c.game.budget = Math.max(0, c.game.budget - cost);
-            try{
-              const s = new Student('新学生', 80, 80, 80);
-              s.pressure = 30; s.comfort = 80; s.active = true;
-              if(window.TalentManager && typeof window.TalentManager.assignTalentsToStudent === 'function'){
-                try{ window.TalentManager.assignTalentsToStudent(s); }catch(e){}
+            { label: '拒绝', effect: () => {
+                const desc = `拒绝新学生：暂无即时影响`;
+                window.pushEvent && window.pushEvent({ name: '选择结果', description: desc, week: c.game.week });
               }
-              c.game.students.push(s);
-            }catch(e){
-              c.game.students.push({ name: '新学生', active: true, thinking: 80, coding: 80, pressure: 30, comfort: 80 });
             }
-            const desc = `接收新学生：经费 -¥${cost}，获得一名能力较强学生`;
-            window.pushEvent && window.pushEvent({ name: '学生自荐', description: desc, week: c.game.week });
-            // 保持原行为（如果有）
-            try{ origAccept(); }catch(e){}
-          };
-          const origReject = options[1].effect;
-          options[1].effect = () => {
-            c.game.reputation = Math.max(0, c.game.reputation - 0);
-            const desc = `拒绝新学生：暂无即时影响`;
-            window.pushEvent && window.pushEvent({ name: '学生自荐', description: desc, week: c.game.week });
-            try{ origReject(); }catch(e){}
-          };
+          ];
 
           window.showChoiceModal && window.showChoiceModal({ name: '学生自荐', description: '一名学生想加入，是否接收？', week: c.game.week, options });
           return null;
@@ -405,23 +384,17 @@
             { label: '高调宣传', effect: () => {
                 c.game.reputation = Math.min(100, c.game.reputation + 10);
                 for (const s of c.game.students) if (s.active) s.pressure = Math.min(100, s.pressure + 10);
+                const desc = `高调宣传：声誉 +10，学生压力 +10`;
+                window.pushEvent && window.pushEvent({ name: '选择结果', description: desc, week: c.game.week });
               }
             },
-            { label: '低调处理', effect: () => { c.game.reputation = Math.min(100, c.game.reputation + 2); } }
+            { label: '低调处理', effect: () => { 
+                c.game.reputation = Math.min(100, c.game.reputation + 2);
+                const desc = `低调处理：声誉 +2`;
+                window.pushEvent && window.pushEvent({ name: '选择结果', description: desc, week: c.game.week });
+              }
+            }
           ];
-          // 为每个选项添加 pushEvent 描述
-          const high = options[0].effect;
-          options[0].effect = () => {
-            high();
-            const desc = `高调宣传：声誉 +10，学生压力 +10`;
-            window.pushEvent && window.pushEvent({ name: '媒体采访请求', description: desc, week: c.game.week });
-          };
-          const low = options[1].effect;
-          options[1].effect = () => {
-            low();
-            const desc = `低调处理：声誉 +2`;
-            window.pushEvent && window.pushEvent({ name: '媒体采访请求', description: desc, week: c.game.week });
-          };
 
           window.showChoiceModal && window.showChoiceModal({ name: '媒体采访请求', description: '是否高调宣传？', week: c.game.week, options });
           return null;
@@ -442,27 +415,16 @@
                   s.pressure = Math.min(100, s.pressure + 10);
                   s.forget = (s.forget || 0) + 1;
                 }
+                const desc = `参加商业活动：经费 +¥${gain}，学生压力 +10，遗忘 +1`;
+                window.pushEvent && window.pushEvent({ name: '选择结果', description: desc, week: c.game.week });
               }
             },
-            { label: '拒绝', effect: () => {} }
-          ];
-          // 添加 pushEvent 到选项 effect 中以显示结果描述
-          const origAttend = options[0].effect;
-          options[0].effect = () => {
-            const gain = c.utils.uniformInt(20000, 50000);
-            c.game.budget += gain;
-            for (const s of c.game.students) if (s.active) {
-              s.pressure = Math.min(100, s.pressure + 10);
-              s.forget = (s.forget || 0) + 1;
+            { label: '拒绝', effect: () => {
+                const desc = `拒绝商业活动：保持现状`;
+                window.pushEvent && window.pushEvent({ name: '选择结果', description: desc, week: c.game.week });
+              }
             }
-            const desc = `参加商业活动：经费 +¥${gain}，学生压力 +10，遗忘 +1`;
-            window.pushEvent && window.pushEvent({ name: '参加商业活动', description: desc, week: c.game.week });
-            try{ origAttend(); }catch(e){}
-          };
-          options[1].effect = () => {
-            const desc = `拒绝商业活动：保持现状`;
-            window.pushEvent && window.pushEvent({ name: '参加商业活动', description: desc, week: c.game.week });
-          };
+          ];
 
           window.showChoiceModal && window.showChoiceModal({ name: '是否参加商业活动', description: '接受或拒绝商业活动？', week: c.game.week, options });
           return null;
@@ -510,9 +472,9 @@
             // 事件执行后尝试创建快照并调用汇总函数以生成简要日志（如果可用）
             try{
               if (typeof window.__createSnapshot === 'function' && typeof window.__summarizeSnapshot === 'function' && runResult !== null) {
-                const afterSnap = window.__createSnapshot();
-                try{ window.__summarizeSnapshot(beforeSnap, afterSnap, '事件：' + evt.name); }catch(e){ /* 忽略汇总内部错误 */ }
-              }
+                  const afterSnap = window.__createSnapshot();
+                  try{ window.__summarizeSnapshot(beforeSnap, afterSnap, '事件：' + evt.name, { suppressPush: true }); }catch(e){ /* 忽略汇总内部错误 */ }
+                }
             }catch(e){ /* 忽略快照/汇总错误 */ }
 
             // 如果 run 返回了具体的消息，则使用该消息，否则使用通用描述
