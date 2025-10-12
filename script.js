@@ -853,12 +853,31 @@ function holdMockContestModal(isPurchased, diffIdx, questionTagsArray){
     }
 
     // 额外：模拟赛会小幅提升思维能力、中幅提升代码能力（使得模拟赛提升略微高于训练）
+    // 调整：当分数大于 50% 时，能力提升开始递减；200 分（50%）为最优提升点，0 分时为 0%，满分时为 50% 点提升的 20%。
+    // 实现为分段线性：0..peak 线性上升到 1；peak..max 线性下降到 0.2
+    const maxTotalForBoost = (Array.isArray(questionTagsArray) ? questionTagsArray.length : 4) * 100;
+    const peakScore = maxTotalForBoost * 0.5; // e.g., 200 for 4 题
     for(let s of game.students){
       if(!s.active) continue;
-      const thinkingBoost = uniform(1.2,2.0);
-      const codingBoost = uniform(1.6,2.4);
-      s.thinking = Math.min(100, s.thinking + thinkingBoost);
-      s.coding = Math.min(100, s.coding + codingBoost);
+      const r = results.find(x => x.name === s.name) || { total: 0 };
+      const totalScore = Number(r.total || 0);
+      // compute piecewise multiplier
+      let boostMult = 0.0;
+      if(totalScore <= peakScore){
+        boostMult = (peakScore > 0) ? (totalScore / peakScore) : 0.0; // 0 -> 0, peak -> 1
+      } else {
+        // linear decline from 1 at peak to 0.2 at maxTotalForBoost
+        const denom = Math.max(1, (maxTotalForBoost - peakScore));
+        boostMult = 1.0 - ((totalScore - peakScore) / denom) * (1.0 - 0.2);
+      }
+      boostMult = Math.max(0, Math.min(1, boostMult));
+
+      if(boostMult > 0){
+        const thinkingBoost = uniform(1.2,2.0) * boostMult;
+        const codingBoost = uniform(1.6,2.4) * boostMult;
+        s.thinking = Math.min(100, s.thinking + thinkingBoost);
+        s.coding = Math.min(100, s.coding + codingBoost);
+      }
     }
     // 统一应用之前记录的模拟赛额外惩罚：实际增加的压力 = 记录值 * 2
     for(let i=0;i<results.length;i++){
