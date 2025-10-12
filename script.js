@@ -441,9 +441,67 @@ function trainStudents(topic,intensity){
     let canteen_reduction = game.facilities.getCanteenPressureReduction();
     let pressure_increase = base_pressure * weather_factor * canteen_reduction * comfort_factor;
     if(s.sick_weeks > 0) pressure_increase += 10;
-    s.pressure += pressure_increase;
-    // trigger talent event: pressure change from training
-    try{ if(typeof s.triggerTalents === 'function'){ s.triggerTalents('pressure_change', { source: 'training', amount: pressure_increase, topic: topic, intensity: intensity }); } }catch(e){ console.error('triggerTalents pressure_change', e); }
+    // 默认的压力与知识变化处理：先触发天赋，天赋可能会修改本次压力或知识增益
+    let finalPressureIncrease = pressure_increase;
+    let finalKnowledgeGain = knowledge_gain;
+    try{
+      if(typeof s.triggerTalents === 'function'){
+        const results = s.triggerTalents('pressure_change', { source: 'training', amount: pressure_increase, topic: topic, intensity: intensity }) || [];
+        // 逐条处理天赋返回的 action
+        for(const r of results){
+          if(!r || !r.result) continue;
+          const out = r.result;
+          // 当 handler 返回对象时（我们在 talent.js 中这么设计），直接读取 action 字段
+          if(typeof out === 'object'){
+            const act = out.action;
+            if(act === 'moyu_cancel_pressure'){
+              // 取消本次压力增加
+              finalPressureIncrease = 0;
+              // 同时按 reduceKnowledgeRatio 缩减知识增益
+              if(typeof out.reduceKnowledgeRatio === 'number'){
+                finalKnowledgeGain = Math.floor(finalKnowledgeGain * (1 - out.reduceKnowledgeRatio));
+              }
+            } else if(act === 'halve_pressure'){
+              finalPressureIncrease = finalPressureIncrease * 0.5;
+            } else if(act === 'double_pressure'){
+              finalPressureIncrease = finalPressureIncrease * 2.0;
+            }
+            // 其它 action 可在未来扩展
+          }
+        }
+      }
+    }catch(e){ console.error('triggerTalents pressure_change', e); }
+
+    // 应用最终计算的知识与压力变更
+    // 先应用知识变更（训练期间知识已累加到临时变量 knowledge_gain），调整为 finalKnowledgeGain
+    // 注意：上文已经将具体知识分配到各知识字段，这儿需要将差额/修正应用
+    if(finalKnowledgeGain !== knowledge_gain){
+      const diff = finalKnowledgeGain - knowledge_gain;
+      // 将差额按 topic 分配（与上方代码分配一致）
+      if(topic === "数据结构"){
+        s.knowledge_ds += diff;
+      } else if(topic === "图论"){
+        s.knowledge_graph += diff;
+      } else if(topic === "字符串"){
+        s.knowledge_string += diff;
+      } else if(topic === "数学"){
+        s.knowledge_math += diff;
+      } else if(topic === "DP"){
+        s.knowledge_dp += diff;
+      } else if(topic === "综合"){
+        // 把 diff 平均分配到五项
+        const part = Math.floor(diff / 5);
+        if(part !== 0){ s.knowledge_ds += part; s.knowledge_graph += part; s.knowledge_string += part; s.knowledge_math += part; s.knowledge_dp += part; }
+      }
+      // ensure non-negative
+      s.knowledge_ds = Math.max(0, s.knowledge_ds);
+      s.knowledge_graph = Math.max(0, s.knowledge_graph);
+      s.knowledge_string = Math.max(0, s.knowledge_string);
+      s.knowledge_math = Math.max(0, s.knowledge_math);
+      s.knowledge_dp = Math.max(0, s.knowledge_dp);
+    }
+
+    s.pressure += finalPressureIncrease;
   }
   game.weeks_since_entertainment += 1;
     log("训练结束（1周）。");
@@ -1441,18 +1499,44 @@ function entertainmentUI(){
       for(let s of game.students){
         if(!s.active) continue;
         if(opt.id === 1){ // 训话
-          s.mental += uniform(3,7); s.pressure = Math.max(0, s.pressure - uniform(30,45));
+          s.mental += uniform(3,7); var oldP = s.pressure; s.pressure = Math.max(0, s.pressure - uniform(30,45)); var newP = s.pressure;
         } else if(opt.id === 2){ // 吃饭
-          s.mental += uniform(8,20); s.pressure = Math.max(0, s.pressure - uniform(40,55));
+          s.mental += uniform(8,20); var oldP = s.pressure; s.pressure = Math.max(0, s.pressure - uniform(40,55)); var newP = s.pressure;
         } else if(opt.id === 3){ // 自由活动
-          let wf=1.0; if(game.weather==='雪') wf=2.0; else if(game.weather==='雨' && game.facilities.dorm<2) wf=0.5; s.pressure = Math.max(0, s.pressure - uniform(20,35)*wf); s.mental += uniform(3,8);
+          let wf=1.0; if(game.weather==='雪') wf=2.0; else if(game.weather==='雨' && game.facilities.dorm<2) wf=0.5; var oldP = s.pressure; s.pressure = Math.max(0, s.pressure - uniform(20,35)*wf); var newP = s.pressure; s.mental += uniform(3,8);
         } else if(opt.id === 4){ // 打球
-          s.mental += uniform(4,8); s.pressure = Math.max(0, s.pressure - uniform(20,35));
+          s.mental += uniform(4,8); var oldP = s.pressure; s.pressure = Math.max(0, s.pressure - uniform(20,35)); var newP = s.pressure;
         } else if(opt.id === 5){ // 打CS
-          s.mental += uniform(1,5); s.coding += uniform(0.5,1.0); s.pressure = Math.max(0, s.pressure - uniform(10,20));
+          s.mental += uniform(1,5); s.coding += uniform(0.5,1.0); var oldP = s.pressure; s.pressure = Math.max(0, s.pressure - uniform(10,20)); var newP = s.pressure;
         }
         s.mental = Math.min(100, s.mental);
-        try{ if(typeof s.triggerTalents === 'function'){ s.triggerTalents('entertainment_finished', { entertainmentId: opt.id, entertainmentName: opt.val, cost: opt.cost }); } }catch(e){ console.error('triggerTalents entertainment_finished', e); }
+        // trigger talents and allow them to modify results
+        try{
+          if(typeof s.triggerTalents === 'function'){
+            const results = s.triggerTalents('entertainment_finished', { entertainmentId: opt.id, entertainmentName: opt.val, cost: opt.cost }) || [];
+            for(const r of results){ if(!r || !r.result) continue; const out = r.result; if(typeof out === 'object'){
+              if(out.action === 'quit_for_esports'){
+                // ensure student inactive and log
+                s.active = false; s._quit_for_esports = true;
+                console.log(out.message || '学生退队去学电竞');
+                // also record in game log if available
+                if(typeof log === 'function') log(`${s.name} ${out.message || '退队去学电竞'}`);
+              }
+              if(out.action === 'vacation_half_minus5'){
+                // 恢复一半的减压效果（即将部分减压抵消回去）
+                const delta = (typeof oldP !== 'undefined' && typeof newP !== 'undefined') ? (oldP - newP) : 0;
+                const addBack = delta * 0.5;
+                s.pressure = Math.min(100, s.pressure + addBack);
+                console.log(out.message || '睡觉也在想题：压力-5效果减半');
+                if(typeof log === 'function') log(`${s.name} ${out.message || '睡觉也在想题：压力-5效果减半'}`);
+              }
+            } else if(typeof r.result === 'string'){
+              // string result, log it
+              if(typeof log === 'function') log(`${s.name} ${r.result}`);
+            }
+            }
+          }
+        }catch(e){ console.error('triggerTalents entertainment_finished', e); }
       }
   game.weeks_since_entertainment += 1;
   safeWeeklyUpdate(1);
@@ -1473,7 +1557,27 @@ function takeVacationUI(){
     for(let s of game.students){
       if(!s.active) continue;
       s.mental = Math.min(100, s.mental + days * uniform(3,8));
+      const oldP = s.pressure;
       s.pressure = Math.max(0, s.pressure - uniform(20,40) * days / 7.0);
+      const newP = s.pressure;
+      // trigger talents for vacation end and allow adjustments (e.g., 睡觉也在想题 半减效果)
+      try{
+        if(typeof s.triggerTalents === 'function'){
+          const results = s.triggerTalents('vacation_end', { days: days, weeks: weeks }) || [];
+          for(const r of results){ if(!r || !r.result) continue; const out = r.result; if(typeof out === 'object'){
+            if(out.action === 'vacation_half_minus5'){
+              const delta = (oldP - newP) || 0;
+              const addBack = delta * 0.5;
+              s.pressure = Math.min(100, s.pressure + addBack);
+              if(typeof log === 'function') log(`${s.name} ${out.message || '睡觉也在想题：压力-5效果减半'}`);
+            } else if(out.action === 'quit_for_esports'){
+              s.active = false; s._quit_for_esports = true; if(typeof log === 'function') log(`${s.name} ${out.message || '退队去学电竞'}`);
+            }
+          } else if(typeof r.result === 'string'){
+            if(typeof log === 'function') log(`${s.name} ${r.result}`);
+          } }
+        }
+      }catch(e){ console.error('triggerTalents vacation_end', e); }
     }
   // 安全更新，避免放假跳过比赛
   safeWeeklyUpdate(weeks);
