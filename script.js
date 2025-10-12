@@ -365,7 +365,7 @@ function renderAll(){
         <div><strong>${s.name}</strong> ${s.sick_weeks>0?'<span class="warn">[生病]</span>':''} <span class="label-pill ${pressureClass}">压力:${pressureLevel}</span></div>
       </div>
       <div class="compact small" style="margin-top:3px">
-        实力: <progress value="${comp}" max="100" style="vertical-align:middle;width:70%;"></progress> ${comp} | 资质:${aptitudeGrade} 能力:${abilityGrade}
+        知识: <progress value="${Math.floor(s.getKnowledgeTotal ? s.getKnowledgeTotal() : 0)}" max="100" style="vertical-align:middle;width:70%;"></progress> ${Math.floor(s.getKnowledgeTotal ? s.getKnowledgeTotal() : 0)} | 思维:${getLetterGrade(Math.floor(Number(s.thinking||0)))} 代码:${getLetterGrade(Math.floor(Number(s.coding||0)))}
       </div>
       ${talentsHtml ? `<div class="student-talents" style="margin-top:6px">${talentsHtml}</div>` : ''}
     </div>`;
