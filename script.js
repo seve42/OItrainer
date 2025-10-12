@@ -37,8 +37,20 @@ function log(msg){
   else { console.log(text); }
 }
 
+// 安全渲染：仅在页面具备主 UI 元素时调用 renderAll，避免在测试页面（缺少元素）时抛错
+function safeRenderAll(){
+  try{
+    if(typeof window.renderAll === 'function' && document.getElementById('header-week')){
+      window.renderAll();
+    }
+  }catch(e){ console.error('safeRenderAll error', e); }
+}
+
 // 将事件推入突发事件卡片（并保留日志）
 const recentEvents = [];
+// 为每个事件生成唯一ID的计数器
+let _eventIdCounter = 0;
+
 function pushEvent(msg){
   const wkDefault = currWeek();
   const ev = (typeof msg === 'string') 
@@ -50,6 +62,9 @@ function pushEvent(msg){
         options: msg.options || null,  // 支持选项
         eventId: msg.eventId || null   // 用于区分同一事件的不同实例
       };
+
+  // 为每个事件分配唯一的内部ID
+  ev._uid = ++_eventIdCounter;
 
   log(`${ev.name ? ev.name + '：' : ''}${ev.description}`);
   
@@ -141,6 +156,9 @@ function renderEventCards(){
     const ev = recentEvents[i];
     if(ev.week && (nowWeek - ev.week) > 2) continue; // 只显示最近2周内
     
+    // 跳过已处理的事件（已点击选项的事件不应再显示）
+    if(ev._isHandled) continue;
+    
     const card = document.createElement('div');
     // 使用专门的 event-card 类，避免被 body.comp-week .action-cards .action-card:not(#comp-only-action) 隐藏
     card.className = 'event-card event-active';
@@ -151,7 +169,8 @@ function renderEventCards(){
     if(ev.options && ev.options.length > 0){
       cardHTML += '<div class="event-options" style="margin-top:10px; display:flex; gap:8px;">';
       ev.options.forEach((opt, idx) => {
-        cardHTML += `<button class="btn event-choice-btn" data-event-index="${i}" data-option-index="${idx}">${opt.label || `选项${idx+1}`}</button>`;
+        // ✅ 重构：将事件的唯一ID和选项索引作为data属性写入按钮
+        cardHTML += `<button class="btn event-choice-btn" data-event-uid="${ev._uid}" data-option-index="${idx}">${opt.label || `选项${idx+1}`}</button>`;
       });
       cardHTML += '</div>';
     }
@@ -159,38 +178,7 @@ function renderEventCards(){
     card.innerHTML = cardHTML;
     container.appendChild(card);
     
-    // 为选项按钮添加事件监听器
-    if(ev.options && ev.options.length > 0){
-      ev.options.forEach((opt, idx) => {
-        const btn = card.querySelector(`[data-event-index="${i}"][data-option-index="${idx}"]`);
-        if(btn){
-          btn.addEventListener('click', () => {
-            // 执行选项的效果
-            try{
-              opt?.effect?.();
-            }catch(e){
-              console.error('执行事件选项效果时出错:', e);
-            }
-            
-            // 移除该事件的选项（将options设为null）
-            recentEvents[i].options = null;
-            
-            // 强制清除一次性抑制标志，确保界面能正常刷新
-            try{
-              if(game && game.suppressEventModalOnce){
-                game.suppressEventModalOnce = false;
-              }
-            }catch(e){}
-            
-            // 重新渲染事件卡片
-            renderEventCards();
-            
-            // 刷新游戏界面
-            window.renderAll?.();
-          });
-        }
-      });
-    }
+    // ❌ 重构：移除此处所有的旧事件监听器逻辑
     
     if(++shown >= 6) break; // 最多显示6个
   }
@@ -204,13 +192,69 @@ function showEventModal(evt){
   showModal(`<h3>${weekInfo}${title}</h3><div class="small" style="margin-top:6px">${desc}</div><div class="modal-actions"><button class="btn" onclick="closeModal()">关闭</button></div>`);
 }
 
+// ✅ 重构：全局事件委托处理器
+function handleEventChoice(event) {
+  const button = event.target.closest('.event-choice-btn');
+  if (!button) return;
+
+  const eventUid = parseInt(button.dataset.eventUid, 10);
+  const optionIndex = parseInt(button.dataset.optionIndex, 10);
+
+  if (isNaN(eventUid) || isNaN(optionIndex)) return;
+
+  // 通过唯一ID查找事件
+  const targetEvent = recentEvents.find(e => e._uid === eventUid);
+  if (!targetEvent || targetEvent._isHandled) return;
+
+  // 标记为已处理
+  targetEvent._isHandled = true;
+
+  // 禁用所有按钮
+  const card = button.closest('.event-card');
+  if (card) {
+    card.querySelectorAll('.event-choice-btn').forEach(btn => {
+      btn.disabled = true;
+      btn.classList.add('disabled');
+    });
+  }
+
+  // 执行选项效果
+  const option = targetEvent.options[optionIndex];
+  try {
+    if (option && typeof option.effect === 'function') {
+      option.effect();
+    }
+  } catch (err) {
+    console.error('执行事件选项效果时出错:', err);
+  }
+
+  // 强制清除一次性抑制标志
+  try {
+    if (game && game.suppressEventModalOnce) {
+      game.suppressEventModalOnce = false;
+    }
+  } catch (err) {}
+
+  // 重新渲染
+  renderEventCards();
+  safeRenderAll();
+}
+
+// ✅ 重构：在页面加载时绑定全局监听器
+window.addEventListener('load', () => {
+  const container = $('event-cards-container');
+  if (container) {
+    container.addEventListener('click', handleEventChoice);
+  }
+});
+
 // 显示选择事件弹窗（现改为推送到信息卡片）
 function showChoiceModal(evt){
   const title = evt?.name || '选择事件';
   const desc = evt?.description || '';
   const options = evt?.options || [];
   
-  // 生成唯一的事件ID，避免重复
+  // 生成唯一的事件ID，避免重复推送相同事件
   const eventId = `choice_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   
   // 直接推送到事件卡片而不是弹窗
@@ -244,6 +288,8 @@ function testShowChoiceModal(){
 window.testShowChoiceModal = testShowChoiceModal;
 /* 渲染：主页去数值化（不显示学生具体能力/压力数值） */
 function renderAll(){
+  // 如果主 UI 元素不存在（例如在独立测试页面），安全退出以避免抛错
+  if(!document.getElementById('header-week')) return;
   $('header-week').innerText = `第 ${currWeek()} 周`;
   $('header-province').innerText = `省份: ${game.province_name} (${game.province_type})`;
   $('header-budget').innerText = `经费: ¥${game.budget}`;
@@ -786,7 +832,6 @@ function holdMockContestModal(isPurchased, diffIdx, questionTagsArray){
     }
 
     // 额外：模拟赛会小幅提升思维能力、中幅提升代码能力（使得模拟赛提升略微高于训练）
-    // 提升量示例（可调）：thinking += uniform(1.2,2.0); coding += uniform(1.6,2.4)
     for(let s of game.students){
       if(!s.active) continue;
       const thinkingBoost = uniform(1.2,2.0);
@@ -1180,7 +1225,11 @@ function holdCompetitionModal(comp){
       game.seasonEndTriggered = true;
       let ending = checkEnding();
   try{ pushEvent({ name: '赛季结束', description: `赛季结束：${ending}`, week: currWeek() }); }catch(e){}
-      try{ localStorage.setItem('oi_coach_save', JSON.stringify(game)); localStorage.setItem('oi_coach_ending', ending); }catch(e){}
+      // 保存结算到 localStorage 以便 end.html 展示，并跳转到结算页
+      try{
+        localStorage.setItem('oi_coach_save', JSON.stringify(game));
+        localStorage.setItem('oi_coach_ending', ending);
+      }catch(e){}
   showModal(`<h3>赛季结束</h3><div class="small">本轮赛季结算：${ending}</div><div class="modal-actions" style="margin-top:8px"><button class="btn" onclick="(function(){ closeModal(); window.location.href='end.html'; })()">查看结算页面</button></div>`);
     }
   }catch(e){ console.error('post-competition season-end check failed', e); }
@@ -1614,7 +1663,7 @@ function takeVacationUI(){
               s.pressure = Math.min(100, s.pressure + addBack);
               if(typeof log === 'function') log(`${s.name} ${out.message || '睡觉也在想题：压力-5效果减半'}`);
             } else if(out.action === 'quit_for_esports'){
-              s.active = false; s._quit_for_esports = true; if(typeof log === 'function') log(`${s.name} ${out.message || '退队去学电竞'}`);
+              s.active = false; s._quit_for_esports = true; if(typeof log === 'function' ) log(`${s.name} ${out.message || '退队去学电竞'}`);
             }
           } else if(typeof r.result === 'string'){
             if(typeof log === 'function') log(`${s.name} ${r.result}`);
