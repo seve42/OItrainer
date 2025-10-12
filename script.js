@@ -175,6 +175,13 @@ function renderEventCards(){
             // 移除该事件的选项（将options设为null）
             recentEvents[i].options = null;
             
+            // 强制清除一次性抑制标志，确保界面能正常刷新
+            try{
+              if(game && game.suppressEventModalOnce){
+                game.suppressEventModalOnce = false;
+              }
+            }catch(e){}
+            
             // 重新渲染事件卡片
             renderEventCards();
             
@@ -983,11 +990,13 @@ function holdCompetitionModal(comp){
         try{ log(`赛季提前结束：${ending}`); }catch(e){}
         // 标记并保存当前游戏状态与结局文本
         try{ game.seasonEndTriggered = true; localStorage.setItem('oi_coach_save', JSON.stringify(game)); localStorage.setItem('oi_coach_ending', ending); }catch(e){}
-        // 显示结算提示并跳转到结算页面
-        closeModal();
-  showModal(`<h3>赛季结束</h3><div class="small">${ending}</div><div class="modal-actions" style="margin-top:8px"><button class="btn" onclick="(function(){ closeModal(); window.location.href='end.html'; })()">查看结算页面</button></div>`);
-        renderAll();
-        return; // 中止后续比赛应用逻辑
+    // 直接保存并跳转到结算页面（短延迟以确保 localStorage 写入完成）
+    try{ localStorage.setItem('oi_coach_save', JSON.stringify(game)); localStorage.setItem('oi_coach_ending', ending); }catch(e){}
+    try{ closeModal(); }catch(e){}
+    // 小延迟后跳转，给浏览器一点时间写入 localStorage 并关闭模态
+    setTimeout(function(){ window.location.href = 'end.html'; }, 80);
+    renderAll();
+    return; // 中止后续比赛应用逻辑
       }
     }catch(e){ console.error('early season-end check failed', e); }
 
@@ -1805,34 +1814,64 @@ function renderEndSummary(){
     let budget = o.budget || 0;
     // compute avg pressure if available
     let avgP = 0; if(o.students && o.students.length>0){ avgP = Math.round(o.students.filter(s=>s.active).reduce((a,s)=>a+(s.pressure||0),0) / Math.max(1, active)); }
-    // decide ending text using checkEnding logic by temporarily rehydrating minimal game
-    let tmp = Object.assign(new GameState(), o);
-    tmp.students = (o.students || []).map(s => Object.assign(new Student(), s));
-    let ending = checkEnding.call({ game: tmp, students: tmp.students, budget: tmp.budget }) ;
-    // fallback: call checkEnding directly (it uses global game) - so set global game to tmp then restore
-    let prev = game; game = tmp; ending = checkEnding(); game = prev;
+    
+    // 优先使用保存的结局文本，如果没有则计算
+    let ending = localStorage.getItem('oi_coach_ending');
+    if(!ending){
+      // decide ending text using checkEnding logic by temporarily rehydrating minimal game
+      let tmp = Object.assign(new GameState(), o);
+      tmp.students = (o.students || []).map(s => Object.assign(new Student(), s));
+      // fallback: call checkEnding directly (it uses global game) - so set global game to tmp then restore
+      let prev = game; game = tmp; ending = checkEnding(); game = prev;
+    }
+    
     // build career competitions table if present
     let careerHtml = '';
     const career = (o.careerCompetitions && Array.isArray(o.careerCompetitions)) ? o.careerCompetitions : (o.game && o.game.careerCompetitions ? o.game.careerCompetitions : null);
     if(career && career.length > 0){
-      careerHtml += `<div style="margin-top:8px"><strong>生涯比赛记录</strong></div>`;
-      careerHtml += `<div style="margin-top:6px;max-height:220px;overflow:auto"><table><thead><tr><th>周</th><th>比赛</th><th>名次/参与</th><th>总分</th><th>备注</th></tr></thead><tbody>`;
+      careerHtml += `<div style="margin-top:12px"><h4>📊 比赛生涯记录</h4></div>`;
+      careerHtml += `<div style="margin-top:8px;max-height:320px;overflow:auto;border:1px solid #ddd;border-radius:4px;padding:8px;background:#fafafa">`;
+      
       for(let rec of career){
-        // show top 3 entries quickly
-        let rows = [];
-        // show each eligible entry as separate row up to 6 rows to avoid huge table
-        let shown = 0;
-        for(let e of rec.entries){
-          if(shown>=6) break;
-          const rankText = e.rank? `${e.rank}` : (e.eligible? '-' : '—');
-          const totalText = (e.total==null)? '—' : `${e.total}`;
-          const remark = e.remark || (e.eligible? '' : '未参加');
-          rows.push(`<tr><td>${rec.week}</td><td>${rec.name}</td><td>${rankText}</td><td>${totalText}</td><td>${remark}</td></tr>`);
-          shown++;
+        const passedCount = rec.passedCount || 0;
+        const totalStudents = rec.totalStudents || 0;
+        const passRate = totalStudents > 0 ? ((passedCount / totalStudents) * 100).toFixed(0) : '0';
+        
+        careerHtml += `<div style="margin-bottom:12px;padding:8px;background:white;border-radius:4px;border-left:3px solid #4a90e2">`;
+        careerHtml += `<div style="font-weight:bold;margin-bottom:4px">第 ${rec.week} 周 - ${rec.name}</div>`;
+        careerHtml += `<div style="font-size:13px;color:#666;margin-bottom:6px">晋级：${passedCount}/${totalStudents} 人 (${passRate}%)</div>`;
+        
+        if(rec.entries && rec.entries.length > 0){
+          careerHtml += `<table style="width:100%;font-size:12px;border-collapse:collapse">`;
+          careerHtml += `<thead><tr style="background:#f0f0f0"><th style="padding:4px;text-align:left">学生</th><th style="padding:4px;text-align:center">排名</th><th style="padding:4px;text-align:center">分数</th><th style="padding:4px;text-align:left">结果</th></tr></thead><tbody>`;
+          
+          for(let e of rec.entries){
+            const rankText = e.rank ? `#${e.rank}` : (e.eligible === false ? '-' : '—');
+            const scoreText = (e.total != null && e.total !== undefined) ? e.total.toFixed ? e.total.toFixed(1) : e.total : 
+                             (e.score != null && e.score !== undefined) ? e.score.toFixed ? e.score.toFixed(1) : e.score : '—';
+            const passedIcon = e.passed ? '✓' : (e.eligible === false ? '' : '✗');
+            const passedStyle = e.passed ? 'color:green;font-weight:bold' : (e.eligible === false ? 'color:#999' : 'color:#d32f2f');
+            let remarkText = e.remark || '';
+            if(!remarkText){
+              if(e.eligible === false) remarkText = '未参加';
+              else if(e.passed) remarkText = '晋级';
+              else if(e.medal) remarkText = e.medal === 'gold' ? '金牌' : e.medal === 'silver' ? '银牌' : e.medal === 'bronze' ? '铜牌' : '';
+            }
+            
+            careerHtml += `<tr style="border-bottom:1px solid #eee">`;
+            careerHtml += `<td style="padding:4px">${e.name}</td>`;
+            careerHtml += `<td style="padding:4px;text-align:center">${rankText}</td>`;
+            careerHtml += `<td style="padding:4px;text-align:center">${scoreText}</td>`;
+            careerHtml += `<td style="padding:4px;${passedStyle}">${passedIcon} ${remarkText}</td>`;
+            careerHtml += `</tr>`;
+          }
+          
+          careerHtml += `</tbody></table>`;
         }
-        careerHtml += rows.join('');
+        careerHtml += `</div>`;
       }
-      careerHtml += `</tbody></table></div>`;
+      
+      careerHtml += `</div>`;
     } else {
       careerHtml += `<div class="small muted" style="margin-top:8px">未记录到比赛生涯数据</div>`;
     }

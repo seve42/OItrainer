@@ -121,7 +121,7 @@
             }
           }
           if(quitList.length){
-            const msg = `${quitList.join('、')} 因压力过大退队`;
+            const msg = `${quitList.join('、')} 因压力过大退队，声誉-10`;
             log && log(`[事件] ${msg}`);
             window.pushEvent && window.pushEvent({ name:'退队', description: msg, week: c.game.week });
             window.renderAll && window.renderAll();
