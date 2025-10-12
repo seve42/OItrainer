@@ -594,7 +594,17 @@ function computeOutingCostQuadratic(difficulty_choice, province_choice, particip
 
   const n = Math.max(0, Number(participantCount || 0));
   const diffPenalty = DIFF_COST_PENALTY[difficulty_choice] || 100;
-  return Math.max(0, Math.floor(adjustedBase + 4000 * n + 2000 * n * n + diffPenalty));
+  // apply reputation-based discount: higher reputation -> lower cost
+  try{
+    const rep = (typeof game !== 'undefined' && game && typeof game.reputation === 'number') ? clamp(game.reputation, 0, 100) : 0;
+    const raw = Math.max(0, Math.floor(adjustedBase + 4000 * n + 2000 * n * n + diffPenalty));
+    const maxDiscount = (typeof OUTFIT_REPUTATION_DISCOUNT !== 'undefined') ? OUTFIT_REPUTATION_DISCOUNT : 0.30;
+    const discount = (rep / 100.0) * maxDiscount;
+    const finalCost = Math.max(0, Math.floor(raw * (1.0 - discount)));
+    return finalCost;
+  }catch(e){
+    return Math.max(0, Math.floor(adjustedBase + 4000 * n + 2000 * n * n + diffPenalty));
+  }
 }
 
 // 新的外出集训实现：仅对 selectedNames 的学生进行集训
@@ -907,8 +917,8 @@ function holdCompetitionModal(comp){
     if(comp.name === "省选") base_rate += PROVINCIAL_SELECTION_BONUS;
     base_pass_line = comp.maxScore * base_rate;
   }
-  let dynamic_factor = 1.0 - (game.reputation - 50) * 0.01;
-  let pass_line = Math.floor(base_pass_line * dynamic_factor);
+  // pass line no longer depends on reputation
+  let pass_line = Math.floor(base_pass_line);
   // Ensure pass line does not exceed 90% of the competition's max score (use computed maxScore)
   try{
     const compMax = (typeof comp.maxScore === 'number') ? comp.maxScore : ( (comp.numProblems||4) * 100 );

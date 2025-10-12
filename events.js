@@ -385,7 +385,13 @@
             { label: '高调宣传', effect: () => {
                 c.game.reputation = Math.min(100, c.game.reputation + 10);
                 for (const s of c.game.students) if (s.active) s.pressure = Math.min(100, s.pressure + 10);
-                const desc = `高调宣传：声誉 +10，学生压力 +10`;
+                // give a modest monetary boost scaled by reputation
+                const baseGain = c.utils.uniformInt(2000, 8000);
+                const rep = (c.game && typeof c.game.reputation === 'number') ? Math.max(0, Math.min(100, c.game.reputation)) : 0;
+                const repBonus = (typeof MEDIA_REP_BONUS !== 'undefined') ? MEDIA_REP_BONUS : 0.4;
+                const gain = Math.round(baseGain * (1.0 + (rep / 100.0) * repBonus));
+                c.game.budget = (c.game.budget || 0) + gain;
+                const desc = `高调宣传：声誉 +10，学生压力 +10，经费 +¥${gain}`;
                 window.pushEvent && window.pushEvent({ name: '选择结果', description: desc, week: c.game.week });
               }
             },
@@ -410,7 +416,11 @@
         run: c => {
           const options = [
             { label: '参加', effect: () => {
-                const gain = c.utils.uniformInt(20000, 50000);
+                // commercial activity income scales with reputation: more rep -> higher payout
+                const baseGain = c.utils.uniformInt(20000, 50000);
+                const rep = (c.game && typeof c.game.reputation === 'number') ? Math.max(0, Math.min(100, c.game.reputation)) : 0;
+                const repBonus = (typeof COMMERCIAL_REP_BONUS !== 'undefined') ? COMMERCIAL_REP_BONUS : 0.5;
+                const gain = Math.round(baseGain * (1.0 + (rep / 100.0) * repBonus));
                 c.game.budget += gain;
                 for (const s of c.game.students) if (s.active) {
                   s.pressure = Math.min(100, s.pressure + 10);
