@@ -359,6 +359,23 @@ body.comp-week .action-cards .action-card:not(#comp-only-action) {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
+/* start page sub-panels: unify visual style used for recruitment / pre-training */
+.sub-panel{margin-top:16px;padding:12px;border:1px solid #e6e6e6;border-radius:8px;background:linear-gradient(180deg,#ffffff,#fafafa)}
+.sub-panel h4{margin:0 0 8px 0}
+.sub-panel .section-body{margin-bottom:8px}
+
+/* talent selection grid (flat cards instead of select dropdown) */
+.talent-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;margin-top:8px}
+.talent-card{border:1px solid #eee;background:#fff;padding:8px;border-radius:8px;cursor:pointer;display:flex;flex-direction:column;gap:6px;align-items:flex-start;transition:all 150ms ease}
+.talent-card .title{font-weight:700;font-size:14px}
+.talent-card .desc{font-size:12px;color:var(--muted)}
+.talent-card .color-dot{width:12px;height:12px;border-radius:50%;display:inline-block;margin-right:6px;vertical-align:middle;border:1px solid rgba(0,0,0,0.06)}
+.talent-card:hover{transform:translateY(-3px);box-shadow:0 8px 20px rgba(0,0,0,0.06)}
+.talent-card.selected{border-color:var(--accent);background:linear-gradient(180deg, rgba(43,108,176,0.03), rgba(43,108,176,0.01));box-shadow:0 8px 22px rgba(43,108,176,0.10)}
+
+/* make modal-actions align nicely on start page */
+.modal-actions{justify-content:flex-end}
+
 /* 提示框箭头 */
 .talent-tooltip::after {
   content: '';

@@ -138,7 +138,7 @@
         id: 'corporate_sponsorship',
         name: '企业赞助',
         description: '声誉良好时获得企业赞助资金与声誉提升',
-        check: c => c.game.reputation > 60 && c.game.week >= 10 && c.game.week <= 20 && Math.random() < 0.03,
+        check: c => c.game.reputation > 55 && c.game.week >= 10 && c.game.week <= 20 && Math.random() < 0.03,
         run: c => {
           const gain = c.utils.uniformInt(20000, 50000);
           c.game.budget = (c.game.budget || 0) + gain;

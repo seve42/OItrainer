@@ -2061,6 +2061,23 @@ function initGame(difficulty, province_choice, student_count){
   if(game.difficulty===1){ game.budget = Math.floor(game.budget * EASY_MODE_BUDGET_MULTIPLIER); game.teaching_points = EASY_MODE_TEACHING_POINTS; }
   else if(game.difficulty===3){ game.budget = Math.floor(game.budget * HARD_MODE_BUDGET_MULTIPLIER); game.teaching_points = HARD_MODE_TEACHING_POINTS; }
   else game.teaching_points = NORMAL_MODE_TEACHING_POINTS;
+  
+  // 检查是否有对点招生的学生
+  let recruitedStudents = [];
+  try {
+    const recruitedData = sessionStorage.getItem('oi_recruited_students');
+    if(recruitedData){
+      recruitedStudents = JSON.parse(recruitedData);
+      sessionStorage.removeItem('oi_recruited_students'); // 清除数据
+    }
+  } catch(e) {
+    console.error('Failed to load recruited students:', e);
+  }
+  
+  // 从初始金钱中扣除招生费用
+  const totalRecruitCost = recruitedStudents.reduce((sum, s) => sum + s.cost, 0);
+  game.budget = Math.max(0, game.budget - totalRecruitCost);
+  
   game.initial_students = student_count;
   let min_val,max_val;
   if(game.province_type==="强省"){ min_val = STRONG_PROVINCE_MIN_ABILITY; max_val = STRONG_PROVINCE_MAX_ABILITY; }
@@ -2069,6 +2086,23 @@ function initGame(difficulty, province_choice, student_count){
   if(game.difficulty===1){ min_val += EASY_MODE_ABILITY_BONUS; max_val += EASY_MODE_ABILITY_BONUS; }
   else if(game.difficulty===3){ min_val -= HARD_MODE_ABILITY_PENALTY; max_val -= HARD_MODE_ABILITY_PENALTY; }
   game.students = [];
+  
+  // 先添加对点招生的学生
+  for(let recruited of recruitedStudents){
+    const newStud = new Student(recruited.name, recruited.thinking, recruited.coding, recruited.mental);
+    
+    // 应用学前培养的天赋
+    if(recruited.talents && recruited.talents.length > 0){
+      for(let talentName of recruited.talents){
+        newStud.addTalent(talentName);
+      }
+    }
+    
+    game.students.push(newStud);
+    log(`对点招生：${recruited.name} 加入队伍`);
+  }
+  
+  // 然后添加普通学生
   for(let i=0;i<student_count;i++){
     let name = generateName();
     // 使用高方差正态分布生成初始资质，保持平均数但增大方差
