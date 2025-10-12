@@ -37,7 +37,7 @@ body.theme-purple{--accent:#805ad5;--bg:#faf5ff;--card:#ffffff;--muted:#666}
 .btn.upgrade{background:#38a169;color:#fff;padding:6px 8px;font-size:13px;border-radius:6px}
 .btn.upgrade.ghost{background:transparent;border:1px solid #ddd;color:#333}
 .modal{position:fixed;left:0;top:0;right:0;bottom:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:999}
-.dialog{width:820px;max-width:96%;background:#fff;padding:14px;border-radius:8px;max-height:85vh;overflow:auto}
+.dialog{width:820px;max-width:96%;background:#fff;padding:18px;border-radius:10px;max-height:85vh;overflow:auto;position:relative}
 .dialog h3{margin-top:0}
 .flex-between{display:flex;justify-content:space-between;align-items:center}
 footer{margin-top:16px;text-align:center;color:var(--muted)}
@@ -296,10 +296,19 @@ body.comp-week .action-cards .action-card:not(#comp-only-action) {
   background: #f9fafb;
 }
 
-/* Modal actions: 统一弹窗底部按钮布局
-   - 左下角排列（从用户要求）
-   - 按钮间距一致，较小的次要按钮使用 .btn-ghost
-*/
+/* Modal actions: repositioned to top-left to minimize mouse travel.
+  If modal content provides a .modal-actions block, JS will move it into
+  the .modal-action-panel placed at dialog top-left. Buttons are larger
+  and have a clear divider for aesthetics. A small guard ensures content
+  doesn't overlap the panel. */
+.dialog .modal-action-panel{position:absolute;right:14px;top:14px;display:flex;gap:8px;align-items:center;padding:10px;border-radius:10px;background:#fff;border:1px solid rgba(0,0,0,0.06);box-shadow:0 8px 24px rgba(0,0,0,0.08);z-index:3}
+.dialog .modal-action-panel::after{content:'';position:absolute;right:100%;top:10px;height:calc(100% - 20px);width:1px;background:linear-gradient(180deg, rgba(0,0,0,0.06), rgba(0,0,0,0.02));transform:translateX(-10px)}
+.dialog .modal-action-panel .btn{padding:10px 16px;border-radius:8px;font-size:14px}
+.dialog .modal-action-panel .btn.btn-ghost{padding:8px 12px}
+.dialog .modal-action-panel .btn + .btn{margin-left:6px}
+.dialog .modal-action-guard{height:64px}
+
+/* fallback: keep bottom-based layout if .modal-actions exists outside .dialog */
 .modal-actions{display:flex;gap:8px;justify-content:flex-start;align-items:center;margin-top:12px}
 .modal-actions .btn{margin:0}
 .modal-actions .btn + .btn{margin-left:6px}

@@ -125,6 +125,7 @@
             log && log(`[事件] ${msg}`);
             window.pushEvent && window.pushEvent({ name:'退队', description: msg, week: c.game.week });
             window.renderAll && window.renderAll();
+            try{ if(typeof window.checkAllQuitAndTriggerBadEnding === 'function') window.checkAllQuitAndTriggerBadEnding(); }catch(e){}
             return msg;
           }
           return null;

@@ -1431,9 +1431,107 @@ function checkEnding(){
   else return "💼 平凡结局";
 }
 
+/* 当所有学生都退队时触发坏结局 */
+function triggerBadEnding(reason){
+  try{ pushEvent(reason || '所有学生已退队，项目无法继续（坏结局触发）'); }catch(e){}
+  try{
+    // 保存游戏状态与结局文本，供 end.html 展示
+    localStorage.setItem('oi_coach_save', JSON.stringify(game));
+    localStorage.setItem('oi_coach_ending', '💀 团队解散（所有学生退队）');
+  }catch(e){}
+  // 避免重复触发
+  try{ game.allQuitTriggered = true; }catch(e){}
+  // 弹出结算提示并跳转到结算页
+  try{
+    showModal(`<h3>团队解散</h3><div class="small">${reason || '所有学生已退队，项目无法继续，已进入结算页面。'}</div><div class="modal-actions" style="margin-top:8px"><button class="btn" onclick="(function(){ closeModal(); window.location.href='end.html'; })()">查看结算页面</button></div>`);
+  }catch(e){}
+  // 1s 后强制跳转，确保不会卡在模态上
+  setTimeout(function(){ try{ window.location.href = 'end.html'; }catch(e){} }, 1000);
+}
+
+function checkAllQuitAndTriggerBadEnding(){
+  try{
+    if(game && game.allQuitTriggered) return; // 已经触发过
+    const active_count = Array.isArray(game.students) ? game.students.filter(s => s && s.active).length : 0;
+    if(active_count === 0){
+      triggerBadEnding('所有学生已退队，项目失败（坏结局）');
+    }
+  }catch(e){ console.error('checkAllQuitAndTriggerBadEnding error', e); }
+}
+
 /* =========== UI：模态 / 启动 / 交互绑定 =========== */
-function showModal(html){ $('modal-root').innerHTML = `<div class="modal"><div class="dialog">${html}</div></div>`; }
-function closeModal(){ $('modal-root').innerHTML = ''; }
+// showModal: render HTML into modal-root, and if there is a .modal-actions
+// block provided in the HTML, relocate it into a top-left action panel to
+// reduce mouse travel. Also attach keyboard handlers: Enter triggers the
+// first non-ghost button, Escape closes the modal.
+function showModal(html){
+  const root = $('modal-root');
+  if(!root) return;
+  root.innerHTML = `<div class="modal"><div class="dialog">${html}</div></div>`;
+
+  // find the dialog and any modal-actions inside it
+  const dialog = root.querySelector('.dialog');
+  if(!dialog) return;
+
+  const actions = dialog.querySelector('.modal-actions');
+  // create action panel only when actions exist
+  if(actions){
+    const panel = document.createElement('div');
+    panel.className = 'modal-action-panel';
+    // move child nodes from actions into panel
+    while(actions.firstChild){ panel.appendChild(actions.firstChild); }
+    // remove the original actions container
+    actions.remove();
+    // insert panel into dialog
+    dialog.appendChild(panel);
+    // add a guard spacer so content won't be obscured
+    const guard = document.createElement('div'); guard.className = 'modal-action-guard';
+    dialog.insertBefore(guard, dialog.firstChild);
+
+    // enlarge hit area for buttons and ensure tabindex
+    const buttons = panel.querySelectorAll('button');
+    buttons.forEach((b, idx) => {
+      b.classList.add('modal-btn');
+      if(!b.hasAttribute('tabindex')) b.setAttribute('tabindex', '0');
+      // make primary (first) button more prominent
+      if(idx === 0) b.classList.add('btn-primary');
+    });
+
+    // focus the primary button for quick activation
+    const primary = panel.querySelector('button.btn-primary') || panel.querySelector('button');
+    if(primary) primary.focus();
+  }
+
+  // attach keyboard handler
+  function keyHandler(e){
+    if(e.key === 'Escape'){
+      closeModal();
+    }else if(e.key === 'Enter'){
+      // trigger first visible non-ghost button in panel, otherwise first button in dialog
+      let targetBtn = null;
+      const panelBtn = dialog.querySelector('.modal-action-panel button:not(.btn-ghost):not(:disabled)');
+      if(panelBtn) targetBtn = panelBtn;
+      else targetBtn = dialog.querySelector('button:not(.btn-ghost):not(:disabled)') || dialog.querySelector('button:not(:disabled)');
+      if(targetBtn){
+        try{ targetBtn.click(); }catch(e){}
+      }
+    }
+  }
+  // store handler so we can remove later
+  root._modalKeyHandler = keyHandler;
+  window.addEventListener('keydown', keyHandler);
+}
+
+function closeModal(){
+  const root = $('modal-root');
+  if(!root) return;
+  // remove keyboard handler if attached
+  if(root._modalKeyHandler){
+    try{ window.removeEventListener('keydown', root._modalKeyHandler); }catch(e){}
+    root._modalKeyHandler = null;
+  }
+  root.innerHTML = '';
+}
 
 /* UI 表单与交互 */
 
@@ -1613,6 +1711,7 @@ function entertainmentUI(){
                 console.log(out.message || '学生退队去学电竞');
                 // also record in game log if available
                 if(typeof log === 'function') log(`${s.name} ${out.message || '退队去学电竞'}`);
+                try{ checkAllQuitAndTriggerBadEnding(); }catch(e){}
               }
               if(out.action === 'vacation_half_minus5'){
                 // 恢复一半的减压效果（即将部分减压抵消回去）
@@ -1664,6 +1763,7 @@ function takeVacationUI(){
               if(typeof log === 'function') log(`${s.name} ${out.message || '睡觉也在想题：压力-5效果减半'}`);
             } else if(out.action === 'quit_for_esports'){
               s.active = false; s._quit_for_esports = true; if(typeof log === 'function' ) log(`${s.name} ${out.message || '退队去学电竞'}`);
+                try{ checkAllQuitAndTriggerBadEnding(); }catch(e){}
             }
           } else if(typeof r.result === 'string'){
             if(typeof log === 'function') log(`${s.name} ${r.result}`);
@@ -1701,6 +1801,8 @@ function evictStudentUI(){
     log(`劝退学生 ${student.name}，声誉 -${EVICT_REPUTATION_COST}`);
     closeModal();
     renderAll();
+    // 检查是否所有学生已退队
+    try{ checkAllQuitAndTriggerBadEnding(); }catch(e){}
   };
 }
 
@@ -1713,6 +1815,8 @@ function evictSingle(idx){
   if(game.reputation < 0) game.reputation = 0;
   log(`劝退学生 ${student.name}，声誉 -${EVICT_REPUTATION_COST}`);
   renderAll();
+  // 检查是否所有学生已退队
+  try{ checkAllQuitAndTriggerBadEnding(); }catch(e){}
 }
 
 /* 升级设施 UI */
