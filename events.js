@@ -27,8 +27,13 @@
         name: '台风',
         description: '沿海省份夏秋季台风，影响舒适度/压力/经费',
         check: c => {
+          // 规范化省份名称：支持 numeric id、去除常见后缀（省/市/自治区/特别行政区）并去除首尾空格
           const coastal = ["广东","浙江","上海","福建","江苏","山东","辽宁","海南","天津"];
-          if(!coastal.includes(c.game.province_name)) return false;
+          let prov = c.game.province_name;
+          if (typeof prov === 'number' && c.PROVINCES && c.PROVINCES[prov]) prov = c.PROVINCES[prov].name;
+          prov = (prov || '') + '';
+          prov = prov.replace(/(省|市|自治区|特别行政区)/g, '').trim();
+          if (!coastal.includes(prov)) return false;
           const w = c.game.week;
           let p = 0;
           if (w >= 20 && w <= 39) p = 0.08;
@@ -149,7 +154,14 @@
         id: 'gold_coach_visit',
         name: '金牌教练来访',
   description: '知名教练莅临指导，教学点增加，学生能力微增，压力微降',
-        check: c => c.game.reputation > 70 && ['北京','上海','江苏','浙江','广东','山东','天津'].includes(c.game.province_name) && Math.random() < 0.01,
+        check: c => {
+          if (!(c.game && c.game.province_name)) return false;
+          let prov = c.game.province_name;
+          if (typeof prov === 'number' && c.PROVINCES && c.PROVINCES[prov]) prov = c.PROVINCES[prov].name;
+          prov = (prov || '') + '';
+          prov = prov.replace(/(省|市|自治区|特别行政区)/g, '').trim();
+          return c.game.reputation > 70 && ['北京','上海','江苏','浙江','广东','山东','天津'].includes(prov) && Math.random() < 0.01;
+        },
         run: c => {
           c.game.teaching_points = (c.game.teaching_points || 0) + 10;
           for(const s of c.game.students){ if(!s.active) continue;
