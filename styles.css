@@ -114,6 +114,9 @@ body.comp-week .action-cards .action-card:not(#comp-only-action) {
 	display: none;
 }
 
+/* Highlighted competition action card */
+.comp-highlight{border:2px solid var(--accent);background:linear-gradient(90deg, rgba(43,108,176,0.06), rgba(43,108,176,0.02));box-shadow:0 6px 18px rgba(43,108,176,0.12);}
+
 /* ========== 新比赛系统样式 ========== */
 .contest-live-container {
   max-width: 900px;

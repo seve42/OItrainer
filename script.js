@@ -28,46 +28,30 @@ const QUOTES = [
 
 /* =========== UI 辅助 =========== */
 const $ = id => document.getElementById(id);
+const currWeek = () => (game?.week) || 0;
 function log(msg){
-  try{
-    let el = $('log');
-    const wk = (game && typeof game.week !== 'undefined') ? game.week : 0;
-    if(el){ let p = document.createElement('div'); p.innerText = `[周${wk}] ${msg}`; el.prepend(p); }
-    else { console.log(`[周${wk}] ${msg}`); }
-  }catch(e){ try{ const wk = (game && typeof game.week !== 'undefined') ? game.week : 0; console.log(`[周${wk}] ${msg}`); }catch(ee){ console.log(msg); } }
+  const el = $('log');
+  const wk = currWeek();
+  const text = `[周${wk}] ${msg}`;
+  if(el){ const p = document.createElement('div'); p.innerText = text; el.prepend(p); }
+  else { console.log(text); }
 }
-// 安全获取当前周（如果 game 未初始化则返回 0）
-function currWeek(){ return (game && typeof game.week !== 'undefined') ? game.week : 0; }
 
 // 将事件推入突发事件卡片（并保留日志）
-// store recent events (用于填充两个预留事件卡)
 const recentEvents = [];
 function pushEvent(msg){
-  // 支持传入字符串或对象 {name, description, week}
-  let ev = null;
-  const wkDefault = (game && typeof game.week !== 'undefined') ? game.week : 0;
-  if(typeof msg === 'string') ev = { name: null, description: msg, week: wkDefault };
-  else if(typeof msg === 'object' && msg !== null) ev = { name: msg.name || null, description: msg.description || msg.text || '', week: msg.week || wkDefault };
-  else ev = { name: null, description: String(msg), week: wkDefault };
+  const wkDefault = currWeek();
+  const ev = (typeof msg === 'string') 
+    ? { name: null, description: msg, week: wkDefault }
+    : { name: msg.name || null, description: msg.description || msg.text || '', week: msg.week || wkDefault };
 
-  // 保留日志
-  log(`[${ev.week}] ${ev.name? ev.name + '：' : ''}${ev.description}`);
-  // avoid exact-duplicate events (same week+description)
-  try{
-    const key = `${ev.week}::${(ev.name||'')}::${(ev.description||'')}`;
-    const exists = recentEvents.some(r => (`${r.week}::${(r.name||'')}::${(r.description||'')}`) === key);
-    if(!exists){
-      // push to recent list (keep up to 24 events) - still cap to avoid growing forever
-      recentEvents.unshift(ev);
-      if(recentEvents.length > 24) recentEvents.pop();
-    }
-  }catch(e){
-    // fallback: if anything goes wrong, still push but keep small cap
+  log(`${ev.name ? ev.name + '：' : ''}${ev.description}`);
+  
+  const key = `${ev.week}::${ev.name||''}::${ev.description||''}`;
+  if(!recentEvents.some(r => `${r.week}::${r.name||''}::${r.description||''}` === key)){
     recentEvents.unshift(ev);
     if(recentEvents.length > 24) recentEvents.pop();
   }
-
-  // render dynamic event cards container
   renderEventCards();
 }
 
@@ -82,10 +66,8 @@ function __createSnapshot(){
       pressure: Number((s.pressure||0).toFixed(2)),
       thinking: Number((s.thinking||0).toFixed(2)),
       coding: Number((s.coding||0).toFixed(2)),
-      knowledge: Number((typeof s.getKnowledgeTotal === 'function') ? s.getKnowledgeTotal() : (
-        ((s.knowledge_ds||0)+(s.knowledge_graph||0)+(s.knowledge_string||0)+(s.knowledge_math||0)+(s.knowledge_dp||0))
-      ))
-    })),
+      knowledge: Number(s.getKnowledgeTotal?.() || ((s.knowledge_ds||0)+(s.knowledge_graph||0)+(s.knowledge_string||0)+(s.knowledge_math||0)+(s.knowledge_dp||0)))
+    }))
   };
 }
 
@@ -97,31 +79,24 @@ function __summarizeSnapshot(before, after, title){
     const dr = (after.reputation||0) - (before.reputation||0);
     if(dr !== 0) parts.push(`声誉 ${dr>0?'+':''}${dr}`);
 
-    // students map
-    const beforeMap = new Map();
-    for(const s of before.students) beforeMap.set(s.name, s);
-    const afterMap = new Map();
-    for(const s of after.students) afterMap.set(s.name, s);
+    const beforeMap = new Map(before.students.map(s => [s.name, s]));
+    const afterMap = new Map(after.students.map(s => [s.name, s]));
 
-    // additions
-    const added = [];
-    for(const [name, s] of afterMap){ if(!beforeMap.has(name)) added.push(name); }
+    const added = [...afterMap.keys()].filter(n => !beforeMap.has(n));
     if(added.length) parts.push(`加入: ${added.join('、')}`);
-    // removals
-    const removed = [];
-    for(const [name, s] of beforeMap){ if(!afterMap.has(name)) removed.push(name); }
+    
+    const removed = [...beforeMap.keys()].filter(n => !afterMap.has(n));
     if(removed.length) parts.push(`退队: ${removed.join('、')}`);
 
-    // per-student diffs (only for those present both times)
     const stuParts = [];
     for(const [name, beforeS] of beforeMap){
-      if(!afterMap.has(name)) continue;
       const afterS = afterMap.get(name);
+      if(!afterS) continue;
+      const changes = [];
       const dP = Number((afterS.pressure - beforeS.pressure).toFixed(2));
       const dT = Number((afterS.thinking - beforeS.thinking).toFixed(2));
       const dC = Number((afterS.coding - beforeS.coding).toFixed(2));
       const dK = Number((afterS.knowledge - beforeS.knowledge).toFixed(2));
-      const changes = [];
       if(dP !== 0) changes.push(`压力 ${dP>0?'+':''}${dP}`);
       if(dT !== 0) changes.push(`思维 ${dT>0?'+':''}${dT}`);
       if(dC !== 0) changes.push(`编程 ${dC>0?'+':''}${dC}`);
@@ -131,113 +106,73 @@ function __summarizeSnapshot(before, after, title){
     if(stuParts.length) parts.push(stuParts.join('； '));
 
     const summary = parts.length ? parts.join('； ') : '无显著变化';
-    // push concise event card
-  pushEvent({ name: title || '变动汇总', description: summary, week: currWeek() });
-  // also log the detailed version
-  log(`[${title||'变动'}] ${summary}`);
+    pushEvent({ name: title || '变动汇总', description: summary, week: currWeek() });
     return summary;
   }catch(e){ console.error('summarize error', e); return null; }
 }
 
-// 便捷接口
 window.__createSnapshot = __createSnapshot;
 window.__summarizeSnapshot = __summarizeSnapshot;
 
-
-// 渲染所有突发事件卡（任意数量）到 #event-cards-container
+// 渲染所有突发事件卡到 #event-cards-container
 function renderEventCards(){
-  const container = document.getElementById('event-cards-container');
+  const container = $('event-cards-container');
   if(!container) return;
-  // clear container before render to avoid duplicate DOM nodes
   container.innerHTML = '';
+  
   if(recentEvents.length === 0){
-    // show placeholder card similar to original
-    const el = document.createElement('div');
-    el.className = 'action-card empty';
-    el.innerHTML = `<div class="card-title">预留事件</div><div class="card-desc">用于突发事件或活动</div>`;
-    container.appendChild(el);
+    // 当没有事件时保持容器为空（不显示占位卡片）
     return;
   }
-  // only render events from the last 2 weeks (inclusive)
-  const maxWeekDelta = 2;
-  const nowWeek = (typeof game !== 'undefined' && game && typeof game.week === 'number') ? game.week : (new Date().getWeek ? new Date().getWeek() : currWeek());
+
+  const nowWeek = currWeek();
   let shown = 0;
   for(let ev of recentEvents){
-    if(typeof ev.week === 'number'){
-      const delta = nowWeek - ev.week;
-      if(delta > maxWeekDelta) continue; // too old
-    }
-    // create card
-    let card = document.createElement('div');
-    card.className = 'action-card event-active';
-    let title = ev.name || '突发事件';
-    let desc = ev.description || '';
-    card.innerHTML = `<div class="card-title">${title}</div><div class="card-desc">${desc}</div>`;
+    if(ev.week && (nowWeek - ev.week) > 2) continue; // 只显示最近2周内
+  const card = document.createElement('div');
+  // 使用专门的 event-card 类，避免被 body.comp-week .action-cards .action-card:not(#comp-only-action) 隐藏
+  card.className = 'event-card event-active';
+    card.innerHTML = `<div class="card-title">${ev.name || '突发事件'}</div><div class="card-desc">${ev.description || ''}</div>`;
     container.appendChild(card);
-    shown++;
-    // safety cap: show at most 6 cards to keep UI tidy
-    if(shown >= 6) break;
+    if(++shown >= 6) break; // 最多显示6个
   }
 }
 
-// 显示随机事件弹窗：接收事件对象或{name, description, week}
+// 显示事件弹窗
 function showEventModal(evt){
-  try{
-    let title = evt && evt.name ? evt.name : '事件';
-    let desc = evt && evt.description ? evt.description : (evt && evt.text ? evt.text : '暂无描述');
-  let weekInfo = evt && evt.week ? `[周${evt.week}] ` : `[周${currWeek()}] `;
-    // 不再在这里重复 pushEvent（pushEvent 在事件触发处负责），仅展示弹窗
-    let html = `<h3>${weekInfo}${title}</h3><div class="small" style="margin-top:6px">${desc}</div>`;
-    html += `<div style="text-align:right;margin-top:12px"><button class="btn" onclick="closeModal()">关闭</button></div>`;
-    showModal(html);
-  }catch(e){ console.error('showEventModal error', e); }
+  const title = evt?.name || '事件';
+  const desc = evt?.description || evt?.text || '暂无描述';
+  const weekInfo = `[周${evt?.week || currWeek()}] `;
+  showModal(`<h3>${weekInfo}${title}</h3><div class="small" style="margin-top:6px">${desc}</div><div style="text-align:right;margin-top:12px"><button class="btn" onclick="closeModal()">关闭</button></div>`);
 }
 
-// 显示需要玩家选择的事件弹窗：evt = {name, description, week, options: [{label, effect}]}
+// 显示选择事件弹窗
 function showChoiceModal(evt){
-  try{
-    const title = (evt && evt.name) ? evt.name : '选择事件';
-    const desc = (evt && evt.description) ? evt.description : '';
-  const weekInfo = (evt && evt.week) ? `[周${evt.week}] ` : `[周${currWeek()}] `;
-    // build option buttons
-    let opts = '';
-    const options = (evt && Array.isArray(evt.options)) ? evt.options : [];
-    if(options.length === 0){
-      opts = `<div style="text-align:right;margin-top:12px"><button class="btn" onclick="closeModal()">关闭</button></div>`;
-    } else {
-      opts = '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">';
-      for(let i=0;i<options.length;i++){
-        const o = options[i];
-        const label = o && o.label ? o.label : `选项 ${i+1}`;
-        // create a unique handler that calls the effect safely
-        opts += `<button class="btn" id="choice-opt-${i}">${label}</button>`;
-      }
-      opts += `<button class="btn" style="margin-left:6px" id="choice-cancel">取消</button>`;
-      opts += '</div>';
-    }
+  const title = evt?.name || '选择事件';
+  const desc = evt?.description || '';
+  const weekInfo = `[周${evt?.week || currWeek()}] `;
+  const options = evt?.options || [];
+  
+  let opts = '';
+  if(options.length === 0){
+    opts = '<div style="text-align:right;margin-top:12px"><button class="btn" onclick="closeModal()">关闭</button></div>';
+  } else {
+    opts = '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">';
+    options.forEach((o, i) => opts += `<button class="btn" id="choice-opt-${i}">${o?.label || `选项${i+1}`}</button>`);
+    opts += '<button class="btn" style="margin-left:6px" id="choice-cancel">取消</button></div>';
+  }
 
-    const html = `<h3>${weekInfo}${title}</h3><div class="small" style="margin-top:6px">${desc}</div>${opts}`;
-    showModal(html);
+  showModal(`<h3>${weekInfo}${title}</h3><div class="small" style="margin-top:6px">${desc}</div>${opts}`);
+  pushEvent({ name: title, description: desc, week: evt?.week || currWeek() });
 
-  // push event to recent events log for visibility
-  try{ if(window.pushEvent) window.pushEvent({ name: title, description: desc, week: evt && evt.week ? evt.week : currWeek() }); }catch(e){}
-
-    // wire up handlers (effects may be functions passed by EventManager)
-    for(let i=0;i<options.length;i++){
-      const btn = document.getElementById(`choice-opt-${i}`);
-      if(!btn) continue;
-      ((idx, opt)=>{
-        btn.addEventListener('click', ()=>{
-          try{ closeModal(); if(opt && typeof opt.effect === 'function') opt.effect(); }
-          catch(e){ console.error('choice effect error', e); }
-          try{ window.renderAll && window.renderAll(); }catch(e){}
-        });
-      })(i, options[i]);
-    }
-    const cancelBtn = document.getElementById('choice-cancel');
-    if(cancelBtn){ cancelBtn.addEventListener('click', ()=>{ closeModal(); }); }
-
-  }catch(e){ console.error('showChoiceModal error', e); }
+  options.forEach((opt, i) => {
+    $(`choice-opt-${i}`)?.addEventListener('click', () => {
+      closeModal();
+      opt?.effect?.();
+      window.renderAll?.();
+    });
+  });
+  $('choice-cancel')?.addEventListener('click', closeModal);
 }
 
 // Debug helper: 在控制台调用 testShowChoiceModal() 可以弹出一个示例选择弹窗
@@ -369,17 +304,25 @@ function renderAll(){
   if (compNow) {
     if (!document.getElementById('comp-only-action')) {
       const compCard = document.createElement('div');
-      compCard.className = 'action-card'; compCard.id = 'comp-only-action'; compCard.setAttribute('role','button'); compCard.tabIndex = 0;
+      // place the competition action as a regular action-card and add a highlight class
+      compCard.className = 'action-card comp-highlight';
+      compCard.id = 'comp-only-action'; compCard.setAttribute('role','button'); compCard.tabIndex = 0;
       compCard.innerHTML = `<div class="card-title">参加比赛【${compNow.name}】</div>`;
       compCard.onclick = () => { 
-        // 使用新的比赛模拟系统
+        // 使用新的比赛系统
         if(typeof window.holdCompetitionModalNew === 'function'){
           window.holdCompetitionModalNew(compNow);
         } else {
           holdCompetitionModal(compNow);
         }
       };
-      actionContainer.appendChild(compCard);
+      // 插入到事件容器之前，这样顺序与其他 action-card 保持一致（即在事件卡上方）
+      const eventContainer = document.getElementById('event-cards-container');
+      if(eventContainer && actionContainer.contains(eventContainer)){
+        actionContainer.insertBefore(compCard, eventContainer);
+      } else {
+        actionContainer.appendChild(compCard);
+      }
     }
     document.body.classList.add('comp-week');
   } else {
@@ -509,106 +452,133 @@ function trainStudents(topic,intensity){
   if(__before && __after) __summarizeSnapshot(__before, __after, `训练：${topic}`);
 }
 
-/* 外出集训（略） - 保持与前版本一致（不改动逻辑，仅 UI 触发） */
-function outingTraining(difficulty_choice, province_choice){
-  let target = PROVINCES[province_choice];
-  const __before = typeof __createSnapshot === 'function' ? __createSnapshot() : null;
-  let base_cost = OUTFIT_BASE_COST_BASIC;
-  if(difficulty_choice===2) base_cost = OUTFIT_BASE_COST_INTERMEDIATE;
-  else if(difficulty_choice===3) base_cost = OUTFIT_BASE_COST_ADVANCED;
-  if(target.type==="强省") base_cost = Math.floor(base_cost * STRONG_PROVINCE_COST_MULTIPLIER);
-  else if(target.type==="弱省") base_cost = Math.floor(base_cost * WEAK_PROVINCE_COST_MULTIPLIER);
-  let final_cost = base_cost + uniformInt(-3000,3000);
-  let knowledge_base = OUTFIT_KNOWLEDGE_BASE_BASIC;
-  let ability_base = OUTFIT_ABILITY_BASE_BASIC;
-  let pressure_gain = OUTFIT_PRESSURE_BASIC;
-  if(difficulty_choice===2){
-    knowledge_base = OUTFIT_KNOWLEDGE_BASE_INTERMEDIATE;
-    ability_base = OUTFIT_ABILITY_BASE_INTERMEDIATE;
-    pressure_gain = OUTFIT_PRESSURE_INTERMEDIATE;
-  } else if(difficulty_choice===3){
-    knowledge_base = OUTFIT_KNOWLEDGE_BASE_ADVANCED;
-    ability_base = OUTFIT_ABILITY_BASE_ADVANCED;
-    pressure_gain = OUTFIT_PRESSURE_ADVANCED;
-  }
-  let knowledge_mult=1.0, ability_mult=1.0;
-  if(difficulty_choice===2){ knowledge_mult=1.2; ability_mult=1.2; }
-  else if(difficulty_choice===3){ knowledge_mult=1.5; ability_mult=1.5; }
-  knowledge_mult *= target.trainingQuality;
-  ability_mult *= target.trainingQuality;
-  let knowledge_min = Math.floor(knowledge_base * knowledge_mult);
-  let knowledge_max = Math.floor(knowledge_base * knowledge_mult * 1.8);
-  let ability_min = ability_base * ability_mult;
-  let ability_max = ability_base * ability_mult * 2.0;
-  if(game.budget < final_cost){ alert("经费不足，无法外出集训！"); return; }
-  game.budget -= final_cost;
-  log(`外出集训：${target.name} (${target.type})，难度:${difficulty_choice}，费用 ¥${final_cost}`);
-  // 隐藏模拟赛难度映射：基础班->普及级(1)，提高班->NOIP级(2)，冲刺班->NOI级(4)
-  const DIFFIDX_MAP = {1:1, 2:2, 3:4};
-  const diffIdxForHidden = DIFFIDX_MAP[difficulty_choice] || 1;
-  for(let s of game.students){
-    if(!s.active) continue;
-    // 先对单个学生做一次隐藏模拟赛（不弹窗），用于调整收益与压力
-    let hiddenScore = simulateHiddenMockScore(s, diffIdxForHidden);
-    // 根据分数独立计算增益修正与压力修正
-    let knowledge_modifier = 1.0;
-    let ability_modifier = 1.0;
-    let pressure_delta = 0;
-    if(hiddenScore < 100){
-      knowledge_modifier = 0.6; ability_modifier = 0.6; pressure_delta = 10;
-    } else if(hiddenScore > 200){
-      knowledge_modifier = 1.3; ability_modifier = 1.3; pressure_delta = -10;
-    }
 
-    let knowledge_gain = Math.floor(uniformInt(knowledge_min, knowledge_max) * knowledge_modifier);
-    s.knowledge_ds += knowledge_gain; s.knowledge_graph += knowledge_gain; s.knowledge_string += knowledge_gain; s.knowledge_math += knowledge_gain; s.knowledge_dp += knowledge_gain;
-    let ability_gain = uniform(ability_min, ability_max) * ability_modifier;
-    s.thinking += ability_gain; s.coding += ability_gain; s.mental += ability_gain * 0.5;
-    s.thinking = Math.min(100,s.thinking); s.coding = Math.min(100,s.coding); s.mental = Math.min(100,s.mental);
-    // apply pressure (base pressure + per-student delta)
-    s.pressure += pressure_gain + pressure_delta;
-    s.comfort -= 10;
-    // trigger talent event: pressure change from outing
-    try{ if(typeof s.triggerTalents === 'function'){ s.triggerTalents('pressure_change', { source: 'outing', amount: pressure_gain + pressure_delta, province: target && target.name, difficulty_choice: difficulty_choice }); } }catch(e){ console.error('triggerTalents pressure_change', e); }
-    // trigger talent event: outing finished per student
-    try{ if(typeof s.triggerTalents === 'function'){ s.triggerTalents('outing_finished', { province: target && target.name, difficulty: difficulty_choice, knowledge_gain: knowledge_gain }); } }catch(e){ console.error('triggerTalents outing_finished', e); }
-    // 记录隐藏模拟赛分数供调试（不会在 UI 自动显示）
-    s.hiddenMockScore = hiddenScore;
-  }
-  game.weeks_since_entertainment += 1;
-    log("外出集训完成（1周）。");
-  const __after = typeof __createSnapshot === 'function' ? __createSnapshot() : null;
-  if(__before && __after) __summarizeSnapshot(__before, __after, `外出集训：${target.name} 难度${difficulty_choice}`);
-}
-
-// 辅助：为单个学生运行一次隐藏模拟赛，返回总分（0..400），不弹窗
+// 辅助：为单个学生运行一次隐藏模拟赛，返回总分（0..400）
 function simulateHiddenMockScore(s, diffIdx){
   const knowledge_types = ["数据结构","图论","字符串","数学","动态规划"];
   let total = 0;
   for(let qi=0; qi<4; qi++){
-    let num_tags = uniformInt(1,3);
-    let selected = [];
+    const num_tags = uniformInt(1,3);
+    const selected = [];
     while(selected.length < num_tags){
-      let idx = uniformInt(0,4);
+      const idx = uniformInt(0,4);
       if(!selected.includes(knowledge_types[idx])) selected.push(knowledge_types[idx]);
     }
-    let totalK = 0; for(let t of selected) totalK += s.getKnowledgeByType(t);
-    let avgK = selected.length>0 ? Math.floor(totalK / selected.length) : 0;
-    let knowledge_multiplier = 3.5;
-    let ability_avg = s.getAbilityAvg();
-    let mental_idx = s.getMentalIndex();
-    let perf = sigmoid((ability_avg + avgK * knowledge_multiplier - 0) / 15.0);
-    let difficulty_proxy = MOCK_CONTEST_DIFF_VALUES[diffIdx] || 30;
-    let stability = mental_idx / 100.0;
-    let sigma = (100 - mental_idx) / 150.0 + 0.08;
-    let random_factor = normal(0, sigma);
-    let final_ratio = perf * stability * (1 + random_factor) * sigmoid((ability_avg + avgK * knowledge_multiplier - difficulty_proxy) / 10.0);
-    final_ratio = clamp(final_ratio, 0, 1);
-    let score = Math.floor(final_ratio * 100 / 10) * 10;
-    score = clampInt(score,0,100);
-    total += score;
+    const totalK = selected.reduce((sum, t) => sum + s.getKnowledgeByType(t), 0);
+    const avgK = selected.length > 0 ? Math.floor(totalK / selected.length) : 0;
+    const ability_avg = s.getAbilityAvg();
+    const mental_idx = s.getMentalIndex();
+    const difficulty_proxy = MOCK_CONTEST_DIFF_VALUES[diffIdx] || 30;
+    
+    const perf = sigmoid((ability_avg + avgK * 3.5) / 15.0);
+    const stability = mental_idx / 100.0;
+    const sigma = (100 - mental_idx) / 150.0 + 0.08;
+    const random_factor = normal(0, sigma);
+    const final_ratio = clamp(perf * stability * (1 + random_factor) * sigmoid((ability_avg + avgK * 3.5 - difficulty_proxy) / 10.0), 0, 1);
+    
+    total += clampInt(Math.floor(final_ratio * 100 / 10) * 10, 0, 100);
   }
   return total;
+}
+
+// 计算外出集训费用（与人数呈二次函数关系）
+function computeOutingCostQuadratic(difficulty_choice, province_choice, participantCount){
+  const DIFF_COST_PENALTY = {1:100, 2:200, 3:400};
+  const base = (difficulty_choice===2) ? OUTFIT_BASE_COST_INTERMEDIATE : (difficulty_choice===3) ? OUTFIT_BASE_COST_ADVANCED : OUTFIT_BASE_COST_BASIC;
+  const target = PROVINCES[province_choice] || {type:'普通省'};
+  
+  let adjustedBase = base;
+  if(target.type === '强省') adjustedBase = Math.floor(adjustedBase * STRONG_PROVINCE_COST_MULTIPLIER);
+  else if(target.type === '弱省') adjustedBase = Math.floor(adjustedBase * WEAK_PROVINCE_COST_MULTIPLIER);
+
+  const n = Math.max(0, Number(participantCount || 0));
+  const diffPenalty = DIFF_COST_PENALTY[difficulty_choice] || 100;
+  return Math.max(0, Math.floor(adjustedBase + 4000 * n + 2000 * n * n + diffPenalty));
+}
+
+// 新的外出集训实现：仅对 selectedNames 的学生进行集训
+function outingTrainingWithSelection(difficulty_choice, province_choice, selectedNames){
+  const target = PROVINCES[province_choice];
+  const __before = typeof __createSnapshot === 'function' ? __createSnapshot() : null;
+  const selectedStudents = game.students.filter(s => s && s.active && selectedNames.includes(s.name));
+  const participantCount = selectedStudents.length;
+  const final_cost = computeOutingCostQuadratic(difficulty_choice, province_choice, participantCount);
+  if(game.budget < final_cost){ alert("经费不足，无法外出集训！"); return; }
+  game.budget -= final_cost;
+  log(`外出集训：${target.name} (${target.type})，难度:${difficulty_choice}，参与人数:${participantCount}，费用 ¥${final_cost}`);
+
+  // 隐藏模拟赛难度映射：基础班->入门级(0)，提高班->普及级(1)，冲刺班->NOI级(4)
+  const DIFFIDX_MAP = {1:0, 2:1, 3:4};
+  const diffIdxForHidden = DIFFIDX_MAP[difficulty_choice] || 0;
+
+  // 对每个选中学生进行处理并运行隐藏模拟赛
+  for(let s of selectedStudents){
+    // run hidden mock (4题, 240分钟 equivalent behavior) and get score 0..400
+    let hiddenScore = simulateHiddenMockScore(s, diffIdxForHidden);
+
+    // 标准集训增益基数（沿用原逻辑）
+    let knowledge_base = (difficulty_choice===2) ? OUTFIT_KNOWLEDGE_BASE_INTERMEDIATE : (difficulty_choice===3) ? OUTFIT_KNOWLEDGE_BASE_ADVANCED : OUTFIT_KNOWLEDGE_BASE_BASIC;
+    let ability_base = (difficulty_choice===2) ? OUTFIT_ABILITY_BASE_INTERMEDIATE : (difficulty_choice===3) ? OUTFIT_ABILITY_BASE_ADVANCED : OUTFIT_ABILITY_BASE_BASIC;
+    let pressure_gain = (difficulty_choice===2) ? OUTFIT_PRESSURE_INTERMEDIATE : (difficulty_choice===3) ? OUTFIT_PRESSURE_ADVANCED : OUTFIT_PRESSURE_BASIC;
+
+    // 基于省份训练质量修正
+    let knowledge_mult = target.trainingQuality || 1.0;
+    let ability_mult = target.trainingQuality || 1.0;
+
+    // 难度惩罚仍然保留（原要求），我们使用 difficulty constants 来影响收获倍率
+    const DIFF_GAIN_PENALTY = {1:1.0, 2:1.0, 3:1.0}; // 收获不直接降低，但之后按分数调整
+
+    // 计算原始增益
+    let knowledge_min = Math.floor(knowledge_base * knowledge_mult);
+    let knowledge_max = Math.floor(knowledge_base * knowledge_mult * 1.8);
+    let ability_min = ability_base * ability_mult;
+    let ability_max = ability_base * ability_mult * 2.0;
+
+    // 根据隐藏模拟赛分数决定是否触发“实力不匹配”惩罚
+    let scoreThreshold = 200; // 要求中的阈值
+    let mismatch = (hiddenScore < scoreThreshold);
+
+    // 计算增益与压力
+    let knowledge_modifier = 1.0;
+    let ability_modifier = 1.0;
+    let pressure_multiplier = 1.0;
+    if(mismatch){
+      knowledge_modifier = 0.5; // 收获减半
+      ability_modifier = 0.5;
+      pressure_multiplier = 2.0; // 压力乘2
+    }
+
+    // apply gains
+    const knowledge_gain = Math.floor(uniformInt(knowledge_min, knowledge_max) * knowledge_modifier);
+    s.knowledge_ds += knowledge_gain; 
+    s.knowledge_graph += knowledge_gain; 
+    s.knowledge_string += knowledge_gain; 
+    s.knowledge_math += knowledge_gain; 
+    s.knowledge_dp += knowledge_gain;
+    
+    const ability_gain = uniform(ability_min, ability_max) * ability_modifier;
+    s.thinking = Math.min(100, s.thinking + ability_gain);
+    s.coding = Math.min(100, s.coding + ability_gain);
+    s.mental = Math.min(100, s.mental + ability_gain * 0.5);
+
+    const pressure_delta = Math.floor(pressure_gain * (mismatch ? pressure_multiplier : 1.0));
+    s.pressure = Math.min(100, Number(s.pressure||0) + pressure_delta);
+    s.comfort -= 10;
+
+    s.triggerTalents?.('pressure_change', { source: 'outing', amount: pressure_delta, province: target?.name, difficulty_choice });
+    s.triggerTalents?.('outing_finished', { province: target?.name, difficulty: difficulty_choice, knowledge_gain });
+    s.hiddenMockScore = hiddenScore;
+
+    if(mismatch){
+      const message = `这次集训与学生${s.name}实力不匹配，压力增加，收获减少`;
+      pushEvent({ name: '集训不匹配', description: message, week: game.week });
+    }
+  }
+
+  game.weeks_since_entertainment += 1;
+  log("外出集训完成（1周）。");
+  const __after = __createSnapshot?.();
+  if(__before && __after) __summarizeSnapshot(__before, __after, `外出集训：${target.name} 难度${difficulty_choice}`);
 }
 
 /* 模拟赛：支持每题多 tag、难度显示为等级（MOCK_CONTEST_DIFFICULTIES），并在弹窗里显示每题得分表格
@@ -1043,11 +1013,27 @@ function holdCompetitionModal(comp){
         const perPassMax = 20000;
         const rand = uniformInt(perPassMin, perPassMax);
         const grant = Math.round(pass_count * level * rand * provinceCoef);
-        game.budget = (game.budget || 0) + grant;
-  const msg = `上级拨款：由于 ${comp.name} 有 ${pass_count} 人晋级，获得拨款 ¥${grant}（等级${level}，省系数${provinceCoef}）`;
-  log && log(`[拨款] ${msg}`);
-  // 事件卡显示只保留金额，以保持简洁
-  pushEvent && pushEvent({ name:'上级拨款', description: `¥${grant}`, week: currWeek() });
+        // idempotent: ensure grant only applied once per competition-week
+        try{
+          const halfIndexApply = (currWeek() > WEEKS_PER_HALF) ? 1 : 0;
+          const grantKey = `${halfIndexApply}_${comp.name}_${comp.week}`;
+          if(!game.fundingIssued) game.fundingIssued = new Set();
+          if(!game.fundingIssued.has(grantKey)){
+            game.budget = (game.budget || 0) + grant;
+            const msg = `上级拨款：由于 ${comp.name} 有 ${pass_count} 人晋级，获得拨款 ¥${grant}（等级${level}，省系数${provinceCoef}）`;
+            log && log(`[拨款] ${msg}`);
+            try{ if(pushEvent) pushEvent({ name:'拨款', description: `¥${grant}`, week: currWeek() }); }catch(e){}
+            game.fundingIssued.add(grantKey);
+          } else {
+            console.log('[script.js] grant already issued for', comp.name, comp.week);
+          }
+        }catch(e){
+          // fallback: apply grant if fundingIssued check fails
+          game.budget = (game.budget || 0) + grant;
+          const msg = `上级拨款：由于 ${comp.name} 有 ${pass_count} 人晋级，获得拨款 ¥${grant}（等级${level}，省系数${provinceCoef}）`;
+          log && log(`[拨款] ${msg}`);
+          try{ if(pushEvent) pushEvent({ name:'拨款', description: `¥${grant}`, week: currWeek() }); }catch(e){}
+        }
       }
     }catch(e){ console.error('grant error', e); }
 
@@ -1909,6 +1895,12 @@ window.onload = ()=>{
       <select id="out-diff"><option value="1">基础班</option><option value="2">提高班</option><option value="3">冲刺班</option></select>
       <label class="block">地点</label>
       <div id="out-prov-grid" class="prov-grid"></div>
+      <label class="block">选择学生（点击卡片选择参加）</label>
+      <div id="out-student-grid" class="student-grid" style="max-height:180px;overflow:auto;border:1px solid #eee;padding:6px;margin-bottom:8px"></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <div>预计费用: <strong id="out-cost-preview">¥0</strong></div>
+        <div style="font-size:12px;color:#666">费用与人数有关</div>
+      </div>
       <div style="text-align:right;margin-top:8px">
         <button class="btn btn-ghost" onclick="closeModal()">取消</button>
         <button class="btn" id="out-go">前往</button>
@@ -1929,11 +1921,44 @@ window.onload = ()=>{
     });
     // default select first
     if(outGrid.firstChild) outGrid.firstChild.classList.add('selected');
+    // render student selection cards
+    const outStudentGrid = document.getElementById('out-student-grid');
+    const activeStudents = game.students.filter(s=>s && s.active);
+    activeStudents.forEach(s => {
+      const card = document.createElement('div');
+      card.className = 'student-card';
+      card.style.cssText = 'display:inline-block;padding:6px;margin:4px;border:1px solid #ddd;border-radius:6px;cursor:pointer;min-width:120px;text-align:left;font-size:13px;opacity:0.45';
+      card.dataset.name = s.name;
+      card.dataset.selected = '0'; // default NOT selected
+      card.innerHTML = `<strong style="display:block">${s.name}</strong><span style="color:#666">能力:${(s.getAbilityAvg && s.getAbilityAvg().toFixed) ? s.getAbilityAvg().toFixed(1) : ''}</span>`;
+      card.onclick = () => {
+        if(card.dataset.selected === '1'){ card.dataset.selected = '0'; card.style.opacity = '0.45'; }
+        else { card.dataset.selected = '1'; card.style.opacity = '1.0'; }
+        updateOutingCostPreview();
+      };
+      outStudentGrid.appendChild(card);
+    });
+    // initial cost preview
+    function updateOutingCostPreview(){
+      const selectedCount = Array.from(document.querySelectorAll('#out-student-grid .student-card')).filter(c=>c.dataset.selected==='1').length || 0;
+      const d = parseInt($('out-diff').value);
+      const p = parseInt(document.querySelector('#out-prov-grid .prov-btn.selected').dataset.val);
+      const cost = computeOutingCostQuadratic(d, p, selectedCount);
+      document.getElementById('out-cost-preview').textContent = `¥${cost}`;
+    }
+    // bind diff/prov change to update preview
+    document.getElementById('out-diff').onchange = updateOutingCostPreview;
+    // when province selected, update preview as well via prov btn onclick added earlier
+    Array.from(document.querySelectorAll('#out-prov-grid .prov-btn')).forEach(b => { b.onclick = (ev) => { document.querySelectorAll('#out-prov-grid .prov-btn').forEach(bb => bb.classList.remove('selected')); b.classList.add('selected'); updateOutingCostPreview(); }; });
+    updateOutingCostPreview();
     $('out-go').onclick = () => {
       const d = parseInt($('out-diff').value);
       const p = parseInt(document.querySelector('#out-prov-grid .prov-btn.selected').dataset.val);
+      // collect selected students
+      const selectedNames = Array.from(document.querySelectorAll('#out-student-grid .student-card')).filter(c=>c.dataset.selected==='1').map(c=>c.dataset.name);
+      if(!selectedNames || selectedNames.length === 0){ alert('请至少选择一名学生参加集训！'); return; }
       closeModal();
-  outingTraining(d, p);
+      outingTrainingWithSelection(d, p, selectedNames);
       // 安全更新，避免外出集训跳过比赛
       safeWeeklyUpdate(1);
       renderAll();
