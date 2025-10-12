@@ -364,6 +364,19 @@ body.comp-week .action-cards .action-card:not(#comp-only-action) {
 .sub-panel h4{margin:0 0 8px 0}
 .sub-panel .section-body{margin-bottom:8px}
 
+/* collapsible panels: when collapsed, hide body and controls but keep header visible */
+.sub-panel.collapsible .collapsible-head{cursor:pointer;user-select:none}
+.sub-panel.collapsible .collapsible-head::after{content:'\25BC';float:right;transform:rotate(0deg);transition:transform 180ms ease}
+.sub-panel.collapsible.expanded .collapsible-head::after{transform:rotate(180deg)}
+.sub-panel.collapsible.collapsed .section-body,
+.sub-panel.collapsible.collapsed .btn,
+.sub-panel.collapsible.collapsed #talent-selection,
+.sub-panel.collapsible.collapsed #recruited-list,
+.sub-panel.collapsible.collapsed #training-log{
+  display:none !important;
+}
+.sub-panel.collapsible.collapsed {padding-bottom:8px}
+
 /* talent selection grid (flat cards instead of select dropdown) */
 .talent-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;margin-top:8px}
 .talent-card{border:1px solid #eee;background:#fff;padding:8px;border-radius:8px;cursor:pointer;display:flex;flex-direction:column;gap:6px;align-items:flex-start;transition:all 150ms ease}

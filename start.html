@@ -23,19 +23,19 @@
     <input id="start-stu" type="number" min="3" max="10" value="5" />
 
     <!-- 对点招生功能 -->
-    <div class="sub-panel">
-      <h4>💰 对点招生（¥50,000 / 人）</h4>
+    <div class="sub-panel collapsible collapsed" id="recruit-panel">
+      <h4 class="collapsible-head">💰 对点招生（¥50,000 / 人）</h4>
       <div class="section-body">
         <label class="block">学生姓名</label>
         <input id="recruit-name" type="text" placeholder="输入学生姓名" maxlength="20" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:3px" />
       </div>
       <button class="btn" id="recruit-btn" style="font-size:14px">招生</button>
       <div id="recruited-list" style="margin-top:8px;font-size:13px;color:#666"></div>
-    </div>
+  </div>
 
     <!-- 学前培养功能 -->
-    <div class="sub-panel">
-      <h4>📚 学前培养（¥30,000 / 次）</h4>
+    <div class="sub-panel collapsible collapsed" id="train-panel">
+      <h4 class="collapsible-head">📚 学前培养（¥30,000 / 次）</h4>
       <div class="section-body">
         <label class="block">选择学生</label>
         <select id="train-student" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:3px">
@@ -364,6 +364,41 @@
   };
   
   document.getElementById('start-help').onclick = ()=>{ window.open('help.html','_blank'); };
+
+  // 初始化可折叠面板：默认折叠对点招生与学前培养，点击标题切换
+  (function(){
+    function togglePanel(panel, expand){
+      if(expand){
+        panel.classList.remove('collapsed');
+        panel.classList.add('expanded');
+      } else {
+        panel.classList.remove('expanded');
+        panel.classList.add('collapsed');
+      }
+    }
+
+    document.querySelectorAll('.sub-panel.collapsible').forEach(panel => {
+      const head = panel.querySelector('.collapsible-head');
+      // ensure initial state: keep collapsed if class present
+      if(panel.classList.contains('collapsed')){
+        togglePanel(panel, false);
+      } else {
+        togglePanel(panel, true);
+      }
+
+      head && head.addEventListener('click', ()=>{
+        const isCollapsed = panel.classList.contains('collapsed');
+        togglePanel(panel, isCollapsed);
+
+        // If expanding the train panel, ensure talent grid/select are populated when needed
+        if(panel.id === 'train-panel' && !isCollapsed){
+          const type = document.getElementById('train-type').value;
+          if(type === 'talent') renderTalentGrid();
+          populateTalentSelect();
+        }
+      });
+    });
+  })();
 </script>
   <footer style="text-align:center;padding:12px 8px;color:#666;font-size:13px;border-top:1px solid #eee;margin-top:18px">
     作者 @Dreamers-seve · 洛谷: <a href="https://www.luogu.com.cn/user/668972" target="_blank" rel="noopener">https://www.luogu.com.cn/user/668972</a> · GitHub: <a href="https://github.com/Dreamersseve/OItrainer" target="_blank" rel="noopener">https://github.com/Dreamersseve/OItrainer</a>

@@ -582,28 +582,39 @@ function simulateHiddenMockScore(s, diffIdx){
   return total;
 }
 
-// 计算外出集训费用（与人数呈二次函数关系）
+// 计算外出集训费用（与人数呈一次函数关系）
 function computeOutingCostQuadratic(difficulty_choice, province_choice, participantCount){
-  const DIFF_COST_PENALTY = {1:100, 2:200, 3:400};
-  const base = (difficulty_choice===2) ? OUTFIT_BASE_COST_INTERMEDIATE : (difficulty_choice===3) ? OUTFIT_BASE_COST_ADVANCED : OUTFIT_BASE_COST_BASIC;
-  const target = PROVINCES[province_choice] || {type:'普通省'};
+  const DIFF_COST_PENALTY = {1:100, 2:300, 3:600};
+  const base = (difficulty_choice === 2) ? OUTFIT_BASE_COST_INTERMEDIATE : 
+               (difficulty_choice === 3) ? OUTFIT_BASE_COST_ADVANCED : 
+               OUTFIT_BASE_COST_BASIC;
+  const target = PROVINCES[province_choice] || {type: '普通省'};
   
   let adjustedBase = base;
-  if(target.type === '强省') adjustedBase = Math.floor(adjustedBase * STRONG_PROVINCE_COST_MULTIPLIER);
-  else if(target.type === '弱省') adjustedBase = Math.floor(adjustedBase * WEAK_PROVINCE_COST_MULTIPLIER);
+  if (target.type === '强省') {
+    adjustedBase = Math.floor(adjustedBase * STRONG_PROVINCE_COST_MULTIPLIER);
+  } else if (target.type === '弱省') {
+    adjustedBase = Math.floor(adjustedBase * WEAK_PROVINCE_COST_MULTIPLIER);
+  }
 
   const n = Math.max(0, Number(participantCount || 0));
   const diffPenalty = DIFF_COST_PENALTY[difficulty_choice] || 100;
-  // apply reputation-based discount: higher reputation -> lower cost
-  try{
-    const rep = (typeof game !== 'undefined' && game && typeof game.reputation === 'number') ? clamp(game.reputation, 0, 100) : 0;
-    const raw = Math.max(0, Math.floor(adjustedBase + 4000 * n + 2000 * n * n + diffPenalty));
-    const maxDiscount = (typeof OUTFIT_REPUTATION_DISCOUNT !== 'undefined') ? OUTFIT_REPUTATION_DISCOUNT : 0.30;
-    const discount = (rep / 100.0) * maxDiscount;
-    const finalCost = Math.max(0, Math.floor(raw * (1.0 - discount)));
+
+  try {
+    const rep = (typeof game !== 'undefined' && game && typeof game.reputation === 'number') 
+      ? clamp(game.reputation, 0, 100) 
+      : 0;
+    const raw = Math.max(0, Math.floor(adjustedBase + 18000 * n + diffPenalty));
+    
+  const maxDiscount = (typeof OUTFIT_REPUTATION_DISCOUNT !== 'undefined') ? OUTFIT_REPUTATION_DISCOUNT : 0.30;
+  const multiplier = (typeof OUTFIT_REPUTATION_DISCOUNT_MULTIPLIER !== 'undefined') ? OUTFIT_REPUTATION_DISCOUNT_MULTIPLIER : 1.0;
+  // Apply multiplier to increase/decrease the reputation-based discount effect.
+  const discount = (rep / 100.0) * maxDiscount * multiplier;
+  const finalCost = Math.max(0, Math.floor(raw * (1.0 - discount)));
     return finalCost;
-  }catch(e){
-    return Math.max(0, Math.floor(adjustedBase + 4000 * n + 2000 * n * n + diffPenalty));
+  } catch (e) {
+    console.error('computeOutingCostQuadratic error', e);
+    return Math.max(0, Math.floor(adjustedBase + 20000 * n + diffPenalty));
   }
 }
 
@@ -2183,7 +2194,7 @@ window.onload = ()=>{
       <div id="out-student-grid" class="student-grid" style="max-height:180px;overflow:auto;border:1px solid #eee;padding:6px;margin-bottom:8px"></div>
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
         <div>预计费用: <strong id="out-cost-preview">¥0</strong></div>
-        <div style="font-size:12px;color:#666">费用与人数有关</div>
+        <div style="font-size:12px;color:#666">费用与人数和声誉有关</div>
       </div>
       <div class="modal-actions" style="margin-top:8px">
           <button class="btn btn-ghost" onclick="closeModal()">取消</button>
