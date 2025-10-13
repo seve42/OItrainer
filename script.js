@@ -1478,6 +1478,26 @@ function holdCompetitionModal(comp){
     // 比赛不再消耗周数：保留一次性事件模态抑制以避免弹窗干扰
     try{ game.suppressEventModalOnce = true; }catch(e){}
     renderAll();
+    // 如果这是第二次 NOI（通常在第二半季），则在应用比赛结果后自动前进一周
+    try{
+      try{ if(typeof game !== 'undefined') game.suppressEventModalOnce = true; }catch(e){}
+      const halfIndexAfter = (currWeek() > WEEKS_PER_HALF) ? 1 : 0;
+      if(comp.name === 'NOI' && halfIndexAfter === 1){
+        try{
+          if(typeof safeWeeklyUpdate === 'function'){
+            // 使用 safeWeeklyUpdate 以避免跳过即将到来的比赛弹窗
+            safeWeeklyUpdate(1);
+          } else if(typeof weeklyUpdate === 'function'){
+            weeklyUpdate(1);
+          } else {
+            // 最后手段：直接增加 week 并刷新界面
+            if(typeof game !== 'undefined') game.week = (Number(game.week) || 0) + 1;
+            try{ if(typeof renderAll === 'function') renderAll(); }catch(e){}
+          }
+          console.log('已在第二次 NOI 后自动前进 1 周');
+        }catch(e){ console.error('自动周进位失败', e); }
+      }
+    }catch(e){ console.error('第二次 NOI 后自动前进检查失败', e); }
   };
 
   // 在应用比赛结果后，若当前周已达到赛季末且尚未结算，则立即触发赛季结算（确保最终比赛结果被纳入结算）
@@ -1662,7 +1682,7 @@ function checkAndTriggerEnding() {
   // 此处不再进行晋级链断裂检查，避免误判
   
   // 条件4：达到赛季结束
-  if (game.week >= SEASON_WEEKS) {
+  if (game.week > SEASON_WEEKS) {
     triggerGameEnding('赛季结束');
     return true;
   }
@@ -1692,6 +1712,8 @@ function normalizeEndingReason(raw) {
 
 /* 触发游戏结局 */
 function triggerGameEnding(reason) {
+  //在这里显示这个函数在哪里被调用（debug）
+ // alert('[DEBUG] 游戏结束！');
   try {
     // 标记游戏结束
     game.seasonEndTriggered = true;
