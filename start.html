@@ -358,6 +358,7 @@
     if(recruitedStudents.length > 0){
       sessionStorage.setItem('oi_recruited_students', JSON.stringify(recruitedStudents));
     } else {
+  try{ console.debug('start.html removing sessionStorage key oi_recruited_students, exists:', (sessionStorage.getItem('oi_recruited_students') !== null)); }catch(e){}
       sessionStorage.removeItem('oi_recruited_students');
     }
     startFromStartPage && startFromStartPage(); 

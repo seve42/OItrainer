@@ -12,6 +12,12 @@ if(typeof window.game === 'undefined' || !window.game){
 // 局部引用始终通过 window.game 访问，避免在全局初始化顺序问题上抛错
 let game = window.game;
 
+// On load: no debug output. Keep initialization lightweight.
+
+// Diagnostic helpers: write/read to multiple storage channels to help detect overwrite
+// Minimal diagnostics: maintain a sessionStorage backup for cross-page recovery.
+// This keeps recovery simple and avoids extra debug-only channels.
+
 /* 每日/每次渲染随机一言 */
 const QUOTES = [
   "想想你的对手正在干什么",
@@ -35,6 +41,26 @@ function log(msg){
   const text = `[周${wk}] ${msg}`;
   if(el){ const p = document.createElement('div'); p.innerText = text; el.prepend(p); }
   else { console.log(text); }
+}
+
+// 难度数值到标签的映射
+// 返回 HTML 字符串：带有 .diff-tag 和额外级别类
+function renderDifficultyTag(diff){
+  // 传入的 diff 可能为 0-100 的数值
+  const d = Number(diff) || 0;
+  // 根据需求分段并返回对应文字与 class
+  // （入门）红色字体 （普及-）橙色字体 （普及+提高）黄色字体 （提高+省选-）蓝色字体（省选 NOI-）紫色字体 （NOI/NOI+/CTSC）黑色字体
+  let label = '';
+  let cls = '';
+  if(d <= 24){ label = '入门'; cls = 'diff-beginner'; }
+  else if(d <= 34){ label = '普及-'; cls = 'diff-popular-low'; }
+  else if(d <= 44){ label = '普及+提高'; cls = 'diff-popular-high'; }
+  else if(d <= 64){ label = '提高+省选-'; cls = 'diff-advanced-low'; }
+  else if(d <= 79){ label = '省选/NOI-'; cls = 'diff-provincial'; }
+  else { label = 'NOI/NOI+/CTSC'; cls = 'diff-noi'; }
+
+  // 包装为带背景的 tag
+  return `<span class="tag diff-tag ${cls}" title="难度: ${d}">${label}</span>`;
 }
 
 // 安全渲染：仅在页面具备主 UI 元素时调用 renderAll，避免在测试页面（缺少元素）时抛错
@@ -83,10 +109,18 @@ function __createSnapshot(){
     reputation: game.reputation || 0,
     students: game.students.map(s=>({
       name: s.name,
-      active: !!s.active,
+      // treat student as active unless explicitly set to false (backwards compatible)
+      active: (s && s.active !== false),
       pressure: Number((s.pressure||0).toFixed(2)),
       thinking: Number((s.thinking||0).toFixed(2)),
       coding: Number((s.coding||0).toFixed(2)),
+      // 按维度保存知识，便于后来比较显示每个知识点的变化
+      knowledge_ds: Number((s.knowledge_ds||0).toFixed(2)),
+      knowledge_graph: Number((s.knowledge_graph||0).toFixed(2)),
+      knowledge_string: Number((s.knowledge_string||0).toFixed(2)),
+      knowledge_math: Number((s.knowledge_math||0).toFixed(2)),
+      knowledge_dp: Number((s.knowledge_dp||0).toFixed(2)),
+      // 保留总体知识总和（向后兼容）
       knowledge: Number(s.getKnowledgeTotal?.() || ((s.knowledge_ds||0)+(s.knowledge_graph||0)+(s.knowledge_string||0)+(s.knowledge_math||0)+(s.knowledge_dp||0)))
     }))
   };
@@ -122,7 +156,19 @@ function __summarizeSnapshot(before, after, title, opts){
       if(dP !== 0) changes.push(`压力 ${dP>0?'+':''}${dP}`);
       if(dT !== 0) changes.push(`思维 ${dT>0?'+':''}${dT}`);
       if(dC !== 0) changes.push(`编程 ${dC>0?'+':''}${dC}`);
-      if(dK !== 0) changes.push(`知识 ${dK>0?'+':''}${dK}`);
+      // 逐维度显示知识点变化（仅在有变化时显示）
+      const dDS = Number(((afterS.knowledge_ds || 0) - (beforeS.knowledge_ds || 0)).toFixed(2));
+      const dGraph = Number(((afterS.knowledge_graph || 0) - (beforeS.knowledge_graph || 0)).toFixed(2));
+      const dStr = Number(((afterS.knowledge_string || 0) - (beforeS.knowledge_string || 0)).toFixed(2));
+      const dMath = Number(((afterS.knowledge_math || 0) - (beforeS.knowledge_math || 0)).toFixed(2));
+      const dDP = Number(((afterS.knowledge_dp || 0) - (beforeS.knowledge_dp || 0)).toFixed(2));
+      if(dDS !== 0) changes.push(`数据结构 ${dDS>0?'+':''}${dDS}`);
+      if(dGraph !== 0) changes.push(`图论 ${dGraph>0?'+':''}${dGraph}`);
+      if(dStr !== 0) changes.push(`字符串 ${dStr>0?'+':''}${dStr}`);
+      if(dMath !== 0) changes.push(`数学 ${dMath>0?'+':''}${dMath}`);
+      if(dDP !== 0) changes.push(`DP ${dDP>0?'+':''}${dDP}`);
+      // 如果总体知识有变化并且没有逐项展示（兼容旧逻辑），仍保留总体显示
+      if(dK !== 0 && !(dDS !==0 || dGraph !==0 || dStr !==0 || dMath !==0 || dDP !==0)) changes.push(`知识 ${dK>0?'+':''}${dK}`);
       if(changes.length) stuParts.push(`${name}: ${changes.join('，')}`);
     }
     if(stuParts.length) parts.push(stuParts.join('； '));
@@ -267,12 +313,10 @@ function showChoiceModal(evt){
   });
 }
 
-// Debug helper: 在控制台调用 testShowChoiceModal() 可以弹出一个示例选择弹窗
-function testShowChoiceModal(){
   const options = [
     { label: '接受', effect: () => { 
         const raw = 5000; const adj = Math.round(raw * (game.getExpenseMultiplier ? game.getExpenseMultiplier() : 1));
-        game.budget = Math.max(0, game.budget - adj); 
+        game.recordExpense(adj, '测试事件');
         log(`测试：已接受，扣除经费 ¥${adj}`);
         pushEvent({ name: '选择结果', description: `已接受测试事件，扣除经费 ¥${adj}`, week: currWeek() });
       } 
@@ -283,9 +327,8 @@ function testShowChoiceModal(){
       } 
     }
   ];
-  showChoiceModal({ name: '测试选择事件', description: '这是一个用于验证的测试弹窗。', week: currWeek(), options });
-}
-window.testShowChoiceModal = testShowChoiceModal;
+  // Test choice modal invocation removed in cleanup
+// Removed debug helper testShowChoiceModal to clean up debug-only code.
 /* 渲染：主页去数值化（不显示学生具体能力/压力数值） */
 function renderAll(){
   // 如果主 UI 元素不存在（例如在独立测试页面），安全退出以避免抛错
@@ -325,7 +368,7 @@ function renderAll(){
   // students: only show name, star-level (知识掌握 visual), pressure level (低/中/高), and small tags (生病 / 退队)
   let out = '';
   for(let s of game.students){
-    if(!s.active) continue;
+    if(s && s.active === false) continue;
     let pressureLevel = s.pressure < 35 ? "低" : s.pressure < 65 ? "中" : "高";
     let pressureClass = s.pressure < 35 ? "pressure-low" : s.pressure < 65 ? "pressure-mid" : "pressure-high";
   // 计算模糊资质与能力等级：思维能力 & 心理素质（确保为数字）
@@ -365,7 +408,14 @@ function renderAll(){
         <div><strong>${s.name}</strong> ${s.sick_weeks>0?'<span class="warn">[生病]</span>':''} <span class="label-pill ${pressureClass}">压力:${pressureLevel}</span></div>
       </div>
       <div class="compact small" style="margin-top:3px">
-        知识: <progress value="${Math.floor(s.getKnowledgeTotal ? s.getKnowledgeTotal() : 0)}" max="100" style="vertical-align:middle;width:70%;"></progress> ${Math.floor(s.getKnowledgeTotal ? s.getKnowledgeTotal() : 0)} | 思维:${getLetterGrade(Math.floor(Number(s.thinking||0)))} 代码:${getLetterGrade(Math.floor(Number(s.coding||0)))}
+        知识: <span class="knowledge-badges">
+          <span class="kb" title="数据结构: ${Math.floor(Number(s.knowledge_ds||0))}">数据结构${getLetterGrade(Math.floor(Number(s.knowledge_ds||0)))}</span>
+          <span class="kb" title="图论: ${Math.floor(Number(s.knowledge_graph||0))}">图论${getLetterGrade(Math.floor(Number(s.knowledge_graph||0)))}</span>
+          <span class="kb" title="字符串: ${Math.floor(Number(s.knowledge_string||0))}">字符串${getLetterGrade(Math.floor(Number(s.knowledge_string||0)))}</span>
+          <span class="kb" title="数学: ${Math.floor(Number(s.knowledge_math||0))}">数学${getLetterGrade(Math.floor(Number(s.knowledge_math||0)))}</span>
+          <span class="kb" title="动态规划: ${Math.floor(Number(s.knowledge_dp||0))}">动态规划${getLetterGrade(Math.floor(Number(s.knowledge_dp||0)))}</span>
+        </span>
+        &nbsp;| 思维:${getLetterGrade(Math.floor(Number(s.thinking||0)))} 代码:${getLetterGrade(Math.floor(Number(s.coding||0)))}
       </div>
       ${talentsHtml ? `<div class="student-talents" style="margin-top:6px">${talentsHtml}</div>` : ''}
     </div>`;
@@ -447,7 +497,7 @@ function trainStudents(topic,intensity){
   let comfort_factor = 1.0 + Math.max(0.0, (50 - comfort) / 100.0);
   let facility_eff = game.facilities.getLibraryEfficiency();
   for(let s of game.students){
-    if(!s.active) continue;
+    if(s && s.active === false) continue;
     s.comfort = comfort;
     let sick_penalty = (s.sick_weeks > 0) ? 0.7 : 1.0;
     let base_gain = intensity * TRAINING_BASE_KNOWLEDGE_GAIN_PER_INTENSITY;
@@ -476,8 +526,8 @@ function trainStudents(topic,intensity){
       s.thinking += uniform(TRAINING_THINKING_GAIN_MIN, TRAINING_THINKING_GAIN_MIN + 0.6) * computer_eff * (1 - Math.min(0.6, s.pressure/200.0));
       s.coding += uniform(TRAINING_CODING_GAIN_MIN, TRAINING_CODING_GAIN_MIN + 0.6) * computer_eff * (1 - Math.min(0.6, s.pressure/200.0));
     }
-    s.thinking = Math.min(100.0, s.thinking);
-    s.coding = Math.min(100.0, s.coding);
+  s.thinking = (s.thinking || 0);
+  s.coding = (s.coding || 0);
     let base_pressure = (intensity===1)?10 : (intensity===2)?20 : 30;
     if(intensity===3) base_pressure *= TRAINING_PRESSURE_MULTIPLIER_HEAVY;
     else if(intensity===2) base_pressure *= TRAINING_PRESSURE_MULTIPLIER_MEDIUM;
@@ -553,6 +603,122 @@ function trainStudents(topic,intensity){
   if(__before && __after) __summarizeSnapshot(__before, __after, `训练：${topic}`);
 }
 
+/* 新的基于题目的训练函数 */
+function trainStudentsWithTask(task, intensity) {
+  log(`开始做题训练：${task.name}（难度${task.difficulty}，强度${intensity===1?'轻':intensity===2?'中':'重'}）`);
+  const __before = typeof __createSnapshot === 'function' ? __createSnapshot() : null;
+  
+  let weather_factor = game.getWeatherFactor();
+  let comfort = game.getComfort();
+  let comfort_factor = 1.0 + Math.max(0.0, (50 - comfort) / 100.0);
+  
+  // 记录每个学生的训练结果
+  const trainingResults = [];
+  
+  for(let s of game.students) {
+  if(!s || s.active === false) continue;
+    s.comfort = comfort;
+    
+    let sick_penalty = (s.sick_weeks > 0) ? 0.7 : 1.0;
+    
+    // 计算学生能力（思维和编码平均）
+    const studentAbility = (s.thinking + s.coding) / 2.0;
+    
+    // 使用题目库中的函数计算增幅倍数
+    const boostMultiplier = calculateBoostMultiplier(studentAbility, task.difficulty);
+    
+    // 应用题目对学生的知识点提升
+    const results = applyTaskBoosts(s, task);
+    
+    // 根据强度和设施调整知识增益
+    let facility_eff = game.facilities.getLibraryEfficiency();
+    
+    // 强度影响：轻=0.7, 中=1.0, 重=1.3
+    const intensityFactor = intensity === 1 ? 0.7 : intensity === 3 ? 1.3 : 1.0;
+    
+    // 应用所有调整因子
+    for(const boost of results.boosts) {
+      const additionalBoost = Math.floor(boost.actualAmount * (facility_eff - 1.0) * intensityFactor * sick_penalty);
+      s.addKnowledge(boost.type, additionalBoost);
+    }
+    
+    // 能力提升：根据题目难度和学生能力
+    // 做题会同时提升思维和编码能力，但幅度较小
+    const abilityGainBase = boostMultiplier * intensityFactor * (1 - Math.min(0.6, s.pressure/200.0));
+    const thinkingGain = uniform(0.3, 0.8) * abilityGainBase;
+    const codingGain = uniform(0.3, 0.8) * abilityGainBase;
+    
+    s.thinking += thinkingGain;
+    s.coding += codingGain;
+  s.thinking = (s.thinking || 0);
+  s.coding = (s.coding || 0);
+    
+    // 压力计算
+    let base_pressure = (intensity===1) ? 15 : (intensity===2) ? 25 : 40;
+    
+    // 难题会增加压力
+    const difficultyPressure = Math.max(0, (task.difficulty - studentAbility) * 0.2);
+    base_pressure += difficultyPressure;
+    
+    if(intensity===3) base_pressure *= TRAINING_PRESSURE_MULTIPLIER_HEAVY;
+    else if(intensity===2) base_pressure *= TRAINING_PRESSURE_MULTIPLIER_MEDIUM;
+    
+    let canteen_reduction = game.facilities.getCanteenPressureReduction();
+    let pressure_increase = base_pressure * weather_factor * canteen_reduction * comfort_factor;
+    if(s.sick_weeks > 0) pressure_increase += 10;
+    
+    // 处理天赋对压力的影响
+    let finalPressureIncrease = pressure_increase;
+    try{
+      if(typeof s.triggerTalents === 'function'){
+        const talentResults = s.triggerTalents('pressure_change', { 
+          source: 'task_training', 
+          amount: pressure_increase, 
+          task: task, 
+          intensity: intensity 
+        }) || [];
+        
+        for(const r of talentResults){
+          if(!r || !r.result) continue;
+          const out = r.result;
+          if(typeof out === 'object'){
+            const act = out.action;
+            if(act === 'moyu_cancel_pressure'){
+              finalPressureIncrease = 0;
+            } else if(act === 'halve_pressure'){
+              finalPressureIncrease = finalPressureIncrease * 0.5;
+            } else if(act === 'double_pressure'){
+              finalPressureIncrease = finalPressureIncrease * 2.0;
+            }
+          }
+        }
+      }
+    }catch(e){ console.error('triggerTalents pressure_change', e); }
+    
+    s.pressure += finalPressureIncrease;
+    
+    // 记录训练结果用于日志
+    trainingResults.push({
+      name: s.name,
+      multiplier: boostMultiplier,
+      boosts: results.boosts
+    });
+  }
+  
+  game.weeks_since_entertainment += 1;
+  
+  // 输出详细的训练日志
+  log(`训练结束。题目：${task.name}`);
+  for(const result of trainingResults) {
+    const boostStrs = result.boosts.map(b => `${b.type}+${b.actualAmount}`).join(', ');
+    const effPercent = Math.round(result.multiplier * 100);
+    log(`  ${result.name}: 效率${effPercent}% [${boostStrs}]`);
+  }
+  
+  const __after = typeof __createSnapshot === 'function' ? __createSnapshot() : null;
+  if(__before && __after) __summarizeSnapshot(__before, __after, `做题训练：${task.name}`);
+}
+
 
 // 辅助：为单个学生运行一次隐藏模拟赛，返回总分（0..400）
 function simulateHiddenMockScore(s, diffIdx){
@@ -626,7 +792,7 @@ function outingTrainingWithSelection(difficulty_choice, province_choice, selecte
   const participantCount = selectedStudents.length;
   const final_cost = computeOutingCostQuadratic(difficulty_choice, province_choice, participantCount);
   if(game.budget < final_cost){ alert("经费不足，无法外出集训！"); return; }
-  game.budget -= final_cost;
+  game.recordExpense(final_cost, `外出集训：${target.name}`);
   log(`外出集训：${target.name} (${target.type})，难度:${difficulty_choice}，参与人数:${participantCount}，费用 ¥${final_cost}`);
 
   // 隐藏模拟赛难度映射：基础班->入门级(0)，提高班->普及级(1)，冲刺班->NOI级(4)
@@ -679,8 +845,8 @@ function outingTrainingWithSelection(difficulty_choice, province_choice, selecte
     s.knowledge_dp += knowledge_gain;
     
     const ability_gain = uniform(ability_min, ability_max) * ability_modifier;
-    s.thinking = Math.min(100, s.thinking + ability_gain);
-    s.coding = Math.min(100, s.coding + ability_gain);
+  s.thinking = (s.thinking || 0) + ability_gain;
+  s.coding = (s.coding || 0) + ability_gain;
     s.mental = Math.min(100, s.mental + ability_gain * 0.5);
 
     const pressure_delta = Math.floor(pressure_gain * (mismatch ? pressure_multiplier : 1.0));
@@ -715,7 +881,7 @@ function holdMockContestModal(isPurchased, diffIdx, questionTagsArray){
   // compute results but DO NOT apply changes yet
   let results = [];
   for(let s of game.students){
-    if(!s.active) continue;
+    if(s && s.active === false) continue;
     let total = 0; let scores = [];
     for(let qi=0; qi<4; qi++){
       let tags = questionTagsArray[qi]; // array of strings
@@ -778,7 +944,7 @@ function holdMockContestModal(isPurchased, diffIdx, questionTagsArray){
     // 模拟赛总知识增益上界（必须小于轻强度综合训练的上界），设为 3
     const MOCK_TOTAL_KNOWLEDGE_CAP = 3;
     for(let s of game.students){
-      if(!s.active) continue;
+  if(!s || s.active === false) continue;
       let r = results.find(x=>x.name===s.name) || {total:0,scores:[0,0,0,0]};
       let total_score = r.total;
       // 新规则：根据表现决定初始压力（如果总分 < 50% 或 最后一名，则 +20，否则 +5）
@@ -858,7 +1024,7 @@ function holdMockContestModal(isPurchased, diffIdx, questionTagsArray){
     const maxTotalForBoost = (Array.isArray(questionTagsArray) ? questionTagsArray.length : 4) * 100;
     const peakScore = maxTotalForBoost * 0.5; // e.g., 200 for 4 题
     for(let s of game.students){
-      if(!s.active) continue;
+  if(!s || s.active === false) continue;
       const r = results.find(x => x.name === s.name) || { total: 0 };
       const totalScore = Number(r.total || 0);
       // compute piecewise multiplier
@@ -875,8 +1041,8 @@ function holdMockContestModal(isPurchased, diffIdx, questionTagsArray){
       if(boostMult > 0){
         const thinkingBoost = uniform(1.2,2.0) * boostMult;
         const codingBoost = uniform(1.6,2.4) * boostMult;
-        s.thinking = Math.min(100, s.thinking + thinkingBoost);
-        s.coding = Math.min(100, s.coding + codingBoost);
+  s.thinking = (s.thinking || 0) + thinkingBoost;
+  s.coding = (s.coding || 0) + codingBoost;
       }
     }
     // 统一应用之前记录的模拟赛额外惩罚：实际增加的压力 = 记录值 * 2
@@ -973,7 +1139,7 @@ function holdCompetitionModal(comp){
   const halfIndex = (currWeek() > WEEKS_PER_HALF) ? 1 : 0;
   let results = [];
   for(let s of game.students){
-    if(!s.active) continue;
+    if(s && s.active === false) continue;
     // determine eligibility based on competition chain
     let isEligible = true;
     const compIdx = COMPETITION_ORDER.indexOf(comp.name);
@@ -1069,19 +1235,9 @@ function holdCompetitionModal(comp){
     // 如果处于第二轮赛季（halfIndexApply === 1）且本场比赛无人晋级 -> 视为晋级链断裂，直接结束赛季
     try{
       if(halfIndexApply === 1 && pass_count === 0){
-        const ending = "🔚 晋级链断裂：本轮比赛无人晋级，赛季提前结束";
-        // 记录事件与日志
-  try{ pushEvent({ name: '赛季终止', description: ending, week: currWeek() }); }catch(e){}
-        try{ log(`赛季提前结束：${ending}`); }catch(e){}
-        // 标记并保存当前游戏状态与结局文本
-        try{ game.seasonEndTriggered = true; localStorage.setItem('oi_coach_save', JSON.stringify(game)); localStorage.setItem('oi_coach_ending', ending); }catch(e){}
-    // 直接保存并跳转到结算页面（短延迟以确保 localStorage 写入完成）
-    try{ localStorage.setItem('oi_coach_save', JSON.stringify(game)); localStorage.setItem('oi_coach_ending', ending); }catch(e){}
-    try{ closeModal(); }catch(e){}
-    // 小延迟后跳转，给浏览器一点时间写入 localStorage 并关闭模态
-    setTimeout(function(){ window.location.href = 'end.html'; }, 80);
-    renderAll();
-    return; // 中止后续比赛应用逻辑
+        // 使用新的统一结局触发函数
+        triggerGameEnding('晋级链断裂');
+        return; // 中止后续比赛应用逻辑
       }
     }catch(e){ console.error('early season-end check failed', e); }
 
@@ -1097,7 +1253,7 @@ function holdCompetitionModal(comp){
 
     // update students' pressure/mental and game state (rewards)
     for(let s of game.students){
-      if(!s.active) continue;
+      if(!s || s.active === false) continue;
       // find this student's result
       let r = results.find(x=>x.name === s.name) || null;
       if(r && r.eligible === false){
@@ -1260,17 +1416,10 @@ function holdCompetitionModal(comp){
 
   // 在应用比赛结果后，若当前周已达到赛季末且尚未结算，则立即触发赛季结算（确保最终比赛结果被纳入结算）
   try{
-  if(currWeek() >= SEASON_WEEKS && !game.seasonEndTriggered){
-      // mark and save
-      game.seasonEndTriggered = true;
-      let ending = checkEnding();
-  try{ pushEvent({ name: '赛季结束', description: `赛季结束：${ending}`, week: currWeek() }); }catch(e){}
-      // 保存结算到 localStorage 以便 end.html 展示，并跳转到结算页
-      try{
-        localStorage.setItem('oi_coach_save', JSON.stringify(game));
-        localStorage.setItem('oi_coach_ending', ending);
-      }catch(e){}
-  showModal(`<h3>赛季结束</h3><div class="small">本轮赛季结算：${ending}</div><div class="modal-actions" style="margin-top:8px"><button class="btn" onclick="(function(){ closeModal(); window.location.href='end.html'; })()">查看结算页面</button></div>`);
+    if(game.week >= SEASON_WEEKS && !game.seasonEndTriggered){
+      console.debug(game.week + "结束");
+      // 使用新的统一结局触发函数
+      triggerGameEnding('赛季结束');
     }
   }catch(e){ console.error('post-competition season-end check failed', e); }
 }
@@ -1325,7 +1474,7 @@ function weeklyUpdate(weeks=1){
   let comfort = game.getComfort();
   for(let s of game.students) if(s.sick_weeks > 0) s.sick_weeks--;
   for(let s of game.students){
-    if(!s.active) continue;
+  if(!s || s.active === false) continue;
     function applyForgetting(knowledge){
       if(knowledge <=0) return 0;
       let original = knowledge;
@@ -1347,7 +1496,7 @@ function weeklyUpdate(weeks=1){
     // 周度支出按人数系数调整
     const weeklyRaw = game.getWeeklyCost();
     const weeklyAdj = Math.round(weeklyRaw * (game.getExpenseMultiplier ? game.getExpenseMultiplier() : 1));
-    game.budget -= weeklyAdj;
+    game.recordExpense(weeklyAdj, '周维护费用');
     game.week++;
     game.updateWeather();
   }
@@ -1355,36 +1504,11 @@ function weeklyUpdate(weeks=1){
   game.weeks_since_good_result += weeks;
   if(game.weeks_since_good_result > 12) game.had_good_result_recently = false;
   checkRandomEvents();
-  // 如果到达第二赛季末（累计周数 >= SEASON_WEEKS），优先检查本周是否有未完成的正式比赛（如有则先打开比赛模态，赛季结算延后）
-  if(currWeek() > SEASON_WEEKS && !game.seasonEndTriggered){
-    try{
-  const compThisWeek = Array.isArray(competitions) ? competitions.find(c => c.week === currWeek()) : null;
-  const halfIndex = (currWeek() > WEEKS_PER_HALF) ? 1 : 0;
-  const doneKey = compThisWeek ? `${halfIndex}_${compThisWeek.name}_${compThisWeek.week}` : null;
-      const isCompleted = compThisWeek && game.completedCompetitions && game.completedCompetitions.has(doneKey);
-      if(compThisWeek && !isCompleted){
-        // 在赛季最后一周有尚未完成的正式比赛：直接打开比赛模态，延后赛季结算
-        try{ 
-          if(typeof window.holdCompetitionModalNew === 'function'){
-            window.holdCompetitionModalNew(compThisWeek);
-          } else {
-            holdCompetitionModal(compThisWeek);
-          }
-        }catch(e){ console.error('open comp modal failed', e); }
-      } else {
-        // 无未完成比赛，正常触发赛季结算
-        game.seasonEndTriggered = true;
-  let ending = checkEnding();
-  try{ pushEvent({ name: '赛季结束', description: `赛季结束：${ending}`, week: currWeek() }); }catch(e){}
-        // 保存结算到 localStorage 以便 end.html 展示，并跳转到结算页
-        try{
-          localStorage.setItem('oi_coach_save', JSON.stringify(game));
-          localStorage.setItem('oi_coach_ending', ending);
-        }catch(e){}
-  showModal(`<h3>赛季结束</h3><div class="small">本轮赛季结算：${ending}</div><div class="modal-actions" style="margin-top:8px"><button class="btn" onclick="(function(){ closeModal(); window.location.href='end.html'; })()">查看结算页面</button></div>`);
-      }
-    }catch(e){ console.error('season-end check failed', e); }
+  // 检查游戏结束条件
+  if (checkAndTriggerEnding()) {
+    return; // 游戏已结束，不再继续处理
   }
+  
   renderAll();
 }
 // 安全的周更新：在多周跳转时不跳过即将到来的比赛
@@ -1399,21 +1523,12 @@ function safeWeeklyUpdate(weeks = 1) {
       return;
     }
   }catch(e){ /* ignore */ }
-  // 如果当前经费不足以维持下一周，则直接触发坏结局并跳转到结算页
-  try{
-    const nextWeekCostRaw = game.getWeeklyCost();
-    const nextWeekCost = Math.round(nextWeekCostRaw * (game.getExpenseMultiplier ? game.getExpenseMultiplier() : 1));
-    if(typeof nextWeekCost === 'number' && game.budget < nextWeekCost){
-      try{ pushEvent('经费不足，无法继续下一周，触发坏结局'); }catch(e){}
-      try{
-        localStorage.setItem('oi_coach_save', JSON.stringify(game));
-        localStorage.setItem('oi_coach_ending', '💸 经费枯竭');
-      }catch(e){}
-  showModal(`<h3>经费不足</h3><div class="small">经费不足，项目无法继续，已进入结算页面。</div><div class="modal-actions" style="margin-top:8px"><button class="btn" onclick="(function(){ closeModal(); window.location.href='end.html'; })()">查看结算页面</button></div>`);
-      renderAll();
-      return;
-    }
-  }catch(e){ /* ignore */ }
+  
+  // 检查游戏结束条件（包括经费不足等）
+  if (checkAndTriggerEnding()) {
+    return; // 游戏已结束
+  }
+  
   // 查找按周排序后的下场比赛
   const sorted = Array.isArray(competitions) ? competitions.slice().sort((a, b) => a.week - b.week) : [];
   let nextComp = sorted.find(c => c.week > currWeek());
@@ -1452,47 +1567,134 @@ function checkCompetitions(){
   }
 }
 
-/* 结局判定 */
-function checkEnding(){
-  let active_count = game.students.filter(s=>s.active).length;
-  let avg_pressure = 0;
-  if(active_count>0) avg_pressure = game.students.filter(s=>s.active).reduce((a,s)=>a+s.pressure,0)/active_count;
-  if(game.budget <= 0) {
-    // 当经费耗尽或为 0 时触发坏结局，同时记录事件日志
-    try{ pushEvent('经费耗尽，项目无法继续（坏结局触发）'); }catch(e){}
-    return "💸 经费枯竭";
+/* 统一结局触发检查 */
+function checkAndTriggerEnding() {
+  // 检查是否应该触发结局
+  // treat student as active unless explicitly set to false (backwards compatible)
+  const activeStudentCount = Array.isArray(game.students) ? game.students.filter(s => s && s.active !== false).length : 0;
+  try{ if(typeof window !== 'undefined' && window.__OI_DEBUG_ENDING) console.debug('[ENDING DEBUG] checkAndTriggerEnding activeStudentCount=', activeStudentCount, 'students=', game.students.map(s=>({name: s && s.name, active: s && s.active}))); }catch(e){}
+  
+  // 条件1：经费小于5000
+  if (game.budget < 5000) {
+    // 触发统一结局标识
+    triggerGameEnding('经费不足');
+    return true;
   }
-  if(active_count < game.initial_students * 0.5) return "😵 心理崩溃";
-  let has_gold=false, has_medal=false;
-  for(let r of game.noi_rankings){ if(r.rank <= 3) has_gold=true; if(r.rank <=10) has_medal=true; }
-  if(has_gold) return "🌟 荣耀结局";
-  else if(has_medal) return "🏅 优秀结局";
-  else if(active_count >= game.initial_students * 0.6 && avg_pressure <= 60) return "💼 平凡结局";
-  else return "💼 平凡结局";
+
+ // alert(activeStudentCount);
+
+  // 条件2：没有学生
+  if (activeStudentCount === 0) {
+    //alert('所有学生均已退队，游戏结束');
+    triggerGameEnding('无学生');
+    return true;
+  }
+  
+  // 条件3：晋级链断裂（检查是否在第二赛季且无人有下场比赛资格）
+  // 注意：晋级链断裂应该在比赛结束后检查，而不是在周更新时检查
+  // 否则会在第二赛季开始时就误判（因为第二赛季的资格数据还未生成）
+  // 这个检查已移到 contest-integration.js 的比赛结果处理中
+  // 此处不再进行晋级链断裂检查，避免误判
+  
+  // 条件4：达到赛季结束
+  if (game.week >= SEASON_WEEKS) {
+    triggerGameEnding('赛季结束');
+    return true;
+  }
+  
+  return false;
 }
 
-/* 当所有学生都退队时触发坏结局 */
+/* 规范化结局文本，兼容历史写法并返回统一的内部标识字符串 */
+function normalizeEndingReason(raw) {
+  try{
+    if(!raw) return '赛季结束';
+    const s = String(raw).trim();
+    if(s === '') return '赛季结束';
+    // 兼容英文或旧字段
+    const low = s.toLowerCase();
+    if(low.includes('budget') || low.includes('经费') || low.includes('money') || low.includes('fund')) return '经费不足';
+    if(low.includes('无学生') || low.includes('all quit') || low.includes('所有学生') || low.includes('退队') || low.includes('崩溃')) return '无学生';
+    if(low.includes('晋级链') || low.includes('晋级链断裂') || low.includes('chain') || low.includes('qualification')) return '晋级链断裂';
+    if(low.includes('赛季') || low.includes('season')) return '赛季结束';
+    // 兼容简短老值
+    if(s === '无学生') return '无学生';
+    if(s === '经费不足' || s === '经费耗尽') return '经费不足';
+    if(s === '晋级链断裂') return '晋级链断裂';
+    return s;
+  }catch(e){ return '赛季结束'; }
+}
+
+/* 触发游戏结局 */
+function triggerGameEnding(reason) {
+  try {
+    // 标记游戏结束
+    game.seasonEndTriggered = true;
+    // 规范化结局字符串并推送结束事件
+    const normalized = reason;
+    //alert(normalized + '，游戏结束！');
+    pushEvent({ 
+      name: '游戏结束', 
+      description: `游戏结束原因：${normalized}`, 
+      week: game.week 
+    });
+    
+    // 调试: 保存前打印careerCompetitions
+    console.log('【DEBUG】 triggerGameEnding saving careerCompetitions:', game.careerCompetitions);
+    // 保存游戏状态，使用统一的 saveGame 序列化逻辑
+    if(typeof saveGame === 'function') {
+      try{ console.debug('triggerGameEnding 将调用 saveGame(), oi_coach_save exists: ' + (localStorage.getItem('oi_coach_save') !== null)); }catch(e){}
+      saveGame();
+    }
+    // 保存结局原因
+  try{ console.debug('triggerGameEnding 设置 oi_coach_ending_reason = ' + normalized); }catch(e){}
+    // 将规范化后的结局写入 sessionStorage（首选）并写入 localStorage 作为兼容备份
+  try{ sessionStorage.setItem('oi_coach_ending_reason', normalized); }catch(e){ console.warn('sessionStorage unavailable for ending_reason', e); }
+  try{ localStorage.setItem('oi_coach_ending_reason', normalized); }catch(e){ /* ignore localStorage write failures */ }
+    
+
+    // 延迟跳转以确保保存完成
+    setTimeout(() => {
+      try { 
+  try{ console.debug('即将跳转到 end.html, oi_coach_save exists: ' + (localStorage.getItem('oi_coach_save') !== null) + ', length: ' + (localStorage.getItem('oi_coach_save') || '').length); }catch(e){}
+        // 临时跨页面传递（用于 file:// 本地打开时 localStorage 可能按文件隔离的场景）
+        try{
+          // Prefer sessionStorage payload for transfer; fall back to localStorage if needed
+          const payload = {
+            oi_coach_save: (function(){ try{ return sessionStorage.getItem('oi_coach_save') || localStorage.getItem('oi_coach_save') || ''; }catch(e){ return localStorage.getItem('oi_coach_save') || ''; } })(),
+            oi_coach_ending_reason: (function(){ try{ return sessionStorage.getItem('oi_coach_ending_reason') || localStorage.getItem('oi_coach_ending_reason') || ''; }catch(e){ return localStorage.getItem('oi_coach_ending_reason') || ''; } })()
+          };
+          try{ window.name = JSON.stringify(payload); }catch(e){}
+        }catch(e){}
+        window.location.href = 'end.html'; 
+      } catch(e) { 
+        console.error('Failed to navigate to end.html:', e); 
+      }
+    }, 100);
+    
+  } catch(e) {
+    console.error('Failed to trigger game ending:', e);
+  }
+}
+
+/* 结局判定 - 移至结算界面计算 */
+function checkEnding(){
+  // 此函数已废弃，结局判定移至结算界面进行
+  return "� 等待结算";
+}
+
+/* 当所有学生都退队时的标记函数 - 移除自动结局判定 */
 function triggerBadEnding(reason){
-  try{ pushEvent(reason || '所有学生已退队，项目无法继续（坏结局触发）'); }catch(e){}
-  try{
-    // 保存游戏状态与结局文本，供 end.html 展示
-    localStorage.setItem('oi_coach_save', JSON.stringify(game));
-    localStorage.setItem('oi_coach_ending', '💀 团队解散（所有学生退队）');
-  }catch(e){}
-  // 避免重复触发
+  try{ pushEvent(reason || '所有学生已退队'); }catch(e){}
+  // 标记所有学生退队，但不立即触发结局
   try{ game.allQuitTriggered = true; }catch(e){}
-  // 弹出结算提示并跳转到结算页
-  try{
-    showModal(`<h3>团队解散</h3><div class="small">${reason || '所有学生已退队，项目无法继续，已进入结算页面。'}</div><div class="modal-actions" style="margin-top:8px"><button class="btn" onclick="(function(){ closeModal(); window.location.href='end.html'; })()">查看结算页面</button></div>`);
-  }catch(e){}
-  // 1s 后强制跳转，确保不会卡在模态上
-  setTimeout(function(){ try{ window.location.href = 'end.html'; }catch(e){} }, 1000);
+  // 不再自动跳转到结算页面，让游戏继续运行直到赛季结束
 }
 
 function checkAllQuitAndTriggerBadEnding(){
   try{
     if(game && game.allQuitTriggered) return; // 已经触发过
-    const active_count = Array.isArray(game.students) ? game.students.filter(s => s && s.active).length : 0;
+  const active_count = Array.isArray(game.students) ? game.students.filter(s => s && s.active !== false).length : 0;
     if(active_count === 0){
       triggerBadEnding('所有学生已退队，项目失败（坏结局）');
     }
@@ -1577,58 +1779,89 @@ function closeModal(){
 
 /* 训练 UI */
 function trainStudentsUI(){
-  // render training types as horizontal option cards (same style as 娱乐 modal)
-  const types = [
-    {val:'数据结构', label:'数据结构', desc:'一定幅度提升数据结构技巧'},
-    {val:'图论', label:'图论', desc:'一定幅度提升图论技巧'},
-    {val:'字符串', label:'字符串', desc:'一定幅度提升字符串技巧'},
-    {val:'数学', label:'数学', desc:'一定幅度提升数学技巧'},
-    {val:'DP', label:'DP', desc:'一定幅度提升动态规划技巧'},
-    {val:'综合', label:'综合训练', desc:'混合训练，提升幅度细微，压力开销大'}
-  ];
-  const typeCards = types.map(t=>`
-    <div class="prov-card option-card" data-val="${t.val}" style="min-width:140px;padding:10px;border-radius:6px;cursor:pointer;">
-      <div class="card-title">${t.label}</div>
-      <div class="card-desc small muted">${t.desc}</div>
+  // 新的训练系统：从题目库中随机抽取5道题供玩家选择
+  const tasks = selectRandomTasks(5);
+  
+  // 生成题目选项卡片
+  const taskCards = tasks.map((task, idx) => {
+    const boostStr = task.boosts.map(b => `${b.type}+${b.amount}`).join(' ');
+    // 渲染难度标签（替换原始数字显示）
+    const diffTag = renderDifficultyTag(task.difficulty);
+    return `
+    <div class="prov-card option-card task-card" data-idx="${idx}" style="min-width:200px;padding:12px;border-radius:6px;cursor:pointer;border:2px solid #ddd;">
+      <div class="card-title" style="font-weight:600;margin-bottom:4px">${task.name}</div>
+      <div class="small" style="margin:4px 0">难度: ${diffTag}</div>
+      <div class="card-desc small muted">${boostStr}</div>
     </div>
-  `).join('');
+  `;
+  }).join('');
 
-  showModal(`<h3>训练学生</h3>
-    <label class="block">训练类型</label>
-    <div id="train-type-grid" style="display:flex;gap:12px;flex-wrap:wrap;margin-top:6px;overflow-x:auto">${typeCards}</div>
-    <label class="block" style="margin-top:10px">强度</label>
+  // 强度选项
+  const intensityHtml = `
     <div id="train-int-grid" style="display:flex;gap:8px;margin-top:6px">
-      <button class="prov-btn option-btn" data-val="1">轻</button>
-      <button class="prov-btn option-btn" data-val="2">中</button>
-      <button class="prov-btn option-btn" data-val="3">重</button>
+      <button class="prov-btn option-btn" data-val="1">轻度</button>
+      <button class="prov-btn option-btn" data-val="2" style="background:#3498db;color:white">中度</button>
+      <button class="prov-btn option-btn" data-val="3">重度</button>
     </div>
-    <div class="modal-actions" style="margin-top:12px">
+    <div class="small muted" style="margin-top:6px">强度影响压力和训练时长</div>
+  `;
+
+  showModal(`<h3>选择训练题目</h3>
+    <div class="small muted" style="margin-bottom:10px">从下方5道题目中选择一道进行训练。题目提升效果受学生能力与难度匹配度影响。</div>
+    <label class="block">可选题目</label>
+    <div id="train-task-grid" style="display:flex;gap:12px;flex-wrap:wrap;margin-top:8px;overflow-x:auto;max-height:300px;overflow-y:auto;">${taskCards}</div>
+    <label class="block" style="margin-top:14px">训练强度</label>
+    ${intensityHtml}
+    <div class="modal-actions" style="margin-top:16px">
       <button class="btn btn-ghost" onclick="closeModal()">取消</button>
       <button class="btn" id="train-confirm">开始训练（1周）</button>
     </div>`);
 
-  // wire up selection behavior for type cards (use option-card style like entertainment)
-  const tCards = Array.from(document.querySelectorAll('#train-type-grid .option-card'));
-  if(tCards.length>0) tCards[0].classList.add('selected');
-  tCards.forEach(c=>{ c.onclick = ()=>{ tCards.forEach(x=>x.classList.remove('selected')); c.classList.add('selected'); }; });
-  // intensity buttons behavior
-  document.querySelectorAll('#train-int-grid .option-btn').forEach(b=>{
-    b.onclick = ()=>{ document.querySelectorAll('#train-int-grid .option-btn').forEach(x=>x.classList.remove('selected')); b.classList.add('selected'); };
+  // 题目卡片选择行为
+  const tCards = Array.from(document.querySelectorAll('#train-task-grid .task-card'));
+  if(tCards.length > 0) tCards[0].classList.add('selected');
+  tCards.forEach(c => { 
+    c.onclick = () => { 
+      tCards.forEach(x => x.classList.remove('selected')); 
+      c.classList.add('selected'); 
+    }; 
   });
 
-  $('train-confirm').onclick = ()=>{
-    let topicBtn = document.querySelector('#train-type-grid .option-card.selected');
+  // 强度按钮选择行为（默认选中中度）
+  const intBtns = document.querySelectorAll('#train-int-grid .option-btn');
+  intBtns.forEach((b, i) => {
+    if(i === 1) b.classList.add('selected'); // 默认中度
+    b.onclick = () => { 
+      intBtns.forEach(x => x.classList.remove('selected')); 
+      b.classList.add('selected'); 
+    };
+  });
+
+  // 确认按钮
+  $('train-confirm').onclick = () => {
+    let taskBtn = document.querySelector('#train-task-grid .task-card.selected');
     let intBtn = document.querySelector('#train-int-grid .option-btn.selected');
-    let topic = topicBtn ? topicBtn.dataset.val : '综合';
+    
+    if(!taskBtn) {
+      alert('请选择一道题目');
+      return;
+    }
+    
+    let taskIdx = parseInt(taskBtn.dataset.idx);
+    let selectedTask = tasks[taskIdx];
     let intensity = intBtn ? parseInt(intBtn.dataset.val) : 2;
+    
     closeModal();
-  trainStudents(topic, intensity);
-  // 安全更新：判断下场比赛周数，避免培训跳过比赛
-  let nextComp = competitions.find(c => c.week > currWeek());
-  let weeksToComp = nextComp ? (nextComp.week - currWeek()) : Infinity;
-  let advance = Math.min(1, weeksToComp);
-  safeWeeklyUpdate(advance);
-  renderAll();
+    
+    // 执行新的基于题目的训练
+    trainStudentsWithTask(selectedTask, intensity);
+    
+    // 安全更新：判断下场比赛周数，避免培训跳过比赛
+    let nextComp = competitions.find(c => c.week > currWeek());
+    let weeksToComp = nextComp ? (nextComp.week - currWeek()) : Infinity;
+    let advance = Math.min(1, weeksToComp);
+    safeWeeklyUpdate(advance);
+    renderAll();
   };
 }
 
@@ -1670,7 +1903,7 @@ function holdMockContestUI(){
       let cost = uniformInt(MOCK_CONTEST_PURCHASE_MIN_COST, MOCK_CONTEST_PURCHASE_MAX_COST);
       const adj = Math.round(cost * (game.getExpenseMultiplier ? game.getExpenseMultiplier() : 1));
       if(game.budget < adj){ alert("经费不足，无法购买题目"); return; }
-      game.budget -= adj;
+      game.recordExpense(adj, '购买模拟赛题目');
       log(`购买模拟赛题目，基础 ¥${cost}，调整后 ¥${adj}`);
     } else {
       log("参加网赛（免费）");
@@ -1723,11 +1956,11 @@ function entertainmentUI(){
   // 娱乐费用按人数系数调整
   const costAdj = Math.round(cost * (game.getExpenseMultiplier ? game.getExpenseMultiplier() : 1));
   if(game.budget < costAdj){ alert("经费不足"); return; }
-  game.budget -= costAdj;
+  game.recordExpense(costAdj, `娱乐活动：${opt.val}`);
     closeModal();
       // apply quick entertainment logic based on numeric id
       for(let s of game.students){
-        if(!s.active) continue;
+        if(!s || s.active === false) continue;
         if(opt.id === 1){ // 训话
           s.mental += uniform(3,7); var oldP = s.pressure; s.pressure = Math.max(0, s.pressure - uniform(30,45)); var newP = s.pressure;
         } else if(opt.id === 2){ // 吃饭
@@ -1751,7 +1984,8 @@ function entertainmentUI(){
                 console.log(out.message || '学生退队去学电竞');
                 // also record in game log if available
                 if(typeof log === 'function') log(`${s.name} ${out.message || '退队去学电竞'}`);
-                try{ checkAllQuitAndTriggerBadEnding(); }catch(e){}
+                // Immediately check unified ending conditions (if no students left, trigger ending)
+                try{ checkAndTriggerEnding(); }catch(e){}
               }
               if(out.action === 'vacation_half_minus5'){
                 // 恢复一半的减压效果（即将部分减压抵消回去）
@@ -1786,7 +2020,7 @@ function takeVacationUI(){
   let weeks = Math.ceil(days / 7);
     if(!confirm(`放假 ${days} 天，将跳过 ${weeks} 周，确认？`)) return;
     for(let s of game.students){
-      if(!s.active) continue;
+      if(!s || s.active === false) continue;
       s.mental = Math.min(100, s.mental + days * uniform(3,8));
       const oldP = s.pressure;
       s.pressure = Math.max(0, s.pressure - uniform(20,40) * days / 7.0);
@@ -1803,7 +2037,8 @@ function takeVacationUI(){
               if(typeof log === 'function') log(`${s.name} ${out.message || '睡觉也在想题：压力-5效果减半'}`);
             } else if(out.action === 'quit_for_esports'){
               s.active = false; s._quit_for_esports = true; if(typeof log === 'function' ) log(`${s.name} ${out.message || '退队去学电竞'}`);
-                try{ checkAllQuitAndTriggerBadEnding(); }catch(e){}
+                // Immediately check unified ending conditions
+                try{ checkAndTriggerEnding(); }catch(e){}
             }
           } else if(typeof r.result === 'string'){
             if(typeof log === 'function') log(`${s.name} ${r.result}`);
@@ -1818,45 +2053,24 @@ function takeVacationUI(){
   };
 }
 
-/* 劝退学生 UI */
-function evictStudentUI(){
-  // 列出所有在队学生供选择
-  let options = game.students.map((s,i) => s.active ? `<option value="${i}">${s.name}</option>` : '').join('');
-  showModal(
-    `<h3>劝退学生</h3>
-     <label class="block">选择要劝退的学生</label>
-     <select id="evict-student">${options}</select>
-     <div class="small" style="margin-top:4px">消耗声誉：${EVICT_REPUTATION_COST}</div>
-     <div class="modal-actions" style="margin-top:8px">
-       <button class="btn btn-ghost" onclick="closeModal()">取消</button>
-       <button class="btn" id="evict-confirm">确认</button>
-     </div>`
-  );
-  $('evict-confirm').onclick = () => {
-    let idx = parseInt($('evict-student').value);
-    let student = game.students[idx];
-    if(game.reputation < EVICT_REPUTATION_COST){ alert('声誉不足，无法劝退'); return; }
-    student.active = false;
-    game.reputation -= EVICT_REPUTATION_COST;
-    log(`劝退学生 ${student.name}，声誉 -${EVICT_REPUTATION_COST}`);
-    closeModal();
-    renderAll();
-    // 检查是否所有学生已退队
-    try{ checkAllQuitAndTriggerBadEnding(); }catch(e){}
-  };
-}
+
 
 // 劝退单个学生（从学生卡角落触发）
 function evictSingle(idx){
   const student = game.students[idx];
-  if(!student || !student.active) return;
+  if(!student || student.active === false) return;
+  // debug
+  try{ if(typeof window !== 'undefined' && window.__OI_DEBUG_ENDING) console.debug('[ENDING DEBUG] evictSingle called idx=', idx, 'student=', student.name, 'preActive=', student.active); }catch(e){}
   student.active = false;
   game.reputation -= EVICT_REPUTATION_COST;
   if(game.reputation < 0) game.reputation = 0;
   log(`劝退学生 ${student.name}，声誉 -${EVICT_REPUTATION_COST}`);
   renderAll();
-  // 检查是否所有学生已退队
-  try{ checkAllQuitAndTriggerBadEnding(); }catch(e){}
+  // 立即检查统一结局条件（如果无学生则触发结局）
+  try{ 
+    if(typeof window !== 'undefined' && window.__OI_DEBUG_ENDING) console.debug('[ENDING DEBUG] after evict, calling checkAndTriggerEnding()');
+    checkAndTriggerEnding();
+  }catch(e){}
 }
 
 /* 升级设施 UI */
@@ -1898,7 +2112,7 @@ function upgradeFacility(f){
   // 升级费用按人数系数调整
   const costAdj = Math.round(cost * (game.getExpenseMultiplier ? game.getExpenseMultiplier() : 1));
   if(game.budget < costAdj){ alert("经费不足"); return; }
-  game.budget -= costAdj;
+  game.recordExpense(costAdj, `设施升级：${f}`);
   game.facilities.upgrade(f);
   log(`设施升级：${f} 到等级 ${current+1}（基础 ¥${cost}，调整后 ¥${costAdj}）`);
   renderAll();
@@ -1914,8 +2128,8 @@ function rest1Week(){
 }
 
 /* 保存/载入（localStorage 简易） */
-function saveGame(){ 
-  try{ 
+function saveGame(silent = false){ 
+  try{
     // 创建深拷贝，将 Set 转换为数组以便序列化
     const saveData = JSON.parse(JSON.stringify(game, (key, value) => {
       if(value instanceof Set){
@@ -1923,14 +2137,34 @@ function saveGame(){
       }
       return value;
     }));
-    localStorage.setItem('oi_coach_save', JSON.stringify(saveData)); 
-    alert("已保存到 localStorage"); 
+  const savedStr = JSON.stringify(saveData);
+  // Prefer sessionStorage for current-session persistence, and write localStorage as backup for older pages
+  try{ sessionStorage.setItem('oi_coach_save', savedStr); }catch(e){ console.warn('sessionStorage unavailable for save', e); }
+  try{ sessionStorage.setItem('oi_coach_save_diag', savedStr); }catch(e){}
+  try{ localStorage.setItem('oi_coach_save', savedStr); }catch(e){}
+    // 立即读取以校验写入
+    try{
+      const verify = localStorage.getItem('oi_coach_save');
+      const len = verify ? verify.length : 0;
+      const prefix = verify ? verify.slice(0, 200) : '';
+      const suffix = verify ? verify.slice(Math.max(0, verify.length-200)) : '';
+
+    }catch(e){ if(!silent) alert('DEBUG: saveGame 写入后校验失败: '+e.message); }
   }catch(e){ 
-    alert("保存失败："+e); 
-  } 
+    if (!silent) {
+      alert("保存失败："+e);
+    }
+    console.error("Save game failed:", e);
+  }
 }
-function loadGame(){ try{ let raw = localStorage.getItem('oi_coach_save'); if(!raw){ alert("无存档"); return; } let o = JSON.parse(raw); // rehydrate
-  game = Object.assign(new GameState(), o);
+function loadGame(){ try{ 
+    // Prefer sessionStorage, fall back to localStorage
+    let raw = null;
+    try{ raw = sessionStorage.getItem('oi_coach_save'); }catch(e){ raw = null; }
+    try{ if(!raw) raw = localStorage.getItem('oi_coach_save'); }catch(e){}
+    if(!raw){ alert("无存档"); return; }
+    let o = JSON.parse(raw); // rehydrate
+    game = Object.assign(new GameState(), o);
   window.game = game; // 确保全局访问
   game.facilities = Object.assign(new Facilities(), o.facilities);
   game.students = (o.students || []).map(s => {
@@ -1946,7 +2180,12 @@ function loadGame(){ try{ let raw = localStorage.getItem('oi_coach_save'); if(!r
   renderAll(); alert("已载入存档"); }catch(e){ alert("载入失败："+e); } }
 
 // silent load used by index.html on startup (no alerts)
-function silentLoad(){ try{ let raw = localStorage.getItem('oi_coach_save'); if(!raw) return false; let o = JSON.parse(raw); game = Object.assign(new GameState(), o); window.game = game; game.facilities = Object.assign(new Facilities(), o.facilities); game.students = (o.students || []).map(s => { const student = Object.assign(new Student(), s); if(s.talents && Array.isArray(s.talents)){ student.talents = new Set(s.talents); } else if(s.talents && typeof s.talents === 'object'){ student.talents = new Set(Object.keys(s.talents).filter(k => s.talents[k])); } return student; }); return true; }catch(e){ return false; } }
+function silentLoad(){ try{ 
+  // Prefer sessionStorage then localStorage
+  let raw = null;
+  try{ raw = sessionStorage.getItem('oi_coach_save'); }catch(e){ raw = null; }
+  try{ if(!raw) raw = localStorage.getItem('oi_coach_save'); }catch(e){}
+  if(!raw) return false; let o = JSON.parse(raw); game = Object.assign(new GameState(), o); window.game = game; game.facilities = Object.assign(new Facilities(), o.facilities); game.students = (o.students || []).map(s => { const student = Object.assign(new Student(), s); if(s.talents && Array.isArray(s.talents)){ student.talents = new Set(s.talents); } else if(s.talents && typeof s.talents === 'object'){ student.talents = new Set(Object.keys(s.talents).filter(k => s.talents[k])); } return student; }); return true; }catch(e){ return false; } }
 
 /* 初始化游戏（modal） */
 function initGameUI(){
@@ -1995,35 +2234,200 @@ function startFromStartPage(){
 function renderEndSummary(){
   const el = document.getElementById('end-summary');
   if(!el) return;
-  // try to read saved game from localStorage
+  
+  console.log('renderEndSummary called');
+  console.log('localStorage keys:', Object.keys(localStorage));
+  console.log('oi_coach_save exists:', localStorage.getItem('oi_coach_save') !== null);
+  console.log('oi_coach_ending_reason:', localStorage.getItem('oi_coach_ending_reason'));
+  console.log('oi_coach_ending:', localStorage.getItem('oi_coach_ending'));
+  
+  // try to read saved game: prefer sessionStorage, then localStorage, then window.name, then global game
   try{
-    let raw = localStorage.getItem('oi_coach_save');
-    if(!raw){ el.innerText = '无结算记录，无法显示结局。'; return; }
-    let o = JSON.parse(raw);
-    // small summary
-    let active = (o.students || []).filter(s=>s.active).length;
+    // attempt to get a diagnostic backup from sessionStorage first
+    let diag = null;
+    try{ diag = sessionStorage.getItem('oi_coach_save_diag'); }catch(e){ diag = null; }
+    try{ console.debug('session backup length=', diag?diag.length:0); }catch(e){}
+
+    // Primary source: sessionStorage
+    let raw = null;
+    try{ raw = sessionStorage.getItem('oi_coach_save'); }catch(e){ raw = null; }
+
+    // Fallback to localStorage if sessionStorage missing or short
+    try{ if(!raw || (raw.length > 0 && raw.length < 2000)) raw = localStorage.getItem('oi_coach_save') || raw; }catch(e){ raw = raw || null; }
+
+    // If raw is missing or unusually small, try window.name fallback
+    try{
+      if(!raw || (raw.length > 0 && raw.length < 2000)){
+        const maybe = window.name || '';
+        if(maybe){
+          try{
+            const parsedName = JSON.parse(maybe);
+            const oldLen = raw ? raw.length : 0;
+            if(parsedName && parsedName.oi_coach_save && parsedName.oi_coach_save.length > oldLen){
+              // restore into sessionStorage and localStorage for compatibility
+              try{ sessionStorage.setItem('oi_coach_save', parsedName.oi_coach_save); }catch(e){}
+              try{ localStorage.setItem('oi_coach_save', parsedName.oi_coach_save); }catch(e){}
+              if(parsedName.oi_coach_ending_reason) {
+                try{ sessionStorage.setItem('oi_coach_ending_reason', parsedName.oi_coach_ending_reason); }catch(e){}
+                try{ localStorage.setItem('oi_coach_ending_reason', parsedName.oi_coach_ending_reason); }catch(e){}
+              }
+              try{ console.info('renderEndSummary restored oi_coach_save from window.name; oldLen=' + oldLen + ', newLen=' + parsedName.oi_coach_save.length); }catch(e){}
+              raw = parsedName.oi_coach_save;
+            }
+          }catch(e){ /* not JSON */ }
+        }
+      }
+    }catch(e){ /* ignore */ }
+
+    // If still no data, try diag session backup
+    try{ if((!raw || raw.length < 2000) && diag && diag.length > (raw?raw.length:0)) raw = diag; }catch(e){}
+
+    if(!raw){ 
+      // 尝试从全局game对象获取数据（如果存在）
+      if(typeof game !== 'undefined' && game && game.students) {
+        console.log('No storage data found, using global game object');
+        raw = JSON.stringify(game);
+        // 临时保存到 sessionStorage/localStorage 以便下次使用
+        try{ sessionStorage.setItem('oi_coach_save', raw); }catch(e){}
+        try{ localStorage.setItem('oi_coach_save', raw); }catch(e){}
+        try{ if(!sessionStorage.getItem('oi_coach_ending_reason')) sessionStorage.setItem('oi_coach_ending_reason','赛季结束'); }catch(e){}
+        try{ if(!localStorage.getItem('oi_coach_ending_reason')) localStorage.setItem('oi_coach_ending_reason','赛季结束'); }catch(e){}
+      } else {
+        el.innerText = '无结算记录，无法显示结局。请确保游戏正常结束。\n\n调试信息：\n- 存储中无oi_coach_save数据\n- 全局game对象不存在或无效'; 
+        return; 
+      }
+    }
+    
+    let o;
+    try {
+      o = JSON.parse(raw);
+      console.log('Parsed game data:', o);
+      // 调试: 查看careerCompetitions字段
+      console.log('careerCompetitions in parsed data:', o.careerCompetitions);
+      // 调试: 打印每个学生的 active 字段以排查结算界面显示问题
+      try{
+        if(o.students && Array.isArray(o.students)){
+          for(let i=0;i<o.students.length;i++){
+            try{ console.debug(`student[${i}] name=${o.students[i].name} active=${o.students[i].active} pressure=${o.students[i].pressure}`); }catch(e){}
+          }
+        }
+      }catch(e){ console.error('Debug student active check failed', e); }
+    } catch(parseError) {
+      console.error('Failed to parse saved game data:', parseError);
+      el.innerText = '结算数据格式错误，无法显示结局。';
+      return;
+    }
+    
+  // 基本信息
+  // treat student as active unless explicitly set to false
+  let active = (o.students || []).filter(s => s && s.active !== false).length;
     let initial = o.initial_students || (o.students? o.students.length : 0);
     let rep = o.reputation || 0;
     let budget = o.budget || 0;
-    // compute avg pressure if available
-    let avgP = 0; if(o.students && o.students.length>0){ avgP = Math.round(o.students.filter(s=>s.active).reduce((a,s)=>a+(s.pressure||0),0) / Math.max(1, active)); }
+    let totalExpenses = o.totalExpenses || 0;
+    let week = o.week || 0;
     
-    // 优先使用保存的结局文本，如果没有则计算
-    let ending = localStorage.getItem('oi_coach_ending');
-    if(!ending){
-      // decide ending text using checkEnding logic by temporarily rehydrating minimal game
-      let tmp = Object.assign(new GameState(), o);
-      tmp.students = (o.students || []).map(s => Object.assign(new Student(), s));
-      // fallback: call checkEnding directly (it uses global game) - so set global game to tmp then restore
-      let prev = game; game = tmp; ending = checkEnding(); game = prev;
+    // 计算平均压力
+    let avgP = 0; 
+    if(o.students && o.students.length>0){ 
+      avgP = Math.round(o.students.filter(s => s && s.active !== false).reduce((a,s)=>a+(s.pressure||0),0) / Math.max(1, active)); 
     }
     
-    // build career competitions table if present
+  // 获取结局原因 - 优先 sessionStorage，再 localStorage，再存档内字段
+  let rawEnding = '';
+  try{ rawEnding = sessionStorage.getItem('oi_coach_ending_reason') || sessionStorage.getItem('oi_coach_ending') || ''; }catch(e){ rawEnding = ''; }
+  try{ if(!rawEnding || rawEnding.length===0) rawEnding = localStorage.getItem('oi_coach_ending_reason') || localStorage.getItem('oi_coach_ending') || ''; }catch(e){}
+  let endingReason = normalizeEndingReason(rawEnding || (o.endingReason || o.oi_coach_ending_reason || '赛季结束'));
+    
+    console.log('Game data loaded:', {
+      students: o.students ? o.students.length : 0,
+      active,
+      budget,
+      totalExpenses,
+      week,
+      endingReason
+    });
+    // 调试: 在渲染比赛生涯前打印career变量
+    console.log('About to build career display, careerCompetitions array:', o.careerCompetitions);
+    
+    // 构建学生详细信息（卡片风格，与 game.html 中 student-box 保持一致）
+    let studentsHtml = '';
+    if(o.students && o.students.length > 0) {
+      studentsHtml += `<div style="margin-top:12px"><h4>👥 学生详细信息</h4></div>`;
+      studentsHtml += `<div style="max-height:260px;overflow:auto;border:1px solid #ddd;border-radius:4px;padding:8px;background:#fafafa">`;
+      // 使用类似游戏内的 student-box 布局
+      for(let s of o.students) {
+        // 兼容旧存档：将未明确标记为 false 的视为在队
+        const isActive = (s && s.active !== false);
+        const pressureLevel = (s && typeof s.pressure === 'number') ? (s.pressure < 35 ? '低' : s.pressure < 65 ? '中' : '高') : '—';
+        const pressureClass = (s && typeof s.pressure === 'number') ? (s.pressure < 35 ? 'pressure-low' : s.pressure < 65 ? 'pressure-mid' : 'pressure-high') : '';
+        const thinkingVal = Number(s.thinking || 0);
+        const codingVal = Number(s.coding || 0);
+        const mentalVal = Number(s.mental || 0);
+        const thinkGrade = getLetterGrade(Math.floor(thinkingVal));
+        const codeGrade = getLetterGrade(Math.floor(codingVal));
+        const mentalRounded = Math.round(mentalVal || 0);
+        // 计算知识各维度字母等级
+        const k_ds = getLetterGrade(Math.floor(Number(s.knowledge_ds || 0)));
+        const k_graph = getLetterGrade(Math.floor(Number(s.knowledge_graph || 0)));
+        const k_str = getLetterGrade(Math.floor(Number(s.knowledge_string || 0)));
+        const k_math = getLetterGrade(Math.floor(Number(s.knowledge_math || 0)));
+        const k_dp = getLetterGrade(Math.floor(Number(s.knowledge_dp || 0)));
+        // 天赋显示（如果有 TalentManager 可用则显示说明 tooltip）
+        let talentsHtml = '';
+        try{
+          if(s.talents && (s.talents instanceof Array || s.talents instanceof Set)){
+            const talentArray = Array.from(s.talents);
+            talentsHtml = talentArray.map(tn => {
+              const info = (window.TalentManager && typeof window.TalentManager.getTalentInfo === 'function') ? window.TalentManager.getTalentInfo(tn) : { name: tn, description: '', color: '#2b6cb0' };
+              return `<span class="talent-tag" data-talent="${tn}" style="background-color:${info.color}20;color:${info.color};border-color:${info.color}40;margin-right:6px;">${tn}<span class="talent-tooltip">${info.description||''}</span></span>`;
+            }).join('');
+          }
+        }catch(e){ talentsHtml = '';} 
+
+        studentsHtml += `<div class="student-box" style="margin-bottom:8px;padding:8px;background:white;border-radius:6px;border:1px solid #eee">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div><strong>${s.name}</strong> ${isActive? '': '<span class="warn">[退队]</span>'} <span class="label-pill ${pressureClass}" style="margin-left:8px">压力:${pressureLevel}</span></div>
+            <div style="font-size:12px;color:#666">心理:${mentalRounded}</div>
+          </div>
+          <div class="compact small" style="margin-top:6px">
+            能力: 思维:${thinkGrade} 编码:${codeGrade}
+            <div style="margin-top:6px">知识: <span class="knowledge-badges">
+              <span class="kb" title="数据结构: ${Math.floor(Number(s.knowledge_ds||0))}">数据结构${k_ds}</span>
+              <span class="kb" title="图论: ${Math.floor(Number(s.knowledge_graph||0))}">图论${k_graph}</span>
+              <span class="kb" title="字符串: ${Math.floor(Number(s.knowledge_string||0))}">字符串${k_str}</span>
+              <span class="kb" title="数学: ${Math.floor(Number(s.knowledge_math||0))}">数学${k_math}</span>
+              <span class="kb" title="动态规划: ${Math.floor(Number(s.knowledge_dp||0))}">动态规划${k_dp}</span>
+            </span></div>
+          </div>
+          ${talentsHtml ? `<div class="student-talents" style="margin-top:8px">${talentsHtml}</div>` : ''}
+        </div>`;
+      }
+      studentsHtml += `</div>`;
+    }
+    
+    // 构建比赛生涯记录
     let careerHtml = '';
-    const career = (o.careerCompetitions && Array.isArray(o.careerCompetitions)) ? o.careerCompetitions : (o.game && o.game.careerCompetitions ? o.game.careerCompetitions : null);
-    if(career && career.length > 0){
+    // 默认从主存档中读取careerCompetitions
+    let career = (o.careerCompetitions && Array.isArray(o.careerCompetitions) && o.careerCompetitions.length)
+                 ? o.careerCompetitions
+                 : null;
+    // 若主存档中无数据，尝试从单独存储的localStorage键读取
+    const separateRaw = localStorage.getItem('oi_coach_careerCompetitions');
+    if((!career || career.length === 0) && separateRaw){
+      try {
+        const arr = JSON.parse(separateRaw);
+        if(Array.isArray(arr) && arr.length > 0){
+          career = arr;
+          console.log('Using separate careerCompetitions from LS:', career);
+        }
+      } catch(e) {
+        console.error('Failed to parse separate careerCompetitions from LS:', e);
+      }
+    }
+  if(career && career.length > 0){
       careerHtml += `<div style="margin-top:12px"><h4>📊 比赛生涯记录</h4></div>`;
-      careerHtml += `<div style="margin-top:8px;max-height:320px;overflow:auto;border:1px solid #ddd;border-radius:4px;padding:8px;background:#fafafa">`;
+      careerHtml += `<div style="margin-top:8px;max-height:300px;overflow:auto;border:1px solid #ddd;border-radius:4px;padding:8px;background:#fafafa">`;
       
       for(let rec of career){
         const passedCount = rec.passedCount || 0;
@@ -2036,7 +2440,12 @@ function renderEndSummary(){
         
         if(rec.entries && rec.entries.length > 0){
           careerHtml += `<table style="width:100%;font-size:12px;border-collapse:collapse">`;
-          careerHtml += `<thead><tr style="background:#f0f0f0"><th style="padding:4px;text-align:left">学生</th><th style="padding:4px;text-align:center">排名</th><th style="padding:4px;text-align:center">分数</th><th style="padding:4px;text-align:left">结果</th></tr></thead><tbody>`;
+          careerHtml += `<thead><tr style="background:#f0f0f0">
+            <th style="padding:4px;text-align:left">学生</th>
+            <th style="padding:4px;text-align:center">排名</th>
+            <th style="padding:4px;text-align:center">分数</th>
+            <th style="padding:4px;text-align:left">结果</th>
+          </tr></thead><tbody>`;
           
           for(let e of rec.entries){
             const rankText = e.rank ? `#${e.rank}` : (e.eligible === false ? '-' : '—');
@@ -2069,16 +2478,163 @@ function renderEndSummary(){
       careerHtml += `<div class="small muted" style="margin-top:8px">未记录到比赛生涯数据</div>`;
     }
 
-    el.innerHTML = `<div>初始人数: <strong>${initial}</strong></div>
-      <div>当前在队: <strong>${active}</strong></div>
-      <div>平均压力: <strong>${avgP}</strong></div>
-      <div>经费: <strong>¥${budget}</strong></div>
-      <div>声誉: <strong>${rep}</strong></div>
-      <div style="margin-top:8px;font-weight:600">结局： <span id=\"ending-text\" class=\"ending-highlight\">${ending}</span></div>
-      ${careerHtml}`;
-    // add a short animation pulse to ending text
-    try{ const endEl = document.getElementById('ending-text'); if(endEl){ endEl.classList.add('ending-animate'); setTimeout(()=>{ endEl.classList.remove('ending-animate'); }, 2500); } }catch(e){}
-  }catch(e){ el.innerText = '读取结算数据失败：'+e; }
+    // 构建时间轴进度条
+    let timelineHtml = '';
+    if (week > 0) {
+      timelineHtml += `<div style="margin-top:12px"><h4>📅 时间轴进度</h4></div>`;
+      timelineHtml += `<div style="margin-top:8px;padding:12px;background:#f9f9f9;border-radius:8px">`;
+      
+      // 构建比赛数据（从常量或保存的数据中获取）
+      const competitions = [
+        { name: 'CSP-S1', week: 6 },
+        { name: 'CSP-S2', week: 10 },
+        { name: 'NOIP', week: 14 },
+        { name: '省选', week: 18 },
+        { name: 'NOI', week: 22 },
+        { name: 'CSP-S1', week: 26 },
+        { name: 'CSP-S2', week: 30 },
+        { name: 'NOIP', week: 34 },
+        { name: '省选', week: 38 },
+        { name: 'NOI', week: 42 }
+      ];
+      
+      // 计算实际最大周数：取当前周数和最后一个比赛周数中的较大值，至少为40
+      const lastCompWeek = Math.max(...competitions.map(c => c.week));
+      const maxWeeks = Math.max(week, lastCompWeek, typeof SEASON_WEEKS !== 'undefined' ? SEASON_WEEKS : 40);
+      
+      // 计算进度百分比（基于动态的maxWeeks）
+      const progressPercent = Math.min(100, (week / maxWeeks) * 100);
+      
+      // 进度条
+      timelineHtml += `<div style="position:relative;height:20px;background:#e0e0e0;border-radius:10px;margin-bottom:12px">`;
+      timelineHtml += `<div style="height:100%;background:linear-gradient(90deg, #4caf50, #2196f3);border-radius:10px;width:${progressPercent}%" title="进度：第${week}周"></div>`;
+      timelineHtml += `<div style="position:absolute;top:50%;left:8px;transform:translateY(-50%);color:white;font-size:12px;font-weight:bold">第 ${week} 周</div>`;
+      timelineHtml += `</div>`;
+      
+      // 比赛大头针
+      timelineHtml += `<div style="position:relative;height:30px">`;
+      
+      for (let comp of competitions) {
+        const position = (comp.week / maxWeeks) * 100;
+        const isPast = comp.week <= week;
+        const pinColor = isPast ? '#4caf50' : '#ffc107';
+        const pinIcon = isPast ? '✓' : '📍';
+        
+        timelineHtml += `<div style="position:absolute;left:${position}%;transform:translateX(-50%);top:0">`;
+        timelineHtml += `<div style="width:20px;height:20px;background:${pinColor};border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;color:white;border:2px solid white;box-shadow:0 2px 4px rgba(0,0,0,0.2)" title="${comp.name} - 第${comp.week}周">`;
+        timelineHtml += `${pinIcon}`;
+        timelineHtml += `</div>`;
+        timelineHtml += `<div style="position:absolute;top:22px;left:50%;transform:translateX(-50%);font-size:10px;white-space:nowrap;color:#666">${comp.name}</div>`;
+        timelineHtml += `</div>`;
+      }
+      
+      timelineHtml += `</div>`;
+      timelineHtml += `</div>`;
+    }
+    
+    // 构建完整的结算信息
+    el.innerHTML = `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+        <div>
+          <h4>📈 基本信息</h4>
+          <div style="background:#f9f9f9;padding:12px;border-radius:8px">
+            <div>初始人数: <strong>${initial}</strong></div>
+            <div>当前在队: <strong>${active}</strong></div>
+            <div>平均压力: <strong>${avgP}</strong></div>
+            <div>声誉: <strong>${rep}</strong></div>
+            <div>进行到第: <strong>${week}</strong> 周</div>
+          </div>
+        </div>
+        <div>
+          <h4>💰 财务状况</h4>
+          <div style="background:#f9f9f9;padding:12px;border-radius:8px">
+            <div>当前金额: <strong>¥${budget.toLocaleString()}</strong></div>
+            <div>累计消费: <strong>¥${totalExpenses.toLocaleString()}</strong></div>
+            <div>结束原因: <strong>${endingReason}</strong></div>
+          </div>
+        </div>
+      </div>
+      ${timelineHtml}
+      ${studentsHtml}
+      ${careerHtml}
+      <div id="ending-result" style="margin-top:16px;padding:16px;background:#e3f2fd;border-radius:8px;text-align:center">
+        <div style="font-size:18px;font-weight:bold;margin-bottom:8px">最终结局</div>
+        <div id="ending-text" class="ending-highlight" style="font-size:24px;font-weight:bold">
+          正在计算结局...
+        </div>
+      </div>
+    `;
+    
+    // 计算并显示最终结局（使用新的结局判定逻辑）
+    setTimeout(() => {
+      const finalEnding = calculateFinalEnding(o, endingReason);
+      const endingEl = document.getElementById('ending-text');
+      if(endingEl) {
+        endingEl.textContent = finalEnding;
+        endingEl.classList.add('ending-animate');
+        setTimeout(() => endingEl.classList.remove('ending-animate'), 2500);
+      }
+    }, 500);
+    
+  }catch(e){ 
+    el.innerText = '读取结算数据失败：' + e.message; 
+    console.error('renderEndSummary error:', e);
+  }
+}
+
+/* 计算最终结局 */
+function calculateFinalEnding(gameData, endingReason) {
+  try {
+  // 检查学生数量（兼容旧存档：未设置 active 则视为在队）
+  const activeStudents = (gameData.students || []).filter(s => s && s.active !== false).length;
+    
+    // 检查是否有NOI金牌
+    let hasNoiGold = false;
+    if (gameData.careerCompetitions && Array.isArray(gameData.careerCompetitions)) {
+      for (let comp of gameData.careerCompetitions) {
+        if (comp.name === 'NOI' && comp.entries && Array.isArray(comp.entries)) {
+          for (let entry of comp.entries) {
+            if (entry.medal === 'gold') {
+              hasNoiGold = true;
+              break;
+            }
+          }
+        }
+        if (hasNoiGold) break;
+      }
+    }
+    
+
+    
+    // 规范化输入的 endingReason 以避免多写法问题
+    const norm = normalizeEndingReason(endingReason);
+
+    // 检查经费（优先级高于其他）
+    if (gameData.budget < 5000) {
+      return "💸 经费耗尽结局";
+    }
+
+    // 基于成就判定（荣耀结局优先级最高）
+    if (hasNoiGold) {
+      return "🌟 荣耀结局";
+    }
+
+    // 基于结束原因判定（使用规范化值）
+    switch (norm) {
+      case '经费不足':
+        return "💸 经费耗尽结局";
+      case '无学生':
+        return "😵 崩溃结局";
+      case '晋级链断裂':
+        return "💼 普通结局";
+      case '赛季结束':
+      default:
+        return "💼 普通结局";
+    }
+  } catch (e) {
+    console.error('calculateFinalEnding error:', e);
+    return "❓ 未知结局";
+  }
 }
 
 /* initGame 逻辑（与 C++ 一致） */
@@ -2106,7 +2662,9 @@ function initGame(difficulty, province_choice, student_count){
   
   // 从初始金钱中扣除招生费用
   const totalRecruitCost = recruitedStudents.reduce((sum, s) => sum + s.cost, 0);
-  game.budget = Math.max(0, game.budget - totalRecruitCost);
+  if (totalRecruitCost > 0) {
+    game.recordExpense(totalRecruitCost, '招生费用');
+  }
   
   game.initial_students = student_count;
   let min_val,max_val;
@@ -2244,7 +2802,23 @@ window.onload = ()=>{
       card.style.cssText = 'display:inline-block;padding:6px;margin:4px;border:1px solid #ddd;border-radius:6px;cursor:pointer;min-width:120px;text-align:left;font-size:13px;opacity:0.45';
       card.dataset.name = s.name;
       card.dataset.selected = '0'; // default NOT selected
-      card.innerHTML = `<strong style="display:block">${s.name}</strong><span style="color:#666">能力:${(s.getAbilityAvg && s.getAbilityAvg().toFixed) ? s.getAbilityAvg().toFixed(1) : ''}</span>`;
+      // show three-letter grades: 思维 (T), 编码 (C), 知识 (K)
+      const thinkGrade = (typeof s.thinking === 'number') ? getLetterGrade(Math.floor(Number(s.thinking||0))) : '';
+      const codeGrade = (typeof s.coding === 'number') ? getLetterGrade(Math.floor(Number(s.coding||0))) : '';
+      const knowVal = (s.getKnowledgeTotal && typeof s.getKnowledgeTotal === 'function') ? Math.floor(s.getKnowledgeTotal()) : Math.floor((Number(s.knowledge_ds||0) + Number(s.knowledge_graph||0) + Number(s.knowledge_string||0) + Number(s.knowledge_math||0) + Number(s.knowledge_dp||0)));
+      const knowGrade = getLetterGrade(Math.floor(knowVal));
+      card.innerHTML = `<strong style="display:block">${s.name}</strong>
+        <div style="color:#666;margin-top:4px">
+          能力: <span class="knowledge-badges">
+            <span class="kb kb-small" title="思维: ${Math.floor(Number(s.thinking||0))}">${getLetterGrade(Math.floor(Number(s.thinking||0)))}</span>
+            <span class="kb kb-small" title="编码: ${Math.floor(Number(s.coding||0))}">${getLetterGrade(Math.floor(Number(s.coding||0)))}</span>
+            <span class="kb kb-small" title="数据结构: ${Math.floor(Number(s.knowledge_ds||0))}">数据结构${getLetterGrade(Math.floor(Number(s.knowledge_ds||0)))}</span>
+            <span class="kb kb-small" title="图论: ${Math.floor(Number(s.knowledge_graph||0))}">图论${getLetterGrade(Math.floor(Number(s.knowledge_graph||0)))}</span>
+            <span class="kb kb-small" title="字符串: ${Math.floor(Number(s.knowledge_string||0))}">字符串${getLetterGrade(Math.floor(Number(s.knowledge_string||0)))}</span>
+            <span class="kb kb-small" title="数学: ${Math.floor(Number(s.knowledge_math||0))}">数学${getLetterGrade(Math.floor(Number(s.knowledge_math||0)))}</span>
+            <span class="kb kb-small" title="动态规划: ${Math.floor(Number(s.knowledge_dp||0))}">动态规划${getLetterGrade(Math.floor(Number(s.knowledge_dp||0)))}</span>
+          </span>
+        </div>`;
       card.onclick = () => {
         if(card.dataset.selected === '1'){ card.dataset.selected = '0'; card.style.opacity = '0.45'; }
         else { card.dataset.selected = '1'; card.style.opacity = '1.0'; }

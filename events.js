@@ -42,7 +42,7 @@
         },
         run: c => {
           for(let s of c.game.students){
-            if(!s.active) continue;
+            if(!s || s.active === false) continue;
             const oldP = Number(s.pressure || 0);
             s.pressure = Math.min(100, oldP + 15);
             s.comfort  = Math.max(0,   s.comfort  - 10);
@@ -50,7 +50,7 @@
             try{ if(typeof s.triggerTalents === 'function'){ s.triggerTalents('pressure_change', { source: 'typhoon', amount: s.pressure - oldP }); } }catch(e){ console.error('triggerTalents pressure_change', e); }
           }
           const loss = utils.uniformInt(10000, 20000);
-          c.game.budget = Math.max(0, c.game.budget - loss);
+          c.game.recordExpense(loss, '台风损失');
           const msg = `台风来袭，经费损失 ¥${loss}`;
           log && log(`[台风] ${msg}`);
           window.pushEvent && window.pushEvent({ name:'台风', description: msg, week: c.game.week });
@@ -69,7 +69,7 @@
           const comfort = c.game.getComfort();
           const sickList = [];
           for(let s of c.game.students){
-            if(!s.active || s.sick_weeks > 0) continue;
+            if(!s || s.active === false || s.sick_weeks > 0) continue;
             let pr = BASE_SICK_PROB + Math.max(0, (30 - comfort)/50);
             if(c.game.temperature < EXTREME_COLD_THRESHOLD || c.game.temperature > EXTREME_HOT_THRESHOLD){
               pr += SICK_PROB_FROM_COLD_HOT;
@@ -103,7 +103,7 @@
           const quitList = [];
           for(let i = c.game.students.length - 1; i >= 0; i--){
             const s = c.game.students[i];
-            if(!s.active) continue;
+            if(!s || s.active === false) continue;
             if(s.pressure >= 90){
               s.burnout_weeks = (s.burnout_weeks || 0) + 1;
               if(s.burnout_weeks >= 3){
@@ -166,9 +166,9 @@
         },
         run: c => {
           c.game.teaching_points = (c.game.teaching_points || 0) + 10;
-          for(const s of c.game.students){ if(!s.active) continue;
-            s.thinking = Math.min(100, (s.thinking||0) + c.utils.uniformInt(1,3));
-            s.coding   = Math.min(100, (s.coding  ||0) + c.utils.uniformInt(1,3));
+            for(const s of c.game.students){ if(!s || s.active === false) continue;
+            s.thinking = (s.thinking||0) + c.utils.uniformInt(1,3);
+            s.coding   = (s.coding  ||0) + c.utils.uniformInt(1,3);
             const oldP = Number(s.pressure || 0);
             s.pressure = Math.max(0,   oldP - c.utils.uniformInt(1,3));
             try{ if(typeof s.triggerTalents === 'function'){ s.triggerTalents('pressure_change', { source: 'coach_visit', amount: s.pressure - oldP }); } }catch(e){ console.error('triggerTalents pressure_change', e); }
@@ -189,7 +189,7 @@
           // 使用游戏中实际的知识类型
           const topics = ['数据结构','图论','字符串','数学','DP'];
           const topic = topics[c.utils.uniformInt(0, topics.length - 1)];
-          for(const s of c.game.students){ if(!s.active) continue;
+          for(const s of c.game.students){ if(!s || s.active === false) continue;
             s.knowledge = s.knowledge || {};
             s.knowledge[topic] = (s.knowledge[topic] || 0) + c.utils.uniformInt(1,5);
           }
@@ -225,7 +225,7 @@
         run: c => {
           const cost = c.utils.uniformInt(5000, 20000);
           if (c.game.budget >= cost) {
-            c.game.budget -= cost;
+            c.game.recordExpense(cost, '设备故障维修');
             c.game.computer_repair_weeks = 0;
             const msg = `设备故障，花费 ¥${cost} 维修`;
             c.log && c.log(`[设备故障] ${msg}`);
@@ -246,14 +246,14 @@
         name: '团队内部矛盾',
         description: '团队压力过高导致内部矛盾',
         check: c => {
-          const active = c.game.students.filter(s => s.active);
+          const active = c.game.students.filter(s => s && s.active !== false);
           if (!active.length) return false;
           const avg = active.reduce((sum, s) => sum + s.pressure, 0) / active.length;
           return avg > 70 && Math.random() < 0.05;
         },
         run: c => {
           for (const s of c.game.students) {
-            if (!s.active) continue;
+            if (s && s.active === false) continue;
             s.comfort = Math.max(0, s.comfort - c.utils.uniformInt(2, 5));
             s.mental = Math.max(0, (s.mental || 100) - c.utils.uniformInt(1, 3));
             const oldP = Number(s.pressure || 0);
@@ -276,7 +276,7 @@
           const weeks = c.utils.uniformInt(1, 2);
           c.game.audit_weeks = weeks;
           const loss = c.utils.uniformInt(5000, 15000);
-          c.game.budget = Math.max(0, c.game.budget - loss);
+          c.game.recordExpense(loss, '经费审计');
           const msg = `经费审计暂停高消费活动 ${weeks} 周，损失经费 ¥${loss}`;
           c.log && c.log(`[经费审计] ${msg}`);
           window.pushEvent && window.pushEvent({ name: '经费审计', description: msg, week: c.game.week });
@@ -293,7 +293,7 @@
           const weeks = c.utils.uniformInt(1, 2);
           c.game.food_sick_weeks = weeks;
           for (const s of c.game.students) {
-            if (!s.active) continue;
+            if (!s || s.active === false) continue;
             s.comfort = Math.max(0, s.comfort - c.utils.uniformInt(2, 5));
           }
           const msg = `食堂卫生问题，接下来 ${weeks} 周学生生病概率上升，舒适度下降`;
@@ -311,10 +311,10 @@
         run: c => {
           const options = [
             { label: '接受邀请', effect: () => {
-                c.game.budget = Math.max(0, c.game.budget - 5000);
+                c.game.recordExpense(5000, '友校交流');
                 for (const s of c.game.students) if (s.active) {
-                  s.thinking = Math.min(100, s.thinking + 1);
-                  s.coding = Math.min(100, s.coding + 1);
+                  s.thinking = (s.thinking || 0) + 1;
+                  s.coding = (s.coding || 0) + 1;
                   const oldP = Number(s.pressure || 0);
                   s.pressure = Math.min(100, oldP + 2);
                   try{ if(typeof s.triggerTalents === 'function'){ s.triggerTalents('pressure_change', { source: 'exchange_invite', amount: s.pressure - oldP }); } }catch(e){ console.error('triggerTalents pressure_change', e); }
@@ -346,7 +346,7 @@
           const options = [
             { label: '接收', effect: () => {
                 const cost = c.utils.uniformInt(10000, 20000);
-                c.game.budget = Math.max(0, c.game.budget - cost);
+                c.game.recordExpense(cost, '接收转学生');
                 // create a proper Student instance so methods and talents work
                 try{
                   const s = new Student('新学生', 80, 80, 80);

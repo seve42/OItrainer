@@ -5,16 +5,74 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>结算 — OI 教练模拟器</title>
   <link rel="stylesheet" href="styles.css">
+  <style>
+    .ending-highlight {
+      color: #1976d2;
+      text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+    }
+    
+    .ending-animate {
+      animation: pulse 2s ease-in-out;
+    }
+    
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.05); opacity: 0.8; }
+    }
+    
+    #end-summary h4 {
+      margin: 0 0 8px 0;
+      color: #333;
+      font-size: 16px;
+    }
+    
+    #end-summary table {
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    
+    #end-summary table th {
+      background: #f5f5f5 !important;
+    }
+    
+    .timeline-pin {
+      transition: transform 0.2s ease;
+    }
+    
+    .timeline-pin:hover {
+      transform: scale(1.2);
+    }
+    
+    .progress-bar {
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .progress-bar::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+      animation: shimmer 2s infinite;
+    }
+    
+    @keyframes shimmer {
+      0% { left: -100%; }
+      100% { left: 100%; }
+    }
+  </style>
 </head>
 <body>
 <div class="container">
   <header>
-    <h1>赛季结算</h1>
+    <h1>🏆 赛季结算</h1>
   </header>
   <div class="panel" id="end-panel">
-    <h3>赛季结果</h3>
+    <h3>最终结果</h3>
     <div id="end-summary" class="small muted">正在加载结算数据……</div>
-    <div class="modal-actions" style="margin-top:12px">
+    <div class="modal-actions" style="margin-top:16px">
       <button class="btn btn-ghost" id="end-back">回到开始</button>
       <button class="btn" id="end-playagain">再玩一次</button>
     </div>
@@ -26,7 +84,23 @@
 <script src="script.js"></script>
 <script>
   document.getElementById('end-back').onclick = ()=>{ window.location.href = 'start.html'; };
-  document.getElementById('end-playagain').onclick = ()=>{ localStorage.removeItem('oi_coach_save'); window.location.href = 'start.html'; };
+  document.getElementById('end-playagain').onclick = ()=>{ 
+    try{
+      // 调试弹窗：在清理前显示当前 localStorage 中相关键的值（或其存在性）和调用堆栈，帮助定位是否被误清空
+      const before = {
+        oi_coach_save_exists: localStorage.getItem('oi_coach_save') !== null,
+        oi_coach_ending_reason: localStorage.getItem('oi_coach_ending_reason'),
+        oi_coach_ending: localStorage.getItem('oi_coach_ending')
+      };
+  console.debug('About to clear localStorage keys: oi_coach_save, oi_coach_ending_reason, oi_coach_ending; current:', before);
+    }catch(e){ /* ignore in case alerts break automated tests */ }
+    // 清理所有相关的localStorage数据
+    localStorage.removeItem('oi_coach_save'); 
+    localStorage.removeItem('oi_coach_ending_reason');
+    localStorage.removeItem('oi_coach_ending');
+  try{ console.debug('localStorage cleanup executed for oi_coach_save and related keys'); }catch(e){}
+    window.location.href = 'start.html'; 
+  };
   // render summary if available
   if(typeof renderEndSummary === 'function') renderEndSummary();
 </script>

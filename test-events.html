@@ -22,7 +22,6 @@
     <div class="row">
       <button id="btn-trigger-all" class="btn">触发所有事件</button>
       <button id="btn-trigger-random" class="btn">运行 EventManager.checkRandomEvents()</button>
-      <button id="btn-test-choice" class="btn">测试选择事件（验证修复）</button>
       <button id="btn-clear-events" class="btn">清空事件卡片</button>
       <button id="btn-reset-game" class="btn">重置游戏（尝试）</button>
     </div>
@@ -57,34 +56,12 @@
 
       document.getElementById('btn-clear-events').addEventListener('click', ()=>{ recentEvents.splice(0); renderEventCards(); appendOut('已清空事件卡片'); });
 
-      document.getElementById('btn-test-choice').addEventListener('click', ()=>{
-        ensureGame();
-        appendOut('创建测试选择事件...');
-        // 创建一个测试选择事件
-        const options = [
-          { label: '选项A', effect: () => { 
-              appendOut('✓ 选项A被执行'); 
-              window.game.budget += 1000;
-              pushEvent({ name: '结果', description: '选择了选项A，获得 ¥1000', week: window.game.week });
-            } 
-          },
-          { label: '选项B', effect: () => { 
-              appendOut('✓ 选项B被执行'); 
-              window.game.reputation += 5;
-              pushEvent({ name: '结果', description: '选择了选项B，声誉 +5', week: window.game.week });
-            } 
-          }
-        ];
-        window.showChoiceModal({ 
-          name: '测试选择事件', 
-          description: '请选择一个选项。点击后卡片应该立即消失，且不能再次点击。', 
-          week: window.game.week, 
-          options 
-        });
-        appendOut('事件卡片已推送，请尝试多次点击同一个选项按钮，验证是否只执行一次');
-      });
+      <!-- 已移除：测试选择事件（用于开发验证）的按钮与处理逻辑 -->
 
-      document.getElementById('btn-reset-game').addEventListener('click', ()=>{ try{ localStorage.removeItem('oi_coach_save'); location.reload(); }catch(e){ appendOut('重置失败: '+e.message); } });
+      document.getElementById('btn-reset-game').addEventListener('click', ()=>{ try{ 
+          try{ console.debug('Test page reset: will remove oi_coach_save, exists:', (localStorage.getItem('oi_coach_save') !== null)); }catch(e){}
+          localStorage.removeItem('oi_coach_save'); location.reload(); 
+        }catch(e){ appendOut('重置失败: '+e.message); } });
 
       document.getElementById('btn-trigger-random').addEventListener('click', ()=>{
         ensureGame();
