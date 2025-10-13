@@ -312,23 +312,7 @@ function showChoiceModal(evt){
     eventId: eventId
   });
 }
-
-  const options = [
-    { label: '接受', effect: () => { 
-        const raw = 5000; const adj = Math.round(raw * (game.getExpenseMultiplier ? game.getExpenseMultiplier() : 1));
-        game.recordExpense(adj, '测试事件');
-        log(`测试：已接受，扣除经费 ¥${adj}`);
-        pushEvent({ name: '选择结果', description: `已接受测试事件，扣除经费 ¥${adj}`, week: currWeek() });
-      } 
-    },
-    { label: '拒绝', effect: () => { 
-        log('测试：已拒绝');
-        pushEvent({ name: '选择结果', description: '已拒绝测试事件', week: currWeek() });
-      } 
-    }
-  ];
-  // Test choice modal invocation removed in cleanup
-// Removed debug helper testShowChoiceModal to clean up debug-only code.
+// 开发期间用于测试的 `options` 数据已移除 — 该数据在运行时无引用，保留 showChoiceModal 功能。
 /* 渲染：主页去数值化（不显示学生具体能力/压力数值） */
 function renderAll(){
   // 如果主 UI 元素不存在（例如在独立测试页面），安全退出以避免抛错
@@ -372,22 +356,22 @@ function renderAll(){
     let pressureLevel = s.pressure < 35 ? "低" : s.pressure < 65 ? "中" : "高";
     let pressureClass = s.pressure < 35 ? "pressure-low" : s.pressure < 65 ? "pressure-mid" : "pressure-high";
   // 计算模糊资质与能力等级：思维能力 & 心理素质（确保为数字）
-  const thinkingVal = Number(s.thinking || 0);
-  const mentalVal = Number(s.mental || 0);
-  let aptitudeVal = 0.5 * thinkingVal + 0.5 * mentalVal;
-  let aptitudeGrade = getLetterGrade(Math.floor(aptitudeVal));
+  //const thinkingVal = Number(s.thinking || 0);
+  //const mentalVal = Number(s.mental || 0);
+ // let aptitudeVal = 0.5 * thinkingVal + 0.5 * mentalVal;
+  //let aptitudeGrade = getLetterGrade(Math.floor(aptitudeVal));
   // 能力 = 各能力平均 + 各知识点方差加权
-  let abilityAvg = Number(s.getAbilityAvg ? s.getAbilityAvg() : 0) || 0;
+  //let abilityAvg = Number(s.getAbilityAvg ? s.getAbilityAvg() : 0) || 0;
   // 计算知识方差
-  let kArr = [Number(s.knowledge_ds||0), Number(s.knowledge_graph||0), Number(s.knowledge_string||0), Number(s.knowledge_math||0), Number(s.knowledge_dp||0)];
-  let kMean = kArr.reduce((a,v) => a+v, 0) / kArr.length;
-  let variance = kArr.reduce((a,v) => a + Math.pow(v - kMean, 2), 0) / kArr.length;
-  let varNorm = clamp(variance, 0, 100);
+  //let kArr = [Number(s.knowledge_ds||0), Number(s.knowledge_graph||0), Number(s.knowledge_string||0), Number(s.knowledge_math||0), Number(s.knowledge_dp||0)];
+  //let kMean = kArr.reduce((a,v) => a+v, 0) / kArr.length;
+  //let variance = kArr.reduce((a,v) => a + Math.pow(v - kMean, 2), 0) / kArr.length;
+  //let varNorm = clamp(variance, 0, 100);
   // 50% 能力平均 + 50% 知识方差
-  let abilityVal = abilityAvg * 0.5 + varNorm * 0.5;
-  let abilityGrade = getLetterGrade(Math.floor(abilityVal));
-    const compRaw = Number(s.getComprehensiveAbility ? s.getComprehensiveAbility() : 0);
-    const comp = isFinite(compRaw) ? Math.floor(compRaw) : 0;
+  //let abilityVal = abilityAvg * 0.5 + varNorm * 0.5;
+  //let abilityGrade = getLetterGrade(Math.floor(abilityVal));
+    //const compRaw = Number(s.getComprehensiveAbility ? s.getComprehensiveAbility() : 0);
+    //const comp = isFinite(compRaw) ? Math.floor(compRaw) : 0;
     
     // 生成天赋标签HTML
     let talentsHtml = '';
@@ -415,7 +399,7 @@ function renderAll(){
           <span class="kb" title="数学: ${Math.floor(Number(s.knowledge_math||0))}">数学${getLetterGrade(Math.floor(Number(s.knowledge_math||0)))}</span>
           <span class="kb" title="动态规划: ${Math.floor(Number(s.knowledge_dp||0))}">动态规划${getLetterGrade(Math.floor(Number(s.knowledge_dp||0)))}</span>
         </span>
-        &nbsp;| 思维:${getLetterGrade(Math.floor(Number(s.thinking||0)))} 代码:${getLetterGrade(Math.floor(Number(s.coding||0)))}
+        &nbsp;| 思维:${getLetterGradeAbility(Math.floor(Number(s.thinking||0)))} 代码:${getLetterGradeAbility(Math.floor(Number(s.coding||0)))}
       </div>
       ${talentsHtml ? `<div class="student-talents" style="margin-top:6px">${talentsHtml}</div>` : ''}
     </div>`;
@@ -2364,8 +2348,8 @@ function renderEndSummary(){
         const thinkingVal = Number(s.thinking || 0);
         const codingVal = Number(s.coding || 0);
         const mentalVal = Number(s.mental || 0);
-        const thinkGrade = getLetterGrade(Math.floor(thinkingVal));
-        const codeGrade = getLetterGrade(Math.floor(codingVal));
+        const thinkGrade = getLetterGradeAbility(Math.floor(thinkingVal));
+        const codeGrade = getLetterGradeAbility(Math.floor(codingVal));
         const mentalRounded = Math.round(mentalVal || 0);
         // 计算知识各维度字母等级
         const k_ds = getLetterGrade(Math.floor(Number(s.knowledge_ds || 0)));
@@ -2803,8 +2787,8 @@ window.onload = ()=>{
       card.dataset.name = s.name;
       card.dataset.selected = '0'; // default NOT selected
       // show three-letter grades: 思维 (T), 编码 (C), 知识 (K)
-      const thinkGrade = (typeof s.thinking === 'number') ? getLetterGrade(Math.floor(Number(s.thinking||0))) : '';
-      const codeGrade = (typeof s.coding === 'number') ? getLetterGrade(Math.floor(Number(s.coding||0))) : '';
+      const thinkGrade = (typeof s.thinking === 'number') ? getLetterGradeAbility(Math.floor(Number(s.thinking||0))) : '';
+      const codeGrade = (typeof s.coding === 'number') ? getLetterGradeAbility(Math.floor(Number(s.coding||0))) : '';
       const knowVal = (s.getKnowledgeTotal && typeof s.getKnowledgeTotal === 'function') ? Math.floor(s.getKnowledgeTotal()) : Math.floor((Number(s.knowledge_ds||0) + Number(s.knowledge_graph||0) + Number(s.knowledge_string||0) + Number(s.knowledge_math||0) + Number(s.knowledge_dp||0)));
       const knowGrade = getLetterGrade(Math.floor(knowVal));
       card.innerHTML = `<strong style="display:block">${s.name}</strong>
