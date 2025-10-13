@@ -1470,9 +1470,8 @@ function holdCompetitionModal(comp){
 
   // 在应用比赛结果后，若当前周已达到赛季末且尚未结算，则立即触发赛季结算（确保最终比赛结果被纳入结算）
   try{
-    if(game.week >= SEASON_WEEKS && !game.seasonEndTriggered){
+    if(game.week > SEASON_WEEKS && !game.seasonEndTriggered){
       console.debug(game.week + "结束");
-      // 使用新的统一结局触发函数
       triggerGameEnding('赛季结束');
     }
   }catch(e){ console.error('post-competition season-end check failed', e); }
