@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>天赋与等级颜色演示</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    body{padding:24px;font-family: "PingFang SC","Microsoft YaHei",Arial,Helvetica,sans-serif;background:#fbfdfe}
+    h2{margin-top:20px}
+    .demo-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:8px 0}
+    .demo-section{background:#fff;padding:12px;border-radius:10px;border:1px solid #eef4f6;max-width:1100px}
+    .demo-label{width:140px;font-weight:700;color:#334155}
+    .note{font-size:13px;color:#64748b}
+  </style>
+</head>
+<body>
+  <h1>天赋 & 等级 颜色演示</h1>
+  <p class="note">此页面引用项目根目录下的 <code>styles.css</code>，用于展示 `.talent-tag` 与 `.kb[data-grade]` 的颜色映射（含 Ux 阶段）。</p>
+
+  <div class="demo-section">
+    <h2>天赋（talent-tag）示例</h2>
+    <div class="demo-row">
+      <!-- 示例天赋，script.js 会生成类似结构。颜色通常内联 style 中设置，但我们展示默认类样式 -->
+      <span class="talent-tag" data-talent="悟性" style="background-color:#2b6cb020;color:#2b6cb0;border-color:#2b6cb040">悟性<span class="talent-tooltip">示例天赋</span></span>
+      <span class="talent-tag" data-talent="编程" style="background-color:#d9770620;color:#d97706;border-color:#d9770640">编程<span class="talent-tooltip">示例天赋</span></span>
+      <span class="talent-tag" data-talent="抗压" style="background-color:#38a16920;color:#38a169;border-color:#38a16940">抗压<span class="talent-tooltip">示例天赋</span></span>
+      <span class="talent-tag" data-talent="速算" style="background-color:#805ad520;color:#805ad5;border-color:#805ad540">速算<span class="talent-tooltip">示例天赋</span></span>
+    </div>
+  </div>
+
+  <div class="demo-section">
+    <h2>知识/能力等级（.kb[data-grade]）示例</h2>
+    <p class="note">每个徽章使用 `data-grade` 属性来触发对应颜色规则。</p>
+
+    <div class="demo-row">
+      <div class="demo-label">E（示例：数据E）</div>
+      <span class="kb" data-grade="E">数据E</span>
+      <span class="kb" data-grade="E">图论E</span>
+      <span class="kb" data-grade="E">字串E</span>
+    </div>
+
+    <div class="demo-row">
+      <div class="demo-label">D / D+</div>
+      <span class="kb" data-grade="D">代码D</span>
+      <span class="kb" data-grade="D+">代码D+</span>
+    </div>
+
+    <div class="demo-row">
+      <div class="demo-label">C</div>
+      <span class="kb" data-grade="C">思维C</span>
+      <span class="kb" data-grade="C">思维C</span>
+    </div>
+
+    <div class="demo-row">
+      <div class="demo-label">B</div>
+      <span class="kb" data-grade="B">样例B</span>
+    </div>
+
+    <div class="demo-row">
+      <div class="demo-label">A</div>
+      <span class="kb" data-grade="A">优秀A</span>
+    </div>
+
+    <div class="demo-row">
+      <div class="demo-label">S / SS / SSS</div>
+      <span class="kb" data-grade="S">S</span>
+      <span class="kb" data-grade="SS">SS</span>
+      <span class="kb" data-grade="SSS">SSS</span>
+    </div>
+
+    <div class="demo-row">
+      <div class="demo-label">Ux 阶段（示例 U1, Ux）</div>
+      <span class="kb" data-grade="U1">U1</span>
+      <span class="kb" data-grade="Ux">Ux</span>
+    </div>
+
+    <div class="demo-row">
+      <div class="demo-label">无等级（fallback）</div>
+      <span class="kb">默认</span>
+    </div>
+  </div>
+
+  <div style="margin-top:18px" class="note">打开本文件即可在浏览器中查看效果：<strong>双击</strong> 或在浏览器中打开此路径。</div>
+</body>
+</html>

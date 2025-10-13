@@ -52,41 +52,238 @@ footer{margin-top:16px;text-align:center;color:var(--muted)}
 .diff-provincial{background:#faf5ff;color:#6b21a8;border:1px solid rgba(107,33,168,0.12)} /* 省选 / NOI-：紫色字体 */
 .diff-noi{background:#f5f5f5;color:#0f172a;border:1px solid rgba(15,23,42,0.06)} /* NOI/NOI+/CTSC：黑色字体 */
 .status-row{display:flex;gap:12px;flex-wrap:wrap}
-.student-box{border:1px solid #eee;padding:6px;border-radius:6px;background:#fff}
-.student-box{position:relative;padding-top:24px}
-.evict-btn{
-	position:absolute;
-	top:3px;
-	right:3px;
-	background:#e53e3e;
-	color:#fff;
-	border:none;
-	padding:2px 6px;
-	border-radius:4px;
-	font-size:10px;
-	cursor:pointer;
-	z-index:2;
-	box-shadow:0 1px 3px rgba(0,0,0,0.06);
+/* ========== 优化后的学生卡片样式（紧凑横条布局） ========== */
+.student-box {
+  position: relative;
+  border: 1px solid #e5e7eb;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #ffffff 0%, #f9fafb 100%);
+  margin-bottom: 8px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
-.evict-btn:disabled{opacity:.5;cursor:not-allowed}
+
+.student-box:hover {
+  box-shadow: 0 3px 8px rgba(0,0,0,0.08);
+  transform: translateY(-1px);
+  border-color: #cbd5e0;
+}
+
+/* 劝退按钮 - 紧凑设计 */
+.evict-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: linear-gradient(135deg, #fc8181 0%, #e53e3e 100%);
+  color: #fff;
+  border: none;
+  padding: 3px 8px;
+  border-radius: 5px;
+  font-size: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  z-index: 2;
+  box-shadow: 0 1px 3px rgba(229,62,62,0.2);
+  transition: all 0.2s ease;
+  opacity: 0;
+}
+
+.student-box:hover .evict-btn {
+  opacity: 1;
+}
+
+.evict-btn:hover {
+  background: linear-gradient(135deg, #e53e3e 0%, #c53030 100%);
+  box-shadow: 0 2px 6px rgba(229,62,62,0.3);
+  transform: scale(1.05);
+}
+
+.evict-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* 学生卡片头部 - 紧凑横向布局 */
+.student-box .student-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-right: 50px; /* 为劝退按钮留空间 */
+}
+
+.student-box .student-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: #1a202c;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.student-box .student-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+/* 压力标签 - 紧凑设计 */
+.label-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 10px;
+  background: #f3f4f6;
+  color: #4a5568;
+  font-size: 11px;
+  font-weight: 600;
+  border: 1px solid rgba(0,0,0,0.05);
+}
+
+.label-pill.pressure-low {
+  background: transparent !important;
+  border-color: transparent !important;
+  color: #22543d !important; /* 绿色文字 */
+  padding: 0 4px !important;
+}
+
+.label-pill.pressure-mid {
+  background: transparent !important;
+  border-color: transparent !important;
+  color: #bfa100 !important; /* 黄色文字 */
+  padding: 0 4px !important;
+}
+
+.label-pill.pressure-high {
+  background: transparent !important;
+  border-color: transparent !important;
+  color: #c62828 !important; /* 红色文字 */
+  padding: 0 4px !important;
+}
+
+/* 生病状态警告 */
+.warn {
+  color: #e53e3e;
+  font-weight: 700;
+  font-size: 11px;
+  background: #fff5f5;
+  padding: 2px 6px;
+  border-radius: 6px;
+  border: 1px solid #feb2b2;
+}
 .score{font-weight:700}
 .compact{font-size:13px}
 .stars{color:#d97706}
 table{width:100%;border-collapse:collapse}
 th,td{padding:6px;border:1px solid #eee;text-align:center}
-.label-pill{display:inline-block;padding:4px 8px;border-radius:999px;background:#f3f4f6;color:#111;font-size:13px}
-.label-pill.pressure-low{background:#e0f7fa;color:#00796b}
-.label-pill.pressure-mid{background:#fff9c4;color:#bfa100}
-.label-pill.pressure-high{background:#ffebee;color:#c62828}
+.label-pill{display:inline-block;padding:0 4px;border-radius:4px;background:transparent;color:#111;font-size:13px}
+.label-pill.pressure-low{background:transparent;color:#22543d}
+.label-pill.pressure-mid{background:transparent;color:#bfa100}
+.label-pill.pressure-high{background:transparent;color:#c62828}
 .highlight-next-comp{background: #fffde7; color: #d84315; padding: 2px 6px; border-radius: 5px; font-weight: bold}
 .next-panel{margin-top:8px;padding:8px;border-radius:6px}
-.knowledge-badges { display:inline-flex; gap:6px; align-items:center; }
-.knowledge-badges .kb { display:inline-block; min-width:26px; padding:2px 6px; border-radius:4px; background:#f0f0f0; color:#333; font-weight:600; font-size:11px; text-align:center; border:1px solid rgba(0,0,0,0.06); }
-.knowledge-badges .kb[title] { cursor:default; }
-.next-panel.normal{background:#fff;border:1px solid #eee}
-.next-panel.highlight{background:#fffde7;border:1px solid #ffd29b}
-.knowledge-badges .kb:hover { background:#e7f5ff; border-color:#90cdf4; }
-.kb-small { min-width:20px; padding:1px 4px; font-size:11px; }
+/* 知识点徽章 - 紧凑横向布局 */
+.knowledge-badges {
+  display: inline-flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin: 0;
+}
+
+.knowledge-badges .kb {
+  display: inline-flex;
+  align-items: center;
+  min-width: 26px;
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: linear-gradient(135deg, #edf2f7 0%, #e2e8f0 100%);
+  color: #2d3748;
+  font-weight: 700;
+  font-size: 10px;
+  text-align: center;
+  border: 1px solid #cbd5e0;
+  transition: all 0.12s ease;
+  cursor: help;
+  position: relative;
+}
+
+.knowledge-badges .kb:hover {
+  background: linear-gradient(135deg, #bee3f8 0%, #90cdf4 100%);
+  border-color: #4299e1;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(66, 153, 225, 0.12);
+  z-index: 1;
+}
+
+/* 知识点等级颜色 */
+.knowledge-badges .kb[data-grade="S"],
+.knowledge-badges .kb[data-grade="A"] {
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  border-color: #f59e0b;
+  color: #78350f;
+}
+
+.knowledge-badges .kb[data-grade="B"],
+.knowledge-badges .kb[data-grade="C"] {
+  background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+  border-color: #60a5fa;
+  color: #1e3a8a;
+}
+
+.knowledge-badges .kb[data-grade="D"],
+.knowledge-badges .kb[data-grade="E"] {
+  background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+  border-color: #d1d5db;
+  color: #6b7280;
+}
+
+.kb-small {
+  min-width: 22px;
+  padding: 2px 5px;
+  font-size: 10px;
+}
+
+/* 能力徽章：已使用 .knowledge-badges .kb 的紧凑样式，无需单独定义 */
+
+/* 能力指标分组 - 紧凑横向布局 */
+.ability-group {
+  display: inline-flex;
+  gap: 10px;
+  align-items: center;
+  padding: 0;
+  margin: 0;
+}
+
+.ability-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 12px;
+  color: #4a5568;
+}
+
+.ability-item .label {
+  font-weight: 600;
+  color: #2d3748;
+}
+
+.ability-item .value {
+  font-weight: 700;
+  color: #2b6cb0;
+  background: #e6f2ff;
+  padding: 2px 6px;
+  border-radius: 5px;
+  border: 1px solid #bee3f8;
+}
 
 /* 结局高亮与动画样式 */
 .ending-highlight{font-weight:800;color:#d84315;display:inline-block;padding:4px 8px;border-radius:6px}
@@ -420,6 +617,211 @@ body.comp-week .action-cards .action-card:not(#comp-only-action) {
   transform: translateX(-50%) translateY(-8px);
 }
 
+/* 强制移除天赋标签的颜色差异（覆盖 script.js 中的内联 style）
+   目的是：天赋标签保持中性外观，只保留等级徽章（.kb[data-grade]）的颜色语义。
+*/
+.talent-tag {
+  background: #f3f4f6 !important;
+  color: #1f2937 !important;
+  border-color: rgba(30,41,59,0.06) !important;
+  box-shadow: none !important;
+}
+
+/* ========== 学生卡片折叠与交互增强 ========== */
+/* 学生卡片折叠功能 */
+.student-box .collapse-toggle {
+  position: absolute;
+  bottom: 8px;
+  right: 10px;
+  background: transparent;
+  border: 1px solid #cbd5e0;
+  color: #718096;
+  padding: 4px 12px;
+  border-radius: 6px;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-weight: 600;
+}
+
+.student-box .collapse-toggle:hover {
+  background: #edf2f7;
+  border-color: #a0aec0;
+  color: #2d3748;
+}
+
+.student-box.collapsed .student-details {
+  display: none;
+}
+
+.student-box.collapsed {
+  padding-bottom: 12px;
+}
+
+/* 添加收起状态的提示 */
+.student-box.collapsed::after {
+  content: '点击展开详情';
+  position: absolute;
+  bottom: 8px;
+  left: 16px;
+  font-size: 11px;
+  color: #a0aec0;
+  font-style: italic;
+}
+
+/* 学生卡片内容区域 */
+.student-box .student-details {
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 分隔线样式 */
+.student-divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, #e5e7eb 20%, #e5e7eb 80%, transparent);
+  margin: 10px 0;
+}
+
+/* 学生卡片信息行 */
+.student-info-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0;
+  font-size: 13px;
+}
+
+.student-info-row .info-label {
+  font-weight: 600;
+  color: #4a5568;
+  min-width: 60px;
+}
+
+.student-info-row .info-value {
+  color: #2d3748;
+  flex: 1;
+}
+
+/* 旧的能力组样式已移除；能力现在作为知识徽章的一部分显示 */
+
+/* 紧凑模式样式优化 */
+.compact {
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+/* 学生列表 - 保持垂直堆叠 */
+#student-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* 小屏幕优化 */
+@media (max-width: 767px) {
+  .student-box {
+    padding: 8px 10px;
+  }
+  
+  .student-details {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 8px !important;
+  }
+  
+  .knowledge-badges {
+    gap: 3px;
+  }
+  
+  .knowledge-badges .kb {
+    padding: 2px 5px;
+    font-size: 10px;
+  }
+}
+
+/* === 颜色规则：按等级 & Ux 阶段的语义色 === */
+/* 默认中性外观（无等级信息时使用） */
+.knowledge-badges .kb,
+.kb,
+.tag,
+.label-pill,
+.talent-tag,
+.diff-tag {
+  background: #f3f4f6;
+  color: #1f2937;
+  border-color: rgba(30,41,59,0.06);
+  box-shadow: none;
+}
+
+/* E -> A -> SSS 色阶（蓝 -> 绿 -> 金）
+   支持带 +/- 或多重 S（例如 D+、SS、SSS）匹配 */
+.knowledge-badges .kb[data-grade="E"], .kb[data-grade="E"] {
+  background: linear-gradient(135deg,#eff6ff 0%, #dbeafe 100%);
+  color: #1e3a8a;
+  border-color: rgba(37,99,235,0.14);
+}
+.knowledge-badges .kb[data-grade^="D"], .kb[data-grade^="D"] {
+  /* D, D+ 等：偏青绿色 */
+  background: linear-gradient(135deg,#e6f9fb 0%, #ccf0ef 100%);
+  color: #0f766e;
+  border-color: rgba(6,182,212,0.14);
+}
+.knowledge-badges .kb[data-grade="C"], .kb[data-grade="C"] {
+  background: linear-gradient(135deg,#ecfdf5 0%, #bbf7d0 100%);
+  color: #166534;
+  border-color: rgba(16,163,127,0.12);
+}
+.knowledge-badges .kb[data-grade="B"], .kb[data-grade="B"] {
+  background: linear-gradient(135deg,#fff7ed 0%, #ffe7c2 100%);
+  color: #92400e;
+  border-color: rgba(217,119,6,0.12);
+}
+.knowledge-badges .kb[data-grade="A"], .kb[data-grade="A"] {
+  background: linear-gradient(135deg,#fffaf0 0%, #fff1cc 100%);
+  color: #7c4a02;
+  border-color: rgba(183,121,0,0.16);
+}
+.knowledge-badges .kb[data-grade^="S"], .kb[data-grade^="S"] {
+  /* S, SS, SSS：金色系 */
+  background: linear-gradient(135deg,#fff8e1 0%, #ffefb3 100%);
+  color: #6b3e00;
+  border-color: rgba(183,121,0,0.18);
+}
+
+/* Ux 阶段：以 U 开头的等级使用固定高饱和度浅青色 */
+.knowledge-badges .kb[data-grade^="U"], .kb[data-grade^="U"] {
+  background: linear-gradient(135deg,#bffcfb 0%, #9ef6f0 100%);
+  color: #044e54;
+  border-color: rgba(3,166,166,0.18);
+}
+
+/* hover 保持轻微上浮，但不使用强烈色彩覆盖 */
+.knowledge-badges .kb:hover,
+.kb:hover,
+.talent-tag:hover,
+.tag:hover {
+  transform: translateY(-1px);
+}
+
+/* 保持 diff-* 中性（可单独定制），避免覆盖知识徽章语义色 */
+.diff-beginner, .diff-popular-low, .diff-popular-high, .diff-advanced-low, .diff-provincial, .diff-noi {
+  background: #f3f4f6;
+  color: #1f2937;
+  border-color: rgba(30,41,59,0.06);
+}
+
+/* 小尺寸徽章紧凑 */
+.knowledge-badges .kb, .kb-small { padding: 2px 6px; font-size: 10px; }
 
 
 

@@ -386,22 +386,46 @@ function renderAll(){
       }).join('');
     }
     
-    out += `<div class="student-box" style="margin-bottom:6px">
+    out += `<div class="student-box">
       <button class="evict-btn" data-idx="${game.students.indexOf(s)}" title="劝退">劝退</button>
-      <div style="display:flex;justify-content:space-between;align-items:center">
-        <div><strong>${s.name}</strong> ${s.sick_weeks>0?'<span class="warn">[生病]</span>':''} <span class="label-pill ${pressureClass}">压力:${pressureLevel}</span></div>
+      
+      <div class="student-header">
+        <div class="student-name">
+          ${s.name}
+          ${s.sick_weeks > 0 ? '<span class="warn">[生病]</span>' : ''}
+        </div>
+        <div class="student-status">
+          <span class="label-pill ${pressureClass}">压力: ${pressureLevel}</span>
+        </div>
       </div>
-      <div class="compact small" style="margin-top:3px">
-        知识: <span class="knowledge-badges">
-          <span class="kb" title="数据结构: ${Math.floor(Number(s.knowledge_ds||0))}">数据结构${getLetterGrade(Math.floor(Number(s.knowledge_ds||0)))}</span>
-          <span class="kb" title="图论: ${Math.floor(Number(s.knowledge_graph||0))}">图论${getLetterGrade(Math.floor(Number(s.knowledge_graph||0)))}</span>
-          <span class="kb" title="字符串: ${Math.floor(Number(s.knowledge_string||0))}">字符串${getLetterGrade(Math.floor(Number(s.knowledge_string||0)))}</span>
-          <span class="kb" title="数学: ${Math.floor(Number(s.knowledge_math||0))}">数学${getLetterGrade(Math.floor(Number(s.knowledge_math||0)))}</span>
-          <span class="kb" title="动态规划: ${Math.floor(Number(s.knowledge_dp||0))}">动态规划${getLetterGrade(Math.floor(Number(s.knowledge_dp||0)))}</span>
-        </span>
-        &nbsp;| 思维:${getLetterGradeAbility(Math.floor(Number(s.thinking||0)))} 代码:${getLetterGradeAbility(Math.floor(Number(s.coding||0)))}
+      
+      <div class="student-details" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+        <div style="display:flex;align-items:center;gap:6px;">
+          <span style="font-size:12px;color:#718096;font-weight:600;">知识</span>
+          <div class="knowledge-badges">
+            <span class="kb" title="数据结构: ${Math.floor(Number(s.knowledge_ds||0))}" data-grade="${getLetterGradeAbility(Math.floor(Number(s.knowledge_ds||0)))}">
+              数据${getLetterGradeAbility(Math.floor(Number(s.knowledge_ds||0)))}
+            </span>
+            <span class="kb" title="图论: ${Math.floor(Number(s.knowledge_graph||0))}" data-grade="${getLetterGradeAbility(Math.floor(Number(s.knowledge_graph||0)))}">
+              图论${getLetterGradeAbility(Math.floor(Number(s.knowledge_graph||0)))}
+            </span>
+            <span class="kb" title="字符串: ${Math.floor(Number(s.knowledge_string||0))}" data-grade="${getLetterGradeAbility(Math.floor(Number(s.knowledge_string||0)))}">
+              字串${getLetterGradeAbility(Math.floor(Number(s.knowledge_string||0)))}
+            </span>
+            <span class="kb" title="数学: ${Math.floor(Number(s.knowledge_math||0))}" data-grade="${getLetterGradeAbility(Math.floor(Number(s.knowledge_math||0)))}">
+              数学${getLetterGradeAbility(Math.floor(Number(s.knowledge_math||0)))}
+            </span>
+            <span class="kb" title="动态规划: ${Math.floor(Number(s.knowledge_dp||0))}" data-grade="${getLetterGradeAbility(Math.floor(Number(s.knowledge_dp||0)))}">
+              DP${getLetterGradeAbility(Math.floor(Number(s.knowledge_dp||0)))}
+            </span>
+            <!-- 直接追加能力徽章到知识徽章组，保持统一样式 -->
+            <span class="kb ability" title="思维: ${Math.floor(Number(s.thinking||0))}" data-grade="${getLetterGradeAbility(Math.floor(Number(s.thinking||0)))}">思维${getLetterGradeAbility(Math.floor(Number(s.thinking||0)))}</span>
+            <span class="kb ability" title="代码: ${Math.floor(Number(s.coding||0))}" data-grade="${getLetterGradeAbility(Math.floor(Number(s.coding||0)))}">代码${getLetterGradeAbility(Math.floor(Number(s.coding||0)))}</span>
+          </div>
+        </div>
+        
+        ${talentsHtml ? `<div style="display:flex;align-items:center;gap:6px;"><span style="font-size:12px;color:#718096;font-weight:600;">天赋</span><div class="student-talents">${talentsHtml}</div></div>` : ''}
       </div>
-      ${talentsHtml ? `<div class="student-talents" style="margin-top:6px">${talentsHtml}</div>` : ''}
     </div>`;
   }
   if(out==='') out = '<div class="muted">目前没有活跃学生</div>';

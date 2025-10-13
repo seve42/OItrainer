@@ -1,0 +1,328 @@
+/* ====================================
+   学生卡片UI改进 - 快速参考指南
+   ==================================== */
+
+/* 
+  📦 新增的CSS类和使用方法
+*/
+
+/* 1️⃣ 卡片整体样式 */
+.student-box {
+  /* 现在支持：
+     - 渐变背景
+     - 悬浮效果（上移2px + 阴影）
+     - 响应式网格布局
+  */
+}
+
+/* 2️⃣ 头部区域（姓名 + 状态） */
+.student-header {
+  /* 包含学生姓名和关键状态
+     - 自动flex布局
+     - 底部分隔线
+  */
+}
+
+.student-name {
+  /* 16px 粗体，视觉焦点 */
+}
+
+/* 3️⃣ 压力状态标签 */
+.label-pill {
+  /* 基础样式 */
+}
+
+.label-pill.pressure-low {
+  /* 绿色渐变 - 低压力 */
+}
+
+.label-pill.pressure-mid {
+  /* 黄色渐变 - 中压力 */
+}
+
+.label-pill.pressure-high {
+  /* 红色渐变 - 高压力 */
+}
+
+/* 4️⃣ 知识徽章系统 */
+.knowledge-badges .kb {
+  /* 现在支持：
+     - data-grade属性（S/A/B/C/D/E）
+     - 悬浮效果（上移 + 变色）
+     - 等级颜色自动映射
+  */
+}
+
+/* 使用示例：
+<span class="kb" data-grade="A" title="数据结构: 85">
+  数据A
+</span>
+*/
+
+.knowledge-badges .kb[data-grade="S"],
+.knowledge-badges .kb[data-grade="A"] {
+  /* 金色 - 优秀 */
+}
+
+.knowledge-badges .kb[data-grade="B"],
+.knowledge-badges .kb[data-grade="C"] {
+  /* 蓝色 - 良好 */
+}
+
+.knowledge-badges .kb[data-grade="D"],
+.knowledge-badges .kb[data-grade="E"] {
+  /* 灰色 - 需提升 */
+}
+
+/* 5️⃣ 能力指标组 */
+.ability-group {
+  /* 思维和代码能力的容器
+     - flex布局
+     - 顶部边框分隔
+  */
+}
+
+.ability-item {
+  /* 单个能力项
+     - 标签 + 数值
+  */
+}
+
+.ability-item .value {
+  /* 能力值样式
+     - 蓝色背景高亮
+  */
+}
+
+/* 6️⃣ 劝退按钮（优化版） */
+.evict-btn {
+  /* 现在特性：
+     - 默认隐藏（opacity: 0）
+     - 悬浮卡片时显示
+     - 红色渐变背景
+     - 悬浮时上移效果
+  */
+}
+
+/* 7️⃣ 分隔线 */
+.student-divider {
+  /* 水平渐变线
+     - 用于分隔天赋标签区域
+  */
+}
+
+/* 8️⃣ 折叠功能（可选扩展） */
+.student-box.collapsed {
+  /* 添加此类可折叠卡片
+     - 隐藏 .student-details
+     - 显示"点击展开详情"提示
+  */
+}
+
+/* 
+  🎨 颜色变量快速参考
+*/
+
+:root {
+  /* 主题色 */
+  --accent: #2b6cb0;        /* 蓝色 - 主色调 */
+  --bg: #f7f7f8;            /* 背景色 */
+  --card: #ffffff;          /* 卡片背景 */
+  --muted: #666;            /* 次要文字 */
+  
+  /* 状态色 */
+  --success: #38a169;       /* 成功/低压力 */
+  --warning: #f59e0b;       /* 警告/中压力 */
+  --danger: #e53e3e;        /* 危险/高压力 */
+  
+  /* 等级色 */
+  --grade-excellent: #fde68a;  /* S/A级 金色 */
+  --grade-good: #90cdf4;       /* B/C级 蓝色 */
+  --grade-fair: #e5e7eb;       /* D/E级 灰色 */
+}
+
+/* 
+  📱 响应式断点
+*/
+
+/* 桌面端：≥768px */
+@media (min-width: 768px) {
+  /* 学生列表使用网格布局
+     - 每行自适应列数
+     - 最小列宽320px
+  */
+}
+
+/* 移动端：<768px */
+@media (max-width: 767px) {
+  /* 单列布局
+     - 缩小间距
+     - 能力指标垂直排列
+  */
+}
+
+/* 
+  🔧 HTML结构模板
+*/
+
+/*
+<div class="student-box">
+  <button class="evict-btn">劝退</button>
+  
+  <div class="student-header">
+    <div class="student-name">
+      张三
+      <span class="warn">[生病]</span>
+    </div>
+    <div class="student-status">
+      <span class="label-pill pressure-low">压力: 低</span>
+    </div>
+  </div>
+  
+  <div class="student-details">
+    <div class="student-info-row">
+      <span class="info-label">知识点</span>
+      <div class="knowledge-badges">
+        <span class="kb" data-grade="A" title="数据结构: 85">数据A</span>
+        <span class="kb" data-grade="B" title="图论: 75">图论B</span>
+        <!-- 更多知识点... -->
+      </div>
+    </div>
+    
+    <div class="ability-group">
+      <div class="ability-item">
+        <span class="label">思维</span>
+        <span class="value">A</span>
+      </div>
+      <div class="ability-item">
+        <span class="label">代码</span>
+        <span class="value">B</span>
+      </div>
+    </div>
+    
+    <div class="student-divider"></div>
+    <div class="student-talents">
+      <span class="talent-tag">天赋标签</span>
+    </div>
+  </div>
+</div>
+*/
+
+/* 
+  ⚡ JavaScript集成建议
+*/
+
+/*
+// 动态添加等级属性
+function renderKnowledgeBadge(subject, score) {
+  const grade = getLetterGrade(score);
+  return `
+    <span class="kb" 
+          data-grade="${grade}" 
+          title="${subject}: ${score}">
+      ${subject}${grade}
+    </span>
+  `;
+}
+
+// 折叠/展开切换
+document.querySelectorAll('.student-box').forEach(box => {
+  box.addEventListener('click', (e) => {
+    if (!e.target.closest('.evict-btn')) {
+      box.classList.toggle('collapsed');
+    }
+  });
+});
+
+// 按压力排序
+function sortStudentsByPressure() {
+  const list = document.getElementById('student-list');
+  const boxes = [...list.querySelectorAll('.student-box')];
+  boxes.sort((a, b) => {
+    const pressureA = a.querySelector('.label-pill').textContent;
+    const pressureB = b.querySelector('.label-pill').textContent;
+    // 实现排序逻辑...
+  });
+  boxes.forEach(box => list.appendChild(box));
+}
+*/
+
+/* 
+  💡 使用技巧
+*/
+
+// 1. 简化知识点名称，节省空间
+//    "数据结构" → "数据"
+//    "动态规划" → "DP"
+
+// 2. 使用data-grade属性自动应用颜色
+//    无需手动设置background-color
+
+// 3. 利用Grid布局自动适应屏幕宽度
+//    无需手动计算列数
+
+// 4. 劝退按钮默认隐藏，减少视觉干扰
+//    仅在需要时（悬浮）显示
+
+// 5. 添加过渡动画提升交互体验
+//    所有变化都有0.2-0.3s的平滑过渡
+
+/* 
+  ❓ 常见问题
+*/
+
+// Q: 如何修改卡片颜色？
+// A: 修改:root中的CSS变量，全局生效
+
+// Q: 如何禁用悬浮效果？
+// A: 移除.student-box:hover样式
+
+// Q: 如何实现折叠功能？
+// A: 为.student-box添加.collapsed类
+
+// Q: 如何调整卡片宽度？
+// A: 修改@media查询中的minmax(320px, 1fr)
+
+// Q: 如何添加更多知识点？
+// A: 在.knowledge-badges中添加更多.kb元素
+//    建议不超过6个，避免拥挤
+
+/* 
+  🎯 性能优化建议
+*/
+
+// 1. 使用CSS动画而非JS动画
+//    - 更流畅
+//    - GPU加速
+
+// 2. 避免频繁重排
+//    - 使用transform代替top/left
+//    - 批量DOM操作
+
+// 3. 图片/图标优化
+//    - 使用SVG图标
+//    - 延迟加载
+
+// 4. 减少阴影使用
+//    - 仅在必要时应用
+//    - 使用简单阴影
+
+/* 
+  🔄 版本历史
+*/
+
+// v1.0 (2025-10-13)
+// - 初始版本
+// - 重构卡片结构
+// - 添加渐变色系统
+// - 实现响应式布局
+// - 增强交互反馈
+
+/* 
+  📞 支持
+*/
+
+// 如有问题，请查看：
+// - UI-IMPROVEMENTS.md（完整设计文档）
+// - styles.css（完整样式代码）
+// - script.js（渲染逻辑）
