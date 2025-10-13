@@ -450,19 +450,19 @@ function renderAll(){
           <span style="font-size:12px;color:#718096;font-weight:600;">知识</span>
           <div class="knowledge-badges">
             <span class="kb" title="数据结构: ${Math.floor(Number(s.knowledge_ds||0))}" data-grade="${getLetterGradeAbility(Math.floor(Number(s.knowledge_ds||0)))}">
-              数据${getLetterGradeAbility(Math.floor(Number(s.knowledge_ds||0)))}
+              DS ${getLetterGradeAbility(Math.floor(Number(s.knowledge_ds||0)))}
             </span>
             <span class="kb" title="图论: ${Math.floor(Number(s.knowledge_graph||0))}" data-grade="${getLetterGradeAbility(Math.floor(Number(s.knowledge_graph||0)))}">
-              图论${getLetterGradeAbility(Math.floor(Number(s.knowledge_graph||0)))}
+              图论 ${getLetterGradeAbility(Math.floor(Number(s.knowledge_graph||0)))}
             </span>
             <span class="kb" title="字符串: ${Math.floor(Number(s.knowledge_string||0))}" data-grade="${getLetterGradeAbility(Math.floor(Number(s.knowledge_string||0)))}">
-              字串${getLetterGradeAbility(Math.floor(Number(s.knowledge_string||0)))}
+              字符串${getLetterGradeAbility(Math.floor(Number(s.knowledge_string||0)))}
             </span>
             <span class="kb" title="数学: ${Math.floor(Number(s.knowledge_math||0))}" data-grade="${getLetterGradeAbility(Math.floor(Number(s.knowledge_math||0)))}">
-              数学${getLetterGradeAbility(Math.floor(Number(s.knowledge_math||0)))}
+              数学 ${getLetterGradeAbility(Math.floor(Number(s.knowledge_math||0)))}
             </span>
             <span class="kb" title="动态规划: ${Math.floor(Number(s.knowledge_dp||0))}" data-grade="${getLetterGradeAbility(Math.floor(Number(s.knowledge_dp||0)))}">
-              DP${getLetterGradeAbility(Math.floor(Number(s.knowledge_dp||0)))}
+              DP ${getLetterGradeAbility(Math.floor(Number(s.knowledge_dp||0)))}
             </span>
             <!-- 直接追加能力徽章到知识徽章组，保持统一样式 -->
             <span class="kb ability" title="思维: ${Math.floor(Number(s.thinking||0))}" data-grade="${getLetterGradeAbility(Math.floor(Number(s.thinking||0)))}">思维${getLetterGradeAbility(Math.floor(Number(s.thinking||0)))}</span>
