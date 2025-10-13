@@ -2567,22 +2567,26 @@ function renderEndSummary(){
       timelineHtml += `<div style="margin-top:12px"><h4>📅 时间轴进度</h4></div>`;
       timelineHtml += `<div style="margin-top:8px;padding:12px;background:#f9f9f9;border-radius:8px">`;
       
-      // 构建比赛数据（从常量或保存的数据中获取）
-      const competitions = [
-        { name: 'CSP-S1', week: 6 },
-        { name: 'CSP-S2', week: 10 },
-        { name: 'NOIP', week: 14 },
-        { name: '省选', week: 18 },
-        { name: 'NOI', week: 22 },
-        { name: 'CSP-S1', week: 26 },
-        { name: 'CSP-S2', week: 30 },
-        { name: 'NOIP', week: 34 },
-        { name: '省选', week: 38 },
-        { name: 'NOI', week: 42 }
-      ];
-      
+      // 构建比赛数据：优先使用全局已缩放的 window.competitions（由 models.js 生成），
+      // 否则回退到内置默认赛程（向后兼容）。使用全局数据可保证周数与游戏实际赛季长度一致，
+      // 避免因手动硬编码而导致的“周数缩放”显示错误（显示为实际周数/2 等问题）。
+      const competitions = (typeof window !== 'undefined' && Array.isArray(window.competitions) && window.competitions.length > 0)
+        ? window.competitions.slice().sort((a, b) => a.week - b.week)
+        : [
+          { name: 'CSP-S1', week: 6 },
+          { name: 'CSP-S2', week: 10 },
+          { name: 'NOIP', week: 14 },
+          { name: '省选', week: 18 },
+          { name: 'NOI', week: 22 },
+          { name: 'CSP-S1', week: 26 },
+          { name: 'CSP-S2', week: 30 },
+          { name: 'NOIP', week: 34 },
+          { name: '省选', week: 38 },
+          { name: 'NOI', week: 42 }
+        ];
+
       // 计算实际最大周数：取当前周数和最后一个比赛周数中的较大值，至少为40
-      const lastCompWeek = Math.max(...competitions.map(c => c.week));
+      const lastCompWeek = competitions.length ? Math.max(...competitions.map(c => Number(c.week) || 0)) : 0;
       const maxWeeks = Math.max(week, lastCompWeek, typeof SEASON_WEEKS !== 'undefined' ? SEASON_WEEKS : 40);
       
       // 计算进度百分比（基于动态的maxWeeks）
@@ -2652,10 +2656,26 @@ function renderEndSummary(){
     setTimeout(() => {
       const finalEnding = calculateFinalEnding(o, endingReason);
       const endingEl = document.getElementById('ending-text');
+      const container = document.getElementById('ending-result');
+      const descText = mapEndingToDescription(finalEnding);
       if(endingEl) {
         endingEl.textContent = finalEnding;
         endingEl.classList.add('ending-animate');
         setTimeout(() => endingEl.classList.remove('ending-animate'), 2500);
+      }
+      if(container) {
+        let descEl = document.getElementById('ending-desc');
+        if(!descEl){
+          descEl = document.createElement('div');
+          descEl.id = 'ending-desc';
+          descEl.style.marginTop = '8px';
+          descEl.style.color = '#0d47a1';
+          descEl.style.fontSize = '14px';
+          descEl.style.lineHeight = '1.4';
+          descEl.className = 'small muted';
+          container.appendChild(descEl);
+        }
+        descEl.textContent = descText;
       }
     }, 500);
     
@@ -2718,6 +2738,18 @@ function calculateFinalEnding(gameData, endingReason) {
     console.error('calculateFinalEnding error:', e);
     return "❓ 未知结局";
   }
+}
+
+// 根据结局标题返回约50字的短描述
+function mapEndingToDescription(endingTitle){
+  const map = {
+    '💸 经费耗尽结局': '项目经费枯竭，无法继续运作。研究与招生被迫停摆，学校的信息学团队被迫解散，曾经的努力戛然而止。',
+    '🌟 荣耀结局': '队伍取得辉煌胜利，获国NOI金牌，你也因此成为金牌教练，学校声誉大增，学生与导师名声大振，未来发展与资源扶持接踵而至。',
+    '😵 崩溃结局': '管理失误，团队陷入混乱，学生因为高压管理训练接连AFO，与赛事缺乏支撑，最终不得不终止项目。',
+    '💼 普通结局': '项目平稳结束，虽无惊艳成就但积累了经验，信息学团队平庸地继续发展。',
+    '❓ 未知结局': '结局信息不完整或读取异常，无法判定具体结果。请检查存档或重放以获得正确结算。'
+  };
+  return map[endingTitle] || '这是一个结局的简短描述，概述项目在赛季结束时的主要走向与影响。';
 }
 
 /* initGame 逻辑（与 C++ 一致） */
