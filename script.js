@@ -43,24 +43,29 @@ function log(msg){
   else { console.log(text); }
 }
 
-// 难度数值到标签的映射
-// 返回 HTML 字符串：带有 .diff-tag 和额外级别类
+// 难度数值到标签的映射（更新为 7 个颜色等级：红/橙/黄/绿/蓝/紫/黑）
+// 返回 HTML 字符串：带有 .diff-tag 和额外级别类（兼容旧的 diff-* 类）
 function renderDifficultyTag(diff){
   // 传入的 diff 可能为 0-100 的数值
   const d = Number(diff) || 0;
-  // 根据需求分段并返回对应文字与 class
-  // （入门）红色字体 （普及-）橙色字体 （普及+提高）黄色字体 （提高+省选-）蓝色字体（省选 NOI-）紫色字体 （NOI/NOI+/CTSC）黑色字体
+  // 将 0-100 划分为 7 个区间：0-14,15-29,30-44,45-59,60-74,75-89,90-100
+  // 并为每个区间返回一个语义标签与颜色类（diff-red, diff-orange, diff-yellow, diff-green, diff-blue, diff-purple, diff-black）
   let label = '';
   let cls = '';
-  if(d <= 24){ label = '入门'; cls = 'diff-beginner'; }
-  else if(d <= 34){ label = '普及-'; cls = 'diff-popular-low'; }
-  else if(d <= 44){ label = '普及+提高'; cls = 'diff-popular-high'; }
-  else if(d <= 64){ label = '提高+省选-'; cls = 'diff-advanced-low'; }
-  else if(d <= 79){ label = '省选/NOI-'; cls = 'diff-provincial'; }
-  else { label = 'NOI/NOI+/CTSC'; cls = 'diff-noi'; }
+  if(d <= 14){ label = '入门'; cls = 'diff-red'; }
+  else if(d <= 39){ label = '普及-'; cls = 'diff-orange'; }
+  else if(d <= 54){ label = '普及/提高-'; cls = 'diff-yellow'; }
+  else if(d <= 79){ label = '普及+/提高'; cls = 'diff-green'; }
+  else if(d <= 94){ label = '提高+/省选-'; cls = 'diff-blue'; }
+  else if(d <= 110){ label = '省选/NOI-'; cls = 'diff-purple'; }
+  else { label = 'NOI+/CTSC'; cls = 'diff-black'; }
 
-  // 包装为带背景的 tag
-  return `<span class="tag diff-tag ${cls}" title="难度: ${d}">${label}</span>`;
+  // 兼容旧的 class 名称：同时保留原有类别映射（以便其他地方可能使用旧类名）
+  // 额外附加原有 class 名称以便向后兼容
+  const legacy = (d <= 24) ? 'diff-beginner' : (d <= 34) ? 'diff-popular-low' : (d <= 44) ? 'diff-popular-high' : (d <= 64) ? 'diff-advanced-low' : (d <= 79) ? 'diff-provincial' : 'diff-noi';
+
+  // 包装为带背景的 tag（移除 .tag 类以避免被通用样式覆盖）
+  return `<span class="diff-tag ${cls} ${legacy}" title="难度: ${d}">${label}</span>`;
 }
 
 // 安全渲染：仅在页面具备主 UI 元素时调用 renderAll，避免在测试页面（缺少元素）时抛错

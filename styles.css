@@ -53,6 +53,15 @@ footer{margin-top:16px;text-align:center;color:var(--muted)}
 .diff-advanced-low{background:#f0f8ff;color:#2563eb;border:1px solid rgba(37,99,235,0.12)} /* 提高+省选-：蓝色字体 */
 .diff-provincial{background:#faf5ff;color:#6b21a8;border:1px solid rgba(107,33,168,0.12)} /* 省选 / NOI-：紫色字体 */
 .diff-noi{background:#f5f5f5;color:#0f172a;border:1px solid rgba(15,23,42,0.06)} /* NOI/NOI+/CTSC：黑色字体 */
+
+/* 新增：七色难度语义类（红/橙/黄/绿/蓝/紫/黑） */
+.diff-red{background: #fff0f0; color: #c53030; border: 1px solid rgba(197,48,48,0.12)}
+.diff-orange{background: #fff7ed; color: #d97706; border: 1px solid rgba(217,119,6,0.12)}
+.diff-yellow{background: #fffbe6; color: #b77900; border: 1px solid rgba(183,121,0,0.12)}
+.diff-green{background: #f0fff4; color: #2f855a; border: 1px solid rgba(47,133,90,0.12)}
+.diff-blue{background: #f0f8ff; color: #2563eb; border: 1px solid rgba(37,99,235,0.12)}
+.diff-purple{background: #faf5ff; color: #6b21a8; border: 1px solid rgba(107,33,168,0.12)}
+.diff-black{background: #f5f5f5; color: #0f172a; border: 1px solid rgba(15,23,42,0.06)}
 .status-row{display:flex;gap:12px;flex-wrap:wrap}
 /* ========== 优化后的学生卡片样式（紧凑横条布局） ========== */
 .student-box {
@@ -775,8 +784,7 @@ body.comp-week .action-cards .action-card:not(#comp-only-action) {
 .kb,
 .tag,
 .label-pill,
-.talent-tag,
-.diff-tag {
+.talent-tag {
   background: #f3f4f6;
   color: #1f2937;
   border-color: rgba(30,41,59,0.06);
@@ -833,12 +841,13 @@ body.comp-week .action-cards .action-card:not(#comp-only-action) {
   transform: translateY(-1px);
 }
 
-/* 保持 diff-* 中性（可单独定制），避免覆盖知识徽章语义色 */
+/* 注释掉：这个规则会覆盖难度标签的颜色，导致所有难度标签显示为灰色
 .diff-beginner, .diff-popular-low, .diff-popular-high, .diff-advanced-low, .diff-provincial, .diff-noi {
   background: #f3f4f6;
   color: #1f2937;
   border-color: rgba(30,41,59,0.06);
 }
+*/
 
 /* 小尺寸徽章紧凑 */
 .knowledge-badges .kb, .kb-small { padding: 2px 6px; font-size: 10px; }
