@@ -102,6 +102,14 @@ function pushEvent(msg){
   renderEventCards();
 }
 
+// 弱化人数影响的缩放函数：可以统一控制人数带来的放大效果
+// 当前实现使用 sqrt(n) 再向下取整，至少返回 1（避免零人数导致乘积为0的场景）
+function scaledPassCount(n){
+  n = Number(n) || 0;
+  if(n <= 0) return 0;
+  return Math.max(1, Math.floor(Math.sqrt(n)));
+}
+
 // ===== 状态快照与差异汇总工具 =====
 function __createSnapshot(){
   return {
@@ -1361,10 +1369,12 @@ function holdCompetitionModal(comp){
           else provinceCoef = 1.0;
         }catch(e){ provinceCoef = 1.0; }
 
-        const perPassMin = 8000;
-        const perPassMax = 20000;
-        const rand = uniformInt(perPassMin, perPassMax);
-        const grant = Math.round(pass_count * level * rand * provinceCoef);
+  // 弱化人数影响：使用开方缩放（sqrt），避免人数线性放大收益
+  const perPassMin = 8000;
+  const perPassMax = 20000;
+  const rand = uniformInt(perPassMin, perPassMax);
+  const effectivePassCount = scaledPassCount(pass_count);
+  const grant = Math.round(effectivePassCount * level * rand * provinceCoef);
         // idempotent: ensure grant only applied once per competition-week
         try{
           const halfIndexApply = (currWeek() > WEEKS_PER_HALF) ? 1 : 0;
@@ -1396,7 +1406,8 @@ function holdCompetitionModal(comp){
         game.budget += reward;
         game.had_good_result_recently = true;
         game.weeks_since_good_result = 0;
-        game.teaching_points += 5 * (gold + silver);
+  // 弱化人数对教学点的影响，使用开方缩放
+  game.teaching_points += 5 * scaledPassCount(gold + silver);
       }
     } else if(comp.name==="NOIP"){
       if(pass_count>0){
@@ -1406,7 +1417,8 @@ function holdCompetitionModal(comp){
         game.budget += reward;
         game.had_good_result_recently = true;
         game.weeks_since_good_result = 0;
-        game.teaching_points += 5 * pass_count;
+  // 弱化人数对教学点的影响，使用开方缩放
+  game.teaching_points += 5 * scaledPassCount(pass_count);
         // 重置模拟赛/正式赛阻塞状态
         game.mockBlockedThisYear = false;
         game.mockBlockedReason = "";
