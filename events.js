@@ -151,11 +151,11 @@
       });
 
       
-      // 金牌教练来访
-      this.register({
-        id: 'gold_coach_visit',
-        name: '金牌教练来访',
-  description: '知名教练莅临指导，教学点增加，学生能力微增，压力微降',
+  // 金牌教练来访
+  this.register({
+    id: 'gold_coach_visit',
+    name: '金牌教练来访',
+  description: '知名教练莅临指导，学生能力微增，压力微降',
         check: c => {
           if (!(c.game && c.game.province_name)) return false;
           let prov = c.game.province_name;
@@ -165,7 +165,6 @@
           return c.game.reputation > 70 && ['北京','上海','江苏','浙江','广东','山东','天津'].includes(prov) && Math.random() < 0.01;
         },
         run: c => {
-          c.game.teaching_points = (c.game.teaching_points || 0) + 10;
             for(const s of c.game.students){ if(!s || s.active === false) continue;
             s.thinking = (s.thinking||0) + c.utils.uniformInt(1,3);
             s.coding   = (s.coding  ||0) + c.utils.uniformInt(1,3);
@@ -173,7 +172,7 @@
             s.pressure = Math.max(0,   oldP - c.utils.uniformInt(1,3));
             try{ if(typeof s.triggerTalents === 'function'){ s.triggerTalents('pressure_change', { source: 'coach_visit', amount: s.pressure - oldP }); } }catch(e){ console.error('triggerTalents pressure_change', e); }
           }
-          const msg = `金牌教练来访，教学点 +10，学生能力微增，压力微降`;
+          const msg = `金牌教练来访，学生能力微增，压力微降`;
           c.log && c.log(`[金牌教练] ${msg}`);
           window.pushEvent && window.pushEvent({ name:'金牌教练来访', description: msg, week: c.game.week });
           return msg;

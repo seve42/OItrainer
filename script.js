@@ -1406,8 +1406,6 @@ function holdCompetitionModal(comp){
         game.budget += reward;
         game.had_good_result_recently = true;
         game.weeks_since_good_result = 0;
-  // 弱化人数对教学点的影响，使用开方缩放
-  game.teaching_points += 5 * scaledPassCount(gold + silver);
       }
     } else if(comp.name==="NOIP"){
       if(pass_count>0){
@@ -1417,8 +1415,6 @@ function holdCompetitionModal(comp){
         game.budget += reward;
         game.had_good_result_recently = true;
         game.weeks_since_good_result = 0;
-  // 弱化人数对教学点的影响，使用开方缩放
-  game.teaching_points += 5 * scaledPassCount(pass_count);
         // 重置模拟赛/正式赛阻塞状态
         game.mockBlockedThisYear = false;
         game.mockBlockedReason = "";
@@ -1585,7 +1581,7 @@ function weeklyUpdate(weeks=1){
     game.week++;
     game.updateWeather();
   }
-  game.teaching_points += weeks;
+  // teaching_points 已弃用，移除增量逻辑
   game.weeks_since_good_result += weeks;
   if(game.weeks_since_good_result > 12) game.had_good_result_recently = false;
   checkRandomEvents();
@@ -2731,9 +2727,8 @@ function initGame(difficulty, province_choice, student_count){
   game.difficulty = clampInt(difficulty,1,3);
   let prov = PROVINCES[province_choice] || PROVINCES[1];
   game.province_name = prov.name; game.province_type = prov.type; game.is_north = prov.isNorth; game.budget = prov.baseBudget; game.base_comfort = prov.isNorth?BASE_COMFORT_NORTH:BASE_COMFORT_SOUTH;
-  if(game.difficulty===1){ game.budget = Math.floor(game.budget * EASY_MODE_BUDGET_MULTIPLIER); game.teaching_points = EASY_MODE_TEACHING_POINTS; }
-  else if(game.difficulty===3){ game.budget = Math.floor(game.budget * HARD_MODE_BUDGET_MULTIPLIER); game.teaching_points = HARD_MODE_TEACHING_POINTS; }
-  else game.teaching_points = NORMAL_MODE_TEACHING_POINTS;
+  if(game.difficulty===1){ game.budget = Math.floor(game.budget * EASY_MODE_BUDGET_MULTIPLIER); }
+  else if(game.difficulty===3){ game.budget = Math.floor(game.budget * HARD_MODE_BUDGET_MULTIPLIER); }
   
   // 检查是否有对点招生的学生
   let recruitedStudents = [];
