@@ -3,7 +3,9 @@ body{font-family: "PingFang SC","Microsoft YaHei",Arial,Helvetica,sans-serif;bac
 .container{max-width:1100px;margin:20px auto;padding:16px}
 header{background:var(--card);border-radius:8px;padding:16px;box-shadow:0 1px 3px rgba(0,0,0,.06);display:flex;align-items:center;justify-content:space-between;gap:12px}
 header h1{margin:0;font-size:18px}
-.topline{display:flex;gap:12px;align-items:center}
+.topline{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.topline .small{white-space:nowrap}
+.topline #header-weather, .topline #header-next-competition{opacity:0.95}
 .panel{background:var(--card);border-radius:8px;padding:12px;margin-top:12px;box-shadow:0 1px 3px rgba(0,0,0,.04)}
 .row{display:flex;gap:12px;flex-wrap:wrap}
 .col{flex:1;min-width:240px}
@@ -318,6 +320,24 @@ th,td{padding:6px;border:1px solid #eee;text-align:center}
 .event-list{max-height:140px;overflow:auto;padding:6px;border-radius:6px;background:linear-gradient(180deg, rgba(0,0,0,0.01), transparent)}
 .event-item{padding:6px;border-bottom:1px dashed #eee;font-size:13px}
 .event-item:last-child{border-bottom:none}
+
+/* Improved event card text layout: summary + expandable detail */
+.event-card .card-title{font-weight:700;margin-bottom:6px}
+.event-card .card-desc{font-size:13px;color:var(--muted);display:block;white-space:normal;word-break:break-word;overflow:hidden;text-overflow:ellipsis;max-height:2.6em}
+.event-card .card-desc.expanded{max-height:none;overflow:visible}
+.event-card .event-detail{margin-top:8px;background:#f8fafc;border:1px solid #eef2f7;padding:8px;border-radius:6px;font-size:13px;white-space:pre-wrap;word-break:break-word;max-height:180px;overflow:auto}
+.event-card .more-btn{display:inline-block;margin-top:8px;background:transparent;border:none;color:var(--accent);cursor:pointer;padding:4px 6px;font-size:13px}
+.event-card .more-btn:focus{outline:2px solid rgba(43,108,176,0.15)}
+
+/* When description is very long, limit the collapsed view to 2 lines (using line-clamp where available) */
+.card-desc.clamp {
+  display: -webkit-box;
+  /* Add both standard and webkit-prefixed properties for broader compatibility */
+  line-clamp: 2;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
 
 /* 事件选项按钮 */
 .event-options{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}

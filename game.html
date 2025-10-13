@@ -17,6 +17,9 @@
       <div id="header-province" class="small">省份: -</div>
       <div id="header-budget" class="small">经费: ¥0</div>
       <div id="header-reputation" class="small">声誉: 0</div>
+  <!-- moved: weather and next competition summary (was in 周信息) -->
+  <div id="header-weather" class="small">天气: <span id="header-weather-text"></span> / 温度: <span id="header-temp-header">0.0°C</span></div>
+  <div id="header-next-competition" class="small muted">下场比赛: <span id="header-next-comp-small"></span></div>
       <div style="margin-left:12px"><a class="btn btn-ghost" href="help.html" target="_blank" id="help-btn">帮助</a></div>
 
     </div>
@@ -113,13 +116,13 @@
           <div>第 <span id="info-week">1</span> 周 / 共 26 周</div>
           <div>天气: <span id="info-weather">晴</span> / 温度: <span id="info-temp">20.0°C</span></div>
           <div>预测 4 周 开支: ¥<span id="info-future-expense">0</span></div>
-          <div>教学点数: <span id="info-teach">10</span></div>
           <div id="info-next-competition" class="small muted"></div>
           <div id="next-competition-panel" class="next-panel normal">
             <div style="font-weight:600">下场比赛</div>
             <div id="next-comp" style="margin-top:6px">无</div>
             <div id="daily-quote" class="small muted" style="margin-top:8px">一句话加载中...</div>
           </div>
+           <!-- Removed teaching points -->
         </div>
       </div>
 

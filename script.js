@@ -206,29 +206,66 @@ function renderEventCards(){
     if(ev._isHandled) continue;
     
     const card = document.createElement('div');
-    // 使用专门的 event-card 类，避免被 body.comp-week .action-cards .action-card:not(#comp-only-action) 隐藏
     card.className = 'event-card event-active';
-    
-    let cardHTML = `<div class="card-title">${ev.name || '突发事件'}</div><div class="card-desc">${ev.description || ''}</div>`;
-    
-    // 如果有选项，添加选项按钮
+
+    // Prepare short summary (one-line) and full detail (preformatted)
+    const titleHtml = `<div class="card-title">${ev.name || '突发事件'}</div>`;
+    const descText = ev.description || '';
+    // Escape HTML in description to avoid injecting markup
+    const esc = (s) => String(s||'').replace(/[&<>"']/g, function(ch){return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"})[ch];});
+    const shortDesc = (descText.length > 120) ? descText.slice(0, 118) + '…' : descText;
+
+    let cardHTML = '';
+    cardHTML += titleHtml;
+    cardHTML += `<div class="card-desc clamp" data-uid="${ev._uid}">${esc(shortDesc)}</div>`;
+    // hidden full detail area (pre-wrap for line breaks)
+    cardHTML += `<div class="event-detail" data-uid="${ev._uid}" style="display:none">${esc(descText)}</div>`;
+    // more / less toggle
+    if(descText && descText.length > 60){
+      cardHTML += `<button class="more-btn" data-action="toggle-detail" data-uid="${ev._uid}">更多</button>`;
+    }
+
+    // 如果有选项，添加选项按钮（保持原有行为）
     if(ev.options && ev.options.length > 0){
       cardHTML += '<div class="event-options" style="margin-top:10px; display:flex; gap:8px;">';
       ev.options.forEach((opt, idx) => {
-        // ✅ 重构：将事件的唯一ID和选项索引作为data属性写入按钮
         cardHTML += `<button class="btn event-choice-btn" data-event-uid="${ev._uid}" data-option-index="${idx}">${opt.label || `选项${idx+1}`}</button>`;
       });
       cardHTML += '</div>';
     }
-    
+
     card.innerHTML = cardHTML;
     container.appendChild(card);
-    
-    // ❌ 重构：移除此处所有的旧事件监听器逻辑
     
     if(++shown >= 6) break; // 最多显示6个
   }
 }
+
+// 事件卡的展开/折叠及更多按钮由容器的全局点击监听处理
+// extend existing load handler to support toggle-detail
+window.addEventListener('load', () => {
+  const container = $('event-cards-container');
+  if (!container) return;
+  container.addEventListener('click', function(e){
+    const btn = e.target.closest('.more-btn');
+    if (!btn) return;
+    const uid = btn.dataset.uid ? parseInt(btn.dataset.uid, 10) : null;
+    if (!uid) return;
+    const detail = container.querySelector(`.event-detail[data-uid='${uid}']`);
+    const desc = container.querySelector(`.card-desc[data-uid='${uid}']`);
+    if (!detail || !desc) return;
+    const expanded = detail.style.display !== 'none';
+    if (expanded){
+      detail.style.display = 'none';
+      desc.classList.add('clamp');
+      btn.innerText = '更多';
+    } else {
+      detail.style.display = 'block';
+      desc.classList.remove('clamp');
+      btn.innerText = '收起';
+    }
+  });
+});
 
 // 显示事件弹窗
 function showEventModal(evt){
@@ -322,14 +359,23 @@ function renderAll(){
   $('header-budget').innerText = `经费: ¥${game.budget}`;
   $('header-reputation').innerText = `声誉: ${game.reputation}`;
   $('info-week').innerText = currWeek();
-  $('info-temp').innerText = game.temperature.toFixed(1) + "°C";
-  $('info-weather').innerText = game.getWeatherDescription();
-  $('info-future-expense').innerText = game.getFutureExpense();
-  $('info-teach').innerText = game.teaching_points;
+    // week info
+    const infoWeekEl = $('info-week'); if(infoWeekEl) infoWeekEl.innerText = currWeek();
+    // weather: populate both the sidebar detailed elements and the compact header elements (header-weather)
+    const tempText = game.temperature.toFixed(1) + "\u00b0C";
+    const weatherDesc = game.getWeatherDescription();
+    const infoTempEl = $('info-temp'); if(infoTempEl) infoTempEl.innerText = tempText;
+    const infoWeatherEl = $('info-weather'); if(infoWeatherEl) infoWeatherEl.innerText = weatherDesc;
+    const infoFutureEl = $('info-future-expense'); if(infoFutureEl) infoFutureEl.innerText = game.getFutureExpense();
+    // teaching points UI removed; avoid touching $('info-teach') which no longer exists
   // 下场比赛单独面板渲染
   const nextCompText = game.getNextCompetition();
-  $('next-comp').innerText = nextCompText;
-  $('info-next-competition').innerText = `下场比赛：${nextCompText}`;
+    const nextCompEl = $('next-comp'); if(nextCompEl) nextCompEl.innerText = nextCompText;
+    // fill compact header small summary
+    const headerNextSmall = $('header-next-comp-small'); if(headerNextSmall) headerNextSmall.innerText = nextCompText;
+    // also set header weather compact text
+    const headerWeatherText = $('header-weather-text'); if(headerWeatherText) headerWeatherText.innerText = weatherDesc;
+    const headerTempHeader = $('header-temp-header'); if(headerTempHeader) headerTempHeader.innerText = tempText;
   // 随机一言
   const q = QUOTES[ Math.floor(Math.random() * QUOTES.length) ];
   $('daily-quote').innerText = q;
