@@ -2185,11 +2185,10 @@ function holdMockContestUI(){
 function entertainmentUI(){
   // 水平条形卡片选项
   const opts = [
-    {id:1, val:'训话',label:'打鸡血',desc:'激励团队，提升心情，减压少量',cost:0},
-    {id:2, val:'吃饭',label:`请学生吃饭 (¥${ENTERTAINMENT_COST_MEAL})`,desc:'补充能量，中等减压',cost:ENTERTAINMENT_COST_MEAL},
-    {id:3, val:'自由活动',label:'允许学生自由活动',desc:'高度减压，注意天气影响',cost:0},
-    {id:4, val:'打球',label:'和学生一起打球',desc:'锻炼身体，提升精神，适度减压',cost:0},
-    {id:5, val:'打CS',label:`邀请学生打CS`,desc:'适度减压，有可能提升学生能力',cost:ENTERTAINMENT_COST_CS}
+    {id:1,label:'放假',desc:'减小少许压力',cost:0},
+    {id:2,label:`请学生吃饭 (¥${ENTERTAINMENT_COST_MEAL})`,desc:'补充能量,减小一定压力',cost:ENTERTAINMENT_COST_MEAL},
+    {id:3,label:'体育运动',desc:`减小一定压力,注意天气影响，当前是${game.getWeatherDescription()}天`,cost:0},
+    {id:5,label:`邀请学生打CS`,desc:'适度减压,有可能提升学生能力',cost:ENTERTAINMENT_COST_CS}
   ];
   let cardsHtml = opts.map(o=>`
     <div class="prov-card option-card" data-id="${o.id}" style="min-width:120px;border:1px solid #ddd;padding:8px;border-radius:6px;cursor:pointer;">
@@ -2222,14 +2221,12 @@ function entertainmentUI(){
       // apply quick entertainment logic based on numeric id
       for(let s of game.students){
         if(!s || s.active === false) continue;
-        if(opt.id === 1){ // 训话
+        if(opt.id === 1){ // 放假
           s.mental += uniform(3,7); var oldP = s.pressure; s.pressure = Math.max(0, s.pressure - uniform(30,45)); var newP = s.pressure;
         } else if(opt.id === 2){ // 吃饭
           s.mental += uniform(8,20); var oldP = s.pressure; s.pressure = Math.max(0, s.pressure - uniform(40,55)); var newP = s.pressure;
-        } else if(opt.id === 3){ // 自由活动
+        } else if(opt.id === 3){ // 体育运动
           let wf=1.0; if(game.weather==='雪') wf=2.0; else if(game.weather==='雨' && game.facilities.dorm<2) wf=0.5; var oldP = s.pressure; s.pressure = Math.max(0, s.pressure - uniform(20,35)*wf); var newP = s.pressure; s.mental += uniform(3,8);
-        } else if(opt.id === 4){ // 打球
-          s.mental += uniform(4,8); var oldP = s.pressure; s.pressure = Math.max(0, s.pressure - uniform(20,35)); var newP = s.pressure;
         } else if(opt.id === 5){ // 打CS
           s.mental += uniform(1,5); s.coding += uniform(0.5,1.0); var oldP = s.pressure; s.pressure = Math.max(0, s.pressure - uniform(10,20)); var newP = s.pressure;
         }
