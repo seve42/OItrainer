@@ -555,173 +555,7 @@ function renderAll(){
 // Render a minimal UI that shows only the "参加比赛" button and auto-starts the competition.
 
 
-/* ======= 主要逻辑函数（训练/集训/活动/周结算/随机事件/比赛等） ======= */
-/* 训练（1周） */
-/*
-function trainStudents(topic,intensity){
-  log(`开始 ${topic} 训练（${intensity===1?'轻':intensity===2?'中':'重'}）`);
-  const __before = typeof __createSnapshot === 'function' ? __createSnapshot() : null;
-  let weather_factor = game.getWeatherFactor();
-  let comfort = game.getComfort();
-  let comfort_factor = 1.0 + Math.max(0.0, (50 - comfort) / 100.0);
-  let facility_eff = game.facilities.getLibraryEfficiency();
-  for(let s of game.students){
-    if(s && s.active === false) continue;
-    
-    // 计算个人舒适度（考虑天气敏感和美食家天赋）
-    let personalComfort = comfort;
-    
-    // 天气敏感：天气影响翻倍
-    if(s.talents && s.talents.has('天气敏感')){
-      const baseComfort = game.base_comfort;
-      const weatherEffect = comfort - baseComfort;
-      personalComfort = baseComfort + weatherEffect * 2;
-      personalComfort = Math.max(0, Math.min(100, personalComfort));
-    }
-    
-    // 美食家：食堂效果翻倍
-    if(s.talents && s.talents.has('美食家')){
-      const canteenBonus = 3 * (game.facilities.canteen - 1);
-      personalComfort += canteenBonus; // 额外增加一次食堂效果
-      personalComfort = Math.max(0, Math.min(100, personalComfort));
-    }
-    
-    s.comfort = personalComfort;
-    let sick_penalty = (s.sick_weeks > 0) ? 0.7 : 1.0;
-    let base_gain = intensity * TRAINING_BASE_KNOWLEDGE_GAIN_PER_INTENSITY;
-    let knowledge_gain = s.calculateKnowledgeGain(base_gain, facility_eff, sick_penalty);
-    knowledge_gain = Math.max(0, knowledge_gain);
-    if(topic === "数据结构"){
-      s.knowledge_ds += knowledge_gain;
-      s.thinking += uniform(TRAINING_THINKING_GAIN_MIN, TRAINING_THINKING_GAIN_MIN + 1.0)*(1 - Math.min(0.6, s.pressure/200.0));
-      s.coding += uniform(TRAINING_CODING_GAIN_MIN, TRAINING_CODING_GAIN_MIN + 1.0)*(1 - Math.min(0.6, s.pressure/200.0));
-    } else if(topic === "图论"){
-      s.knowledge_graph += knowledge_gain;
-      s.thinking += uniform(TRAINING_THINKING_GAIN_MIN + 0.4, TRAINING_THINKING_GAIN_MIN + 1.4)*(1 - Math.min(0.6,s.pressure/200.0));
-    } else if(topic === "字符串"){
-      s.knowledge_string += knowledge_gain;
-      s.coding += uniform(TRAINING_CODING_GAIN_MIN + 0.6, TRAINING_CODING_GAIN_MIN + 1.6)*(1 - Math.min(0.6,s.pressure/200.0));
-    } else if(topic === "数学"){
-      s.knowledge_math += knowledge_gain;
-      s.thinking += uniform(TRAINING_THINKING_GAIN_MIN + 1.0, TRAINING_THINKING_GAIN_MIN + 2.0)*(1 - Math.min(0.6,s.pressure/200.0));
-    } else if(topic === "DP"){
-      s.knowledge_dp += knowledge_gain;
-      s.thinking += uniform(TRAINING_THINKING_GAIN_MIN + 0.8, TRAINING_THINKING_GAIN_MIN + 1.4)*(1 - Math.min(0.6,s.pressure/200.0));
-    } else if(topic === "综合"){
-      let avg_gain = Math.max(1, Math.floor(knowledge_gain * 0.25));
-      s.knowledge_ds += avg_gain; s.knowledge_graph += avg_gain; s.knowledge_string += avg_gain; s.knowledge_math += avg_gain; s.knowledge_dp += avg_gain;
-      let computer_eff = game.facilities.getComputerEfficiency();
-      s.thinking += uniform(TRAINING_THINKING_GAIN_MIN, TRAINING_THINKING_GAIN_MIN + 0.6) * computer_eff * (1 - Math.min(0.6, s.pressure/200.0));
-      s.coding += uniform(TRAINING_CODING_GAIN_MIN, TRAINING_CODING_GAIN_MIN + 0.6) * computer_eff * (1 - Math.min(0.6, s.pressure/200.0));
-    }
-  s.thinking = (s.thinking || 0);
-  s.coding = (s.coding || 0);
-    let base_pressure = (intensity===1)?10 : (intensity===2)?20 : 30;
-    if(intensity===3) base_pressure *= TRAINING_PRESSURE_MULTIPLIER_HEAVY;
-    else if(intensity===2) base_pressure *= TRAINING_PRESSURE_MULTIPLIER_MEDIUM;
-    if(topic === "综合") base_pressure *= COMPOSITE_TRAINING_PRESSURE_BONUS;
-    let canteen_reduction = game.facilities.getCanteenPressureReduction();
-    let pressure_increase = base_pressure * weather_factor * canteen_reduction * comfort_factor;
-    if(s.sick_weeks > 0) pressure_increase += 10;
-    // 默认的压力与知识变化处理：先触发天赋，天赋可能会修改本次压力或知识增益
-    let finalPressureIncrease = pressure_increase;
-    let finalKnowledgeGain = knowledge_gain;
-    let rejectTraining = false; // 厌学天赋可能使训练无效
-    try{
-      if(typeof s.triggerTalents === 'function'){
-        const results = s.triggerTalents('pressure_change', { source: 'training', amount: pressure_increase, topic: topic, intensity: intensity }) || [];
-        // 逐条处理天赋返回的 action
-        for(const r of results){
-          if(!r || !r.result) continue;
-          const out = r.result;
-          // 当 handler 返回对象时（我们在 talent.js 中这么设计），直接读取 action 字段
-          if(typeof out === 'object'){
-            const act = out.action;
-            if(act === 'moyu_cancel_pressure'){
-              // 取消本次压力增加
-              finalPressureIncrease = 0;
-              // 同时按 reduceKnowledgeRatio 缩减知识增益
-              if(typeof out.reduceKnowledgeRatio === 'number'){
-                finalKnowledgeGain = Math.floor(finalKnowledgeGain * (1 - out.reduceKnowledgeRatio));
-              }
-            } else if(act === 'halve_pressure'){
-              finalPressureIncrease = finalPressureIncrease * 0.5;
-            } else if(act === 'double_pressure'){
-              finalPressureIncrease = finalPressureIncrease * 2.0;
-            } else if(act === 'reduce_pressure'){
-              // 专注：高强度训练压力减少
-              finalPressureIncrease = finalPressureIncrease * (1 - (out.amount || 0));
-            } else if(act === 'increase_pressure'){
-              // 专注：低强度训练压力增加
-              finalPressureIncrease = finalPressureIncrease * (1 + (out.amount || 0));
-            } else if(act === 'reject_training'){
-              // 厌学：训练无效
-              rejectTraining = true;
-              finalKnowledgeGain = 0;
-              // 压力已经在天赋 handler 中增加了
-            } else if(act === 'reduce_all_gain'){
-              // 注意力涣散：所有训练增益降低
-              finalKnowledgeGain = Math.floor(finalKnowledgeGain * (1 - (out.amount || 0)));
-            } else if(act === 'boost_basic_gain'){
-              // 孺子可教：基础能力增益提高（暂不处理知识增益，只记录标记）
-              // 可以在这里增加基础能力的提升，但目前训练系统主要增加知识点
-              // 留待未来扩展
-            }
-            // 其它 action 可在未来扩展
-          }
-        }
-      }
-    }catch(e){ console.error('triggerTalents pressure_change', e); }
 
-    // 如果厌学天赋触发，直接跳过本次训练
-    if(rejectTraining){
-      continue; // 跳过本学生的训练处理
-    }
-
-    // 应用最终计算的知识与压力变更
-    // 先应用知识变更（训练期间知识已累加到临时变量 knowledge_gain），调整为 finalKnowledgeGain
-    // 注意：上文已经将具体知识分配到各知识字段，这儿需要将差额/修正应用
-    if(finalKnowledgeGain !== knowledge_gain){
-      const diff = finalKnowledgeGain - knowledge_gain;
-      // 将差额按 topic 分配（与上方代码分配一致）
-      if(topic === "数据结构"){
-        s.knowledge_ds += diff;
-      } else if(topic === "图论"){
-        s.knowledge_graph += diff;
-      } else if(topic === "字符串"){
-        s.knowledge_string += diff;
-      } else if(topic === "数学"){
-        s.knowledge_math += diff;
-      } else if(topic === "DP"){
-        s.knowledge_dp += diff;
-      } else if(topic === "综合"){
-        // 把 diff 平均分配到五项
-        const part = Math.floor(diff / 5);
-        if(part !== 0){ s.knowledge_ds += part; s.knowledge_graph += part; s.knowledge_string += part; s.knowledge_math += part; s.knowledge_dp += part; }
-      }
-      // ensure non-negative
-      s.knowledge_ds = Math.max(0, s.knowledge_ds);
-      s.knowledge_graph = Math.max(0, s.knowledge_graph);
-      s.knowledge_string = Math.max(0, s.knowledge_string);
-      s.knowledge_math = Math.max(0, s.knowledge_math);
-      s.knowledge_dp = Math.max(0, s.knowledge_dp);
-    }
-
-    s.pressure += finalPressureIncrease;
-  }
-  game.weeks_since_entertainment += 1;
-    log("训练结束（1周）。");
-  // 训练结束后尝试为每位学生获得天赋（按训练强度可放大概率）
-  try{
-    if(typeof window !== 'undefined' && window.TalentManager && typeof window.TalentManager.tryAcquireTalent === 'function'){
-      for(let s of game.students){ if(s && s.active !== false) try{ window.TalentManager.tryAcquireTalent(s, (typeof intensity !== 'undefined' ? (intensity===3?0.8:(intensity===2?0.4:0.2)) : 0.4)); }catch(e){} }
-    }
-  }catch(e){ console.error('post-training tryAcquireTalent error', e); }
-  const __after = typeof __createSnapshot === 'function' ? __createSnapshot() : null;
-  if(__before && __after) __summarizeSnapshot(__before, __after, `训练：${topic}`);
-}
-
-*/
 /* 新的基于题目的训练函数 */
 function trainStudentsWithTask(task, intensity) {
   log(`开始做题训练：${task.name}（难度${task.difficulty}，强度${intensity===1?'轻':intensity===2?'中':'重'}）`);
@@ -769,22 +603,41 @@ function trainStudentsWithTask(task, intensity) {
     const results = applyTaskBoosts(s, task);
     
     // 根据强度和设施调整知识增益
-    let facility_eff = game.facilities.getLibraryEfficiency();
+    const libraryLevel = game.facilities.library;
+    let libraryBonus = 0;
+    if(libraryLevel === 1) libraryBonus = -0.20;
+    else if(libraryLevel === 2) libraryBonus = -0.05;
+    else if(libraryLevel === 3) libraryBonus = 0.10;
+    else if(libraryLevel === 4) libraryBonus = 0.12;
+    else if(libraryLevel === 5) libraryBonus = 0.14;
+    
+    const libraryMultiplier = 1.0 + libraryBonus;
     
     // 强度影响：轻=0.7, 中=1.0, 重=1.3
     const intensityFactor = intensity === 1 ? 0.7 : intensity === 3 ? 1.3 : 1.0;
     
-    // 应用所有调整因子
+    // 应用所有调整因子（使用新的题库增幅）
     for(const boost of results.boosts) {
-      const additionalBoost = Math.floor(boost.actualAmount * (facility_eff - 1.0) * intensityFactor * sick_penalty);
+      const additionalBoost = Math.floor(boost.actualAmount * (libraryMultiplier - 1.0) * intensityFactor * sick_penalty);
       s.addKnowledge(boost.type, additionalBoost);
     }
+    
+    // 计算机影响能力提升
+    const computerLevel = game.facilities.computer;
+    let computerBonus = 0;
+    if(computerLevel === 1) computerBonus = -0.15;
+    else if(computerLevel === 2) computerBonus = -0.05;
+    else if(computerLevel === 3) computerBonus = 0.08;
+    else if(computerLevel === 4) computerBonus = 0.10;
+    else if(computerLevel === 5) computerBonus = 0.15;
+    
+    const computerMultiplier = 1.0 + computerBonus;
     
     // 能力提升：根据题目难度和学生能力
     // 做题会同时提升思维和编码能力，但幅度较小
     const abilityGainBase = boostMultiplier * intensityFactor * (1 - Math.min(0.6, s.pressure/200.0));
-    const thinkingGain = uniform(0.3, 0.8) * abilityGainBase * (typeof TRAINING_EFFECT_MULTIPLIER !== 'undefined' ? TRAINING_EFFECT_MULTIPLIER : 1.0);
-    const codingGain = uniform(0.3, 0.8) * abilityGainBase * (typeof TRAINING_EFFECT_MULTIPLIER !== 'undefined' ? TRAINING_EFFECT_MULTIPLIER : 1.0);
+    const thinkingGain = uniform(0.3, 0.8) * abilityGainBase * computerMultiplier * (typeof TRAINING_EFFECT_MULTIPLIER !== 'undefined' ? TRAINING_EFFECT_MULTIPLIER : 1.0);
+    const codingGain = uniform(0.3, 0.8) * abilityGainBase * computerMultiplier * (typeof TRAINING_EFFECT_MULTIPLIER !== 'undefined' ? TRAINING_EFFECT_MULTIPLIER : 1.0);
     
     s.thinking += thinkingGain;
     s.coding += codingGain;
