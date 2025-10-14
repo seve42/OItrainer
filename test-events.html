@@ -28,6 +28,7 @@
 
     <div class="row">
       <button id="btn-trigger-all" class="btn">触发所有事件</button>
+      <button id="btn-trigger-poaching" class="btn">测试：触发跨省挖人事件</button>
       <button id="btn-trigger-random" class="btn">运行 EventManager.checkRandomEvents()</button>
       <button id="btn-clear-events" class="btn">清空事件卡片</button>
       <button id="btn-reset-game" class="btn">重置游戏（尝试）</button>
@@ -75,6 +76,33 @@
         if(window.EventManager && typeof window.EventManager.checkRandomEvents === 'function'){
           try{ window.EventManager.checkRandomEvents(window.game); appendOut('已运行 EventManager.checkRandomEvents()'); renderAll(); }catch(e){ appendOut('运行失败: '+e.message); }
         } else appendOut('EventManager 未找到');
+      });
+
+      // 新增：专用测试按钮 - 构造满足条件的 careerCompetitions 并触发 poaching_offer
+      document.getElementById('btn-trigger-poaching').addEventListener('click', ()=>{
+        const g = ensureGame();
+        // 确保有一名学生
+        if(!Array.isArray(g.students) || g.students.length === 0){ g.students = [{ name: '测试生', active: true, thinking: 90, coding: 90, mental: 80, pressure: 20, comfort: 80 }]; }
+        const target = g.students[0];
+        // 设置当前周
+        g.week = g.week || 1;
+        // 构造 careerCompetitions 记录：NOIP 满分触发
+        if(!g.careerCompetitions) g.careerCompetitions = [];
+        // remove old test records with same name to avoid duplicate
+        g.careerCompetitions = g.careerCompetitions.filter(r => !(r.entries && r.entries.some(e=>e.name === target.name && (r.name === 'NOIP' || r.name === '省选'))));
+        // push a NOIP full-score record
+        g.careerCompetitions.push({ week: g.week, name: 'NOIP', passedCount: 1, totalStudents: 1, entries: [{ name: target.name, score: 400 }] });
+        appendOut(`已插入测试比赛记录：${target.name} 在 NOIP 得到满分 400（周 ${g.week}）`);
+
+        // Ensure EventManager has been initialized with registerDefaultEvents earlier in script.js; now trigger checks
+        try{
+          if(window.EventManager && typeof window.EventManager.checkRandomEvents === 'function'){
+            window.EventManager.checkRandomEvents(g);
+            appendOut('已调用 EventManager.checkRandomEvents(window.game)');
+          } else {
+            appendOut('EventManager 未就绪：无法运行 checkRandomEvents');
+          }
+        }catch(e){ appendOut('运行 EventManager 失败: ' + e.message); }
       });
 
       document.getElementById('btn-trigger-all').addEventListener('click', ()=>{

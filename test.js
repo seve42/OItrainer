@@ -137,11 +137,21 @@ function testCompetitionWeekEventChoice() {
     { 
       label: '接受邀请', 
       effect: function() {
-        game.budget = Math.max(0, game.budget - 5000);
-        console.log(`  [选项效果] 接受邀请，扣除经费 ¥5000，当前经费: ¥${game.budget}`);
+        // prefer centralized expense accounting
+        let charged = 0;
+        try{
+          if (typeof game.recordExpense === 'function') charged = game.recordExpense(5000, '接受邀请');
+          else throw new Error('no recordExpense');
+        }catch(e){
+          // fallback to direct deduction
+          const costMult = (typeof COST_MULTIPLIER !== 'undefined' ? COST_MULTIPLIER : 1.0);
+          charged = Math.max(0, Math.round(5000 * costMult));
+          game.budget = Math.max(0, game.budget - charged);
+        }
+        console.log(`  [选项效果] 接受邀请，扣除经费 ¥${charged}，当前经费: ¥${game.budget}`);
         window.pushEvent({ 
           name: '选择结果', 
-          description: `接受友校交流：经费 -¥5000`, 
+          description: `接受友校交流：经费 -¥${charged}`, 
           week: game.week 
         });
       }

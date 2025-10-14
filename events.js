@@ -475,6 +475,136 @@
         }
       });
 
+      // 选择导向事件：跨省挖人（poaching_offer）
+      this.register({
+        id: 'poaching_offer',
+        name: '跨省挖人邀请',
+        description: '当团队有优秀学生在重要比赛中取得高分，外省强校可能发来挖人邀请。',
+        check: c => {
+          try{
+            if(!c.game || !Array.isArray(c.game.careerCompetitions) || !Array.isArray(c.game.students)) return false;
+            const recentWindow = Math.max(1, (c.game.week || 0) - 2); // 近期两周内的比赛成绩触发概率
+            // find relevant competition records in recent weeks
+            const relevant = c.game.careerCompetitions.filter(r => (r.name === 'NOIP' || r.name === '省选') && (typeof r.week === 'number' ? r.week >= recentWindow : true));
+            if(!relevant || relevant.length === 0) return false;
+
+            // get competition definitions to determine full score for NOIP
+            const schedule = (window && window.COMPETITION_SCHEDULE) ? window.COMPETITION_SCHEDULE : null;
+            const noipDef = schedule && schedule.find(x=>x.name === 'NOIP');
+            const noipFull = (noipDef && typeof noipDef.maxScore === 'number') ? Number(noipDef.maxScore) : 400;
+
+            for(const rec of relevant){
+              if(!rec.entries || !Array.isArray(rec.entries)) continue;
+              for(const e of rec.entries){
+                if(!e || typeof e.score !== 'number') continue;
+                // NOIP 满分 或 省选 > 500
+                if(rec.name === 'NOIP' && e.score >= noipFull) return true;
+                if(rec.name === '省选' && e.score > 500) return true;
+              }
+            }
+          }catch(err){ console.error('poaching_offer check error', err); }
+          return false;
+        },
+        run: c => {
+          try{
+            const schedule = (window && window.COMPETITION_SCHEDULE) ? window.COMPETITION_SCHEDULE : null;
+            const noipDef = schedule && schedule.find(x=>x.name === 'NOIP');
+            const noipFull = (noipDef && typeof noipDef.maxScore === 'number') ? Number(noipDef.maxScore) : 400;
+
+            // find the most recent matching entry and corresponding student
+            const recentWindow = Math.max(1, (c.game.week || 0) - 2);
+            const records = (c.game.careerCompetitions || []).filter(r => (r.name === 'NOIP' || r.name === '省选') && (typeof r.week === 'number' ? r.week >= recentWindow : true));
+            let targetEntry = null; let compName = null;
+            outer: for(const rec of records){
+              if(!rec.entries) continue;
+              for(const e of rec.entries){
+                if(!e || typeof e.score !== 'number') continue;
+                if(rec.name === 'NOIP' && e.score >= noipFull){ targetEntry = e; compName = 'NOIP'; break outer; }
+                if(rec.name === '省选' && e.score > 500){ targetEntry = e; compName = '省选'; break outer; }
+              }
+            }
+            if(!targetEntry) return null;
+
+            // find the student object by name and ensure active
+            const stud = Array.isArray(c.game.students) ? c.game.students.find(s => s && s.name === targetEntry.name && s.active !== false) : null;
+            if(!stud) return null;
+
+            // avoid repeating for same student in same week
+            if(stud._poaching_offer_handled_week === c.game.week) return null;
+            stud._poaching_offer_handled_week = c.game.week;
+
+            // compute retention cost based on student ability (scale using getAbilityAvg)
+            let abilityAvg = (typeof stud.getAbilityAvg === 'function') ? Number(stud.getAbilityAvg()) : (Number(stud.thinking||0) + Number(stud.coding||0))/2;
+            abilityAvg = Math.max(0, Math.min(100, abilityAvg));
+            const cost = Math.round(50000 + (abilityAvg/100.0) * 50000); // 50k - 100k
+
+            // retention success probability depends on reputation and student's mental
+            const rep = (c.game && typeof c.game.reputation === 'number') ? Math.max(0, Math.min(100, c.game.reputation)) : 50;
+            const mental = Number(stud.mental || 50);
+            let base = 0.25; // base chance
+            const repFactor = (rep / 100.0) * 0.5; // up to +0.5
+            const mentalFactor = (mental / 100.0) * 0.25; // up to +0.25
+            let successProb = Math.min(0.95, base + repFactor + mentalFactor);
+
+            const options = [
+              { label: `消耗 ¥${cost}，全力挽留`, effect: () => {
+                  // charge cost (use game.recordExpense if available to apply COST_MULTIPLIER centrally)
+                  let expense = 0;
+                  try{
+                    expense = c.game.recordExpense(cost, '挽留费用');
+                  }catch(e){
+                    // fallback: apply COST_MULTIPLIER once here (avoid double-multiplying)
+                    const costMult = (typeof COST_MULTIPLIER !== 'undefined' ? COST_MULTIPLIER : 1.0);
+                    expense = Math.max(0, Math.round(cost * costMult));
+                    c.game.budget = Math.max(0, (c.game.budget||0) - expense);
+                  }
+                  // if budget insufficient, still perform (recordExpense caps at 0)
+                  const roll = Math.random();
+                  if(roll < successProb){
+                    // success: student stays and mental +5
+                    stud.mental = Math.min(100, Number(stud.mental || 0) + 5);
+                    const msg = `${stud.name} 决定留下，心理素质提升 （已支付 ¥${expense}）`;
+                    c.log && c.log(`[挽留成功] ${msg}`);
+                    window.pushEvent && window.pushEvent({ name: '挽留成功', description: msg, week: c.game.week });
+                  } else {
+                    // failure: student leaves, reputation -20, other students pressure +10
+                    try{ if(typeof stud.triggerTalents === 'function') stud.triggerTalents('quit', { reason: 'poached' }); }catch(e){}
+                    for(let i = c.game.students.length - 1; i >= 0; i--){
+                      if(c.game.students[i] && c.game.students[i].name === stud.name){ c.game.students.splice(i,1); break; }
+                    }
+                    c.game.quit_students = (c.game.quit_students || 0) + 1;
+                    c.game.reputation = Math.max(0, (c.game.reputation || 0) - 20);
+                    for(const s of c.game.students){ if(!s || s.active === false) continue; s.pressure = Math.min(100, Number(s.pressure || 0) + 10); }
+                    const msg = `${stud.name} 被挖走，声誉 -20，队内压力 +10`;
+                    c.log && c.log(`[挽留失败] ${msg}`);
+                    window.pushEvent && window.pushEvent({ name: '挽留失败', description: msg, week: c.game.week });
+                  }
+                  try{ if(typeof window.renderAll === 'function') window.renderAll(); }catch(e){}
+                }
+              },
+              { label: '不作干涉，获得补偿', effect: () => {
+                  // student leaves, receive compensation and reputation +5
+                  const gain = c.utils.uniformInt(30000, 80000);
+                  c.game.budget = (c.game.budget || 0) + gain;
+                  c.game.reputation = Math.min(100, (c.game.reputation || 0) + 5);
+                  try{ if(typeof stud.triggerTalents === 'function') stud.triggerTalents('quit', { reason: 'poached_grace' }); }catch(e){}
+                  for(let i = c.game.students.length - 1; i >= 0; i--){ if(c.game.students[i] && c.game.students[i].name === stud.name){ c.game.students.splice(i,1); break; } }
+                  c.game.quit_students = (c.game.quit_students || 0) + 1;
+                  const msg = `${stud.name} 离队，获得补偿 ¥${gain}，声誉 +5`;
+                  c.log && c.log(`[不做干涉] ${msg}`);
+                  window.pushEvent && window.pushEvent({ name: '不做干涉', description: msg, week: c.game.week });
+                  try{ if(typeof window.renderAll === 'function') window.renderAll(); }catch(e){}
+                }
+              }
+            ];
+
+            const desc = `${stud.name} 在 ${compName} 中获得了 ${targetEntry.score} 的高分。一所外省强校向${stud.name}发来邀请，并承诺了优厚的条件。是否挽留？`;
+            window.showChoiceModal && window.showChoiceModal({ name: '跨省挖人', description: desc, week: c.game.week, options });
+            return null;
+          }catch(e){ console.error('poaching_offer run error', e); return null; }
+        }
+      });
+
       // 天赋获取事件
       this.register({
         id: 'talent_acquire',
