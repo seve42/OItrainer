@@ -267,12 +267,12 @@
         return;
       }
       
-      if(student.talents.includes(talentName)){
+      if(student.talents.has(talentName)){
         alert('该学生已拥有此天赋！');
         return;
       }
       
-      student.talents.push(talentName);
+      student.talents.add(talentName);
       student.cost += 30000;
       student.boosts.push({type: 'talent', name: talentName});
       

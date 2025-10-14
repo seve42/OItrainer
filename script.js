@@ -554,8 +554,10 @@ function renderAll(){
 
 // Render a minimal UI that shows only the "参加比赛" button and auto-starts the competition.
 
+
 /* ======= 主要逻辑函数（训练/集训/活动/周结算/随机事件/比赛等） ======= */
 /* 训练（1周） */
+/*
 function trainStudents(topic,intensity){
   log(`开始 ${topic} 训练（${intensity===1?'轻':intensity===2?'中':'重'}）`);
   const __before = typeof __createSnapshot === 'function' ? __createSnapshot() : null;
@@ -565,7 +567,26 @@ function trainStudents(topic,intensity){
   let facility_eff = game.facilities.getLibraryEfficiency();
   for(let s of game.students){
     if(s && s.active === false) continue;
-    s.comfort = comfort;
+    
+    // 计算个人舒适度（考虑天气敏感和美食家天赋）
+    let personalComfort = comfort;
+    
+    // 天气敏感：天气影响翻倍
+    if(s.talents && s.talents.has('天气敏感')){
+      const baseComfort = game.base_comfort;
+      const weatherEffect = comfort - baseComfort;
+      personalComfort = baseComfort + weatherEffect * 2;
+      personalComfort = Math.max(0, Math.min(100, personalComfort));
+    }
+    
+    // 美食家：食堂效果翻倍
+    if(s.talents && s.talents.has('美食家')){
+      const canteenBonus = 3 * (game.facilities.canteen - 1);
+      personalComfort += canteenBonus; // 额外增加一次食堂效果
+      personalComfort = Math.max(0, Math.min(100, personalComfort));
+    }
+    
+    s.comfort = personalComfort;
     let sick_penalty = (s.sick_weeks > 0) ? 0.7 : 1.0;
     let base_gain = intensity * TRAINING_BASE_KNOWLEDGE_GAIN_PER_INTENSITY;
     let knowledge_gain = s.calculateKnowledgeGain(base_gain, facility_eff, sick_penalty);
@@ -605,6 +626,7 @@ function trainStudents(topic,intensity){
     // 默认的压力与知识变化处理：先触发天赋，天赋可能会修改本次压力或知识增益
     let finalPressureIncrease = pressure_increase;
     let finalKnowledgeGain = knowledge_gain;
+    let rejectTraining = false; // 厌学天赋可能使训练无效
     try{
       if(typeof s.triggerTalents === 'function'){
         const results = s.triggerTalents('pressure_change', { source: 'training', amount: pressure_increase, topic: topic, intensity: intensity }) || [];
@@ -626,12 +648,35 @@ function trainStudents(topic,intensity){
               finalPressureIncrease = finalPressureIncrease * 0.5;
             } else if(act === 'double_pressure'){
               finalPressureIncrease = finalPressureIncrease * 2.0;
+            } else if(act === 'reduce_pressure'){
+              // 专注：高强度训练压力减少
+              finalPressureIncrease = finalPressureIncrease * (1 - (out.amount || 0));
+            } else if(act === 'increase_pressure'){
+              // 专注：低强度训练压力增加
+              finalPressureIncrease = finalPressureIncrease * (1 + (out.amount || 0));
+            } else if(act === 'reject_training'){
+              // 厌学：训练无效
+              rejectTraining = true;
+              finalKnowledgeGain = 0;
+              // 压力已经在天赋 handler 中增加了
+            } else if(act === 'reduce_all_gain'){
+              // 注意力涣散：所有训练增益降低
+              finalKnowledgeGain = Math.floor(finalKnowledgeGain * (1 - (out.amount || 0)));
+            } else if(act === 'boost_basic_gain'){
+              // 孺子可教：基础能力增益提高（暂不处理知识增益，只记录标记）
+              // 可以在这里增加基础能力的提升，但目前训练系统主要增加知识点
+              // 留待未来扩展
             }
             // 其它 action 可在未来扩展
           }
         }
       }
     }catch(e){ console.error('triggerTalents pressure_change', e); }
+
+    // 如果厌学天赋触发，直接跳过本次训练
+    if(rejectTraining){
+      continue; // 跳过本学生的训练处理
+    }
 
     // 应用最终计算的知识与压力变更
     // 先应用知识变更（训练期间知识已累加到临时变量 knowledge_gain），调整为 finalKnowledgeGain
@@ -666,10 +711,17 @@ function trainStudents(topic,intensity){
   }
   game.weeks_since_entertainment += 1;
     log("训练结束（1周）。");
+  // 训练结束后尝试为每位学生获得天赋（按训练强度可放大概率）
+  try{
+    if(typeof window !== 'undefined' && window.TalentManager && typeof window.TalentManager.tryAcquireTalent === 'function'){
+      for(let s of game.students){ if(s && s.active !== false) try{ window.TalentManager.tryAcquireTalent(s, (typeof intensity !== 'undefined' ? (intensity===3?0.8:(intensity===2?0.4:0.2)) : 0.4)); }catch(e){} }
+    }
+  }catch(e){ console.error('post-training tryAcquireTalent error', e); }
   const __after = typeof __createSnapshot === 'function' ? __createSnapshot() : null;
   if(__before && __after) __summarizeSnapshot(__before, __after, `训练：${topic}`);
 }
 
+*/
 /* 新的基于题目的训练函数 */
 function trainStudentsWithTask(task, intensity) {
   log(`开始做题训练：${task.name}（难度${task.difficulty}，强度${intensity===1?'轻':intensity===2?'中':'重'}）`);
@@ -684,7 +736,26 @@ function trainStudentsWithTask(task, intensity) {
   
   for(let s of game.students) {
   if(!s || s.active === false) continue;
-    s.comfort = comfort;
+    
+    // 计算个人舒适度（考虑天气敏感和美食家天赋）
+    let personalComfort = comfort;
+    
+    // 天气敏感：天气影响翻倍
+    if(s.talents && s.talents.has('天气敏感')){
+      const baseComfort = game.base_comfort;
+      const weatherEffect = comfort - baseComfort;
+      personalComfort = baseComfort + weatherEffect * 2;
+      personalComfort = Math.max(0, Math.min(100, personalComfort));
+    }
+    
+    // 美食家：食堂效果翻倍
+    if(s.talents && s.talents.has('美食家')){
+      const canteenBonus = 3 * (game.facilities.canteen - 1);
+      personalComfort += canteenBonus; // 额外增加一次食堂效果
+      personalComfort = Math.max(0, Math.min(100, personalComfort));
+    }
+    
+    s.comfort = personalComfort;
     
     let sick_penalty = (s.sick_weeks > 0) ? 0.7 : 1.0;
     
@@ -776,6 +847,12 @@ function trainStudentsWithTask(task, intensity) {
   
   // 输出详细的训练日志
   log(`训练结束。题目：${task.name}`);
+  // 训练结束后尝试为每位学生获得天赋（按训练强度放大/降低概率）
+  try{
+    if(typeof window !== 'undefined' && window.TalentManager && typeof window.TalentManager.tryAcquireTalent === 'function'){
+  for(let s of game.students){ if(s && s.active !== false) try{ window.TalentManager.tryAcquireTalent(s, (typeof intensity !== 'undefined' ? (intensity===3?0.8:(intensity===2?0.4:0.2)) : 0.4)); }catch(e){} }
+    }
+  }catch(e){ console.error('post-task-training tryAcquireTalent error', e); }
   for(const result of trainingResults) {
     const boostStrs = result.boosts.map(b => `${b.type}+${b.actualAmount}`).join(', ');
     const effPercent = Math.round(result.multiplier * 100);
@@ -857,7 +934,42 @@ function outingTrainingWithSelection(difficulty_choice, province_choice, selecte
   const __before = typeof __createSnapshot === 'function' ? __createSnapshot() : null;
   const selectedStudents = game.students.filter(s => s && s.active && selectedNames.includes(s.name));
   const participantCount = selectedStudents.length;
-  const final_cost = computeOutingCostQuadratic(difficulty_choice, province_choice, participantCount);
+  let final_cost = computeOutingCostQuadratic(difficulty_choice, province_choice, participantCount);
+
+  // 在结算前询问每位参与学生的天赋，收集可能的开支减免（action: 'reduce_outing_cost'）
+  try{
+    let totalReduction = 0;
+    const reductions = [];
+    for(let s of selectedStudents){
+      try{
+        // 首选 student.triggerTalents（实例方法），否则尝试全局 TalentManager
+        let results = null;
+        if(s && typeof s.triggerTalents === 'function'){
+          results = s.triggerTalents('outing_cost_calculate', { province: target.name, difficulty: difficulty_choice, participantCount });
+        } else if(typeof window !== 'undefined' && window.TalentManager && typeof window.TalentManager.handleStudentEvent === 'function'){
+          results = window.TalentManager.handleStudentEvent(s, 'outing_cost_calculate', { province: target.name, difficulty: difficulty_choice, participantCount });
+        }
+        if(Array.isArray(results)){
+          for(const r of results){
+            const res = r && r.result ? r.result : r;
+            if(res && res.action === 'reduce_outing_cost' && typeof res.amount === 'number'){
+              totalReduction += Number(res.amount) || 0;
+              reductions.push({ student: s.name, amount: Number(res.amount), message: res.message });
+            }
+          }
+        }
+      }catch(e){ console.error('outing cost talent check error for', s && s.name, e); }
+    }
+    if(totalReduction > 0){
+      const applied = Math.min(final_cost, Math.floor(totalReduction));
+      final_cost = Math.max(0, final_cost - applied);
+      // 通知事件面板（如果存在）和日志
+      try{ if(window.pushEvent) window.pushEvent({ name: '集训经费减免', description: `天赋导致集训费用减少 ¥${applied}（来自: ${reductions.map(r=>r.student+':'+'¥'+r.amount).join(', ')}）`, week: game.week }); }catch(e){}
+      log(`集训经费减免：共 -¥${applied}（明细: ${reductions.map(r=>r.student+':'+'¥'+r.amount).join(', ')})`);
+    }
+    // 结束 try 大块
+  }catch(e){ console.error('collect outing cost reductions error', e); }
+
   if(game.budget < final_cost){ alert("经费不足，无法外出集训！"); return; }
   game.recordExpense(final_cost, `外出集训：${target.name}`);
   log(`外出集训：${target.name} (${target.type})，难度:${difficulty_choice}，参与人数:${participantCount}，费用 ¥${final_cost}`);
@@ -923,6 +1035,13 @@ function outingTrainingWithSelection(difficulty_choice, province_choice, selecte
     s.triggerTalents?.('pressure_change', { source: 'outing', amount: pressure_delta, province: target?.name, difficulty_choice });
     s.triggerTalents?.('outing_finished', { province: target?.name, difficulty: difficulty_choice, knowledge_gain });
     s.hiddenMockScore = hiddenScore;
+
+    // 集训结束时尝试按正常概率分配天赋
+    try{
+      if(typeof window !== 'undefined' && window.TalentManager && typeof window.TalentManager.tryAcquireTalent === 'function'){
+        try{ window.TalentManager.tryAcquireTalent(s, 1.0); }catch(e){}
+      }
+    }catch(e){ console.error('outing_finished tryAcquireTalent error', e); }
 
     if(mismatch){
       const message = `这次集训与学生${s.name}实力不匹配，压力增加，收获减少`;
@@ -1558,7 +1677,26 @@ function checkRandomEvents(){
 /* 周结算（默认 2 周） */
 function weeklyUpdate(weeks=1){
   let comfort = game.getComfort();
-  for(let s of game.students) if(s.sick_weeks > 0) s.sick_weeks--;
+  
+  // 先处理生病恢复，并检测自愈天赋
+  for(let s of game.students){
+    if(!s || s.active === false) continue;
+    if(s.sick_weeks > 0){
+      s.sick_weeks--;
+      // 检测自愈天赋：有30%概率额外减少1周病程
+      if(s.talents && s.talents.has('自愈') && s.sick_weeks > 0){
+        if(Math.random() < 0.30){
+          s.sick_weeks = Math.max(0, s.sick_weeks - 1);
+          window.pushEvent && window.pushEvent({
+            name: '自愈',
+            description: `${s.name} 的自愈能力发挥作用，病程额外减少1周`,
+            week: game.week
+          });
+        }
+      }
+    }
+  }
+  
   for(let s of game.students){
   if(!s || s.active === false) continue;
     function applyForgetting(knowledge){
@@ -1574,7 +1712,32 @@ function weeklyUpdate(weeks=1){
     s.knowledge_string = applyForgetting(s.knowledge_string);
     s.knowledge_math = applyForgetting(s.knowledge_math);
     s.knowledge_dp = applyForgetting(s.knowledge_dp);
-    let pressure_recovery = RECOVERY_RATE * (comfort/100.0) * weeks;
+    
+    // 计算个人舒适度用于压力恢复（考虑天赋）
+    let personalComfort = comfort;
+    
+    // 天气敏感：天气影响翻倍
+    if(s.talents && s.talents.has('天气敏感')){
+      const baseComfort = game.base_comfort;
+      const weatherEffect = comfort - baseComfort;
+      personalComfort = baseComfort + weatherEffect * 2;
+      personalComfort = Math.max(0, Math.min(100, personalComfort));
+    }
+    
+    // 美食家：食堂效果翻倍（用于压力恢复）
+    if(s.talents && s.talents.has('美食家')){
+      const canteenBonus = 3 * (game.facilities.canteen - 1);
+      personalComfort += canteenBonus;
+      personalComfort = Math.max(0, Math.min(100, personalComfort));
+    }
+    
+    let pressure_recovery = RECOVERY_RATE * (personalComfort/100.0) * weeks;
+    
+    // 检测乐天派天赋：每周额外恢复3点压力
+    if(s.talents && s.talents.has('乐天派')){
+      pressure_recovery += 3 * weeks;
+    }
+    
     s.pressure = Math.max(0, s.pressure - pressure_recovery);
     s.pressure = Math.min(100, s.pressure);
   }
@@ -1589,6 +1752,21 @@ function weeklyUpdate(weeks=1){
   // teaching_points 已弃用，移除增量逻辑
   game.weeks_since_good_result += weeks;
   if(game.weeks_since_good_result > 12) game.had_good_result_recently = false;
+  // 触发每周/每回合结束相关的天赋事件（兼容旧/新接口）
+  try{
+    for(let s of game.students){
+      if(!s) continue;
+      try{
+        if(typeof s.triggerTalents === 'function'){
+          // 仅触发 week_end，避免同一周内重复触发导致天赋效果叠加
+          s.triggerTalents('week_end', {});
+        } else if(typeof window !== 'undefined' && window.TalentManager && typeof window.TalentManager.handleStudentEvent === 'function'){
+          window.TalentManager.handleStudentEvent(s, 'week_end', {});
+        }
+      }catch(e){ console.error('triggerTalents week_end/turn_end', e); }
+    }
+  }catch(e){ console.error('weeklyUpdate trigger talents failed', e); }
+
   checkRandomEvents();
   // 检查游戏结束条件
   if (checkAndTriggerEnding()) {
@@ -2169,10 +2347,13 @@ function upgradeFacilitiesUI(){
     let current = game.facilities.getCurrentLevel(f.id);
     let max = game.facilities.getMaxLevel(f.id);
     let cost = game.facilities.getUpgradeCost(f.id);
+    // 显示实际扣款（按人数系数调整），同时保留基础费用信息
+    const mult = (game.getExpenseMultiplier ? game.getExpenseMultiplier() : 1);
+    const costAdj = Math.round(cost * mult);
     html += `<div style="padding:8px;border:1px solid #eee;border-radius:6px;">
       <div><strong>${f.label}</strong></div>
       <div class="small">等级：${current} / ${max}</div>
-      <div class="small">升级费用：¥${cost}</div>
+      <div class="small">升级费用：¥${costAdj}（ ¥${cost}， x${mult.toFixed(2)}）</div>
       <div style="margin-top:8px"><button class="btn upgrade" data-fac="${f.id}">升级</button></div>
     </div>`;
   }
@@ -2196,14 +2377,35 @@ function upgradeFacility(f){
   let max = game.facilities.getMaxLevel(f);
   if(current >= max){ alert("已达最高等级"); return; }
   let cost = game.facilities.getUpgradeCost(f);
-  if(!confirm(`升级到 ${current+1} 级 需要 ¥${cost}，确认？`)) return;
-  // 升级费用按人数系数调整
-  const costAdj = Math.round(cost * (game.getExpenseMultiplier ? game.getExpenseMultiplier() : 1));
-  if(game.budget < costAdj){ alert("经费不足"); return; }
-  game.recordExpense(costAdj, `设施升级：${f}`);
-  game.facilities.upgrade(f);
-  log(`设施升级：${f} 到等级 ${current+1}（基础 ¥${cost}，调整后 ¥${costAdj}）`);
-  renderAll();
+  // 按人数系数调整为实际扣款
+  const mult = (game.getExpenseMultiplier ? game.getExpenseMultiplier() : 1);
+  const costAdj = Math.round(cost * mult);
+
+  // 使用游戏内模态替代浏览器 confirm，保持样式一致并提供确认/取消按钮
+  const modalHtml = `
+    <h3>升级设施：${f}</h3>
+    <div class="small" style="margin-top:6px">升级到 ${current+1} 级 将扣款 <strong>¥${costAdj}</strong></div>
+    <div class="modal-actions" style="margin-top:8px">
+      <button class="btn btn-ghost" id="upgrade-cancel">取消</button>
+      <button class="btn" id="upgrade-confirm">确认升级</button>
+    </div>`;
+
+  showModal(modalHtml);
+
+  // 绑定按钮回调
+  const cancelBtn = document.getElementById('upgrade-cancel');
+  const confirmBtn = document.getElementById('upgrade-confirm');
+  if(cancelBtn) cancelBtn.onclick = () => { try{ closeModal(); }catch(e){} };
+  if(confirmBtn) confirmBtn.onclick = () => {
+    try{
+      if(game.budget < costAdj){ alert("经费不足"); closeModal(); return; }
+      game.recordExpense(costAdj, `设施升级：${f}`);
+      game.facilities.upgrade(f);
+      log(`设施升级：${f} 到等级 ${current+1}（基础 ¥${cost}，调整后 ¥${costAdj}）`);
+      closeModal();
+      renderAll();
+    }catch(e){ console.error('upgrade confirm handler error', e); }
+  };
 }
 
 /* 休息 1 周 */
@@ -2799,7 +3001,7 @@ function initGame(difficulty, province_choice, student_count){
     const newStud = new Student(recruited.name, recruited.thinking, recruited.coding, recruited.mental);
     
     // 应用学前培养的天赋
-    if(recruited.talents && recruited.talents.length > 0){
+    if(recruited.talents && recruited.talents.size > 0){
       for(let talentName of recruited.talents){
         newStud.addTalent(talentName);
       }
@@ -2819,10 +3021,7 @@ function initGame(difficulty, province_choice, student_count){
     let coding = clamp(normal(mean, stddev), 0, 100);
     let mental = clamp(normal(mean, stddev), 0, 100);
     const newStud = new Student(name, thinking, coding, mental);
-    // 如果有 TalentManager，按概率给学生分配天赋（每个天赋独立判断）
-    if(typeof window !== 'undefined' && window.TalentManager && typeof window.TalentManager.assignTalentsToStudent === 'function'){
-      try{ window.TalentManager.assignTalentsToStudent(newStud); }catch(e){ console.error('assignTalentsToStudent failed', e); }
-    }
+    // 初始时不自动分配天赋（talents 仅通过对点招生或后续训练/集训获得）
     game.students.push(newStud);
   }
   game.updateWeather();

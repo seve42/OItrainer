@@ -74,6 +74,12 @@
             if(c.game.temperature < EXTREME_COLD_THRESHOLD || c.game.temperature > EXTREME_HOT_THRESHOLD){
               pr += SICK_PROB_FROM_COLD_HOT;
             }
+            
+            // 检测铁人天赋：生病概率降低50%
+            if(s.talents && s.talents.has('铁人')){
+              pr = pr * 0.5;
+            }
+            
             if(Math.random() < pr){
               s.sick_weeks = utils.uniformInt(1,2);
               sickList.push(s.name);
@@ -97,7 +103,7 @@
         id: 'burnout',
         name: '退队/倦怠',
         description: '压力累计导致学生退队',
-        check: c => c.game.students.some(s => s.active && s.pressure >= 90),
+        check: c => c.game.students.some(s => s.active && s.pressure >= 95),
         run: c => {
           const {QUIT_PROB_BASE, QUIT_PROB_PER_EXTRA_PRESSURE} = c.constants;
           const quitList = [];
@@ -107,7 +113,13 @@
             if(s.pressure >= 90){
               s.burnout_weeks = (s.burnout_weeks || 0) + 1;
               if(s.burnout_weeks >= 3){
-                const prob = QUIT_PROB_BASE + QUIT_PROB_PER_EXTRA_PRESSURE * (s.pressure - 90);
+                let prob = QUIT_PROB_BASE + QUIT_PROB_PER_EXTRA_PRESSURE * (s.pressure - 90);
+                
+                // 检测乐天派天赋：燃尽概率降低50%
+                if(s.talents && s.talents.has('乐天派')){
+                  prob = prob * 0.5;
+                }
+                
                 if(Math.random() < prob){
                   quitList.push(s.name);
                   c.game.students.splice(i, 1);
@@ -220,7 +232,16 @@
         id: 'equipment_failure',
         name: '机房设备故障',
         description: '机房设备故障，产生维修费用或设置维修周数',
-        check: c => Math.random() < 0.02 * (2 - (c.game.computer_level || 1)),
+        check: c => {
+          // base probability scales with computer level
+          let base = 0.02 * (2 - (c.game.computer_level || 1));
+          // if any active student has 扫把星, increase negative event probability
+          try{
+            const hasBadLuck = Array.isArray(c.game.students) && c.game.students.some(s => s && s.active !== false && s.talents && typeof s.talents.has === 'function' && s.talents.has('扫把星'));
+            if(hasBadLuck) base = base * 1.5;
+          }catch(e){ /* ignore talent checks */ }
+          return Math.random() < base;
+        },
         run: c => {
           const cost = c.utils.uniformInt(5000, 20000);
           if (c.game.budget >= cost) {
@@ -248,7 +269,14 @@
           const active = c.game.students.filter(s => s && s.active !== false);
           if (!active.length) return false;
           const avg = active.reduce((sum, s) => sum + s.pressure, 0) / active.length;
-          return avg > 70 && Math.random() < 0.05;
+          if(!(avg > 70)) return false;
+          // base probability
+          let p = 0.05;
+          try{
+            const hasBadLuck = Array.isArray(c.game.students) && c.game.students.some(s => s && s.active !== false && s.talents && typeof s.talents.has === 'function' && s.talents.has('扫把星'));
+            if(hasBadLuck) p = p * 1.5;
+          }catch(e){ /* ignore talent checks */ }
+          return Math.random() < p;
         },
         run: c => {
           for (const s of c.game.students) {
@@ -270,7 +298,15 @@
         id: 'funding_audit',
         name: '经费审计',
         description: '经费审计暂停高消费活动，并可能损失少量经费',
-        check: c => c.game.budget > 200000 && Math.random() < 0.03,
+        check: c => {
+          if(!(c.game.budget > 200000)) return false;
+          let p = 0.03;
+          try{
+            const hasBadLuck = Array.isArray(c.game.students) && c.game.students.some(s => s && s.active !== false && s.talents && typeof s.talents.has === 'function' && s.talents.has('扫把星'));
+            if(hasBadLuck) p = p * 1.5;
+          }catch(e){ }
+          return Math.random() < p;
+        },
         run: c => {
           const weeks = c.utils.uniformInt(1, 2);
           c.game.audit_weeks = weeks;
@@ -350,9 +386,7 @@
                 try{
                   const s = new Student('新学生', 80, 80, 80);
                   s.pressure = 30; s.comfort = 80; s.active = true;
-                  if(window.TalentManager && typeof window.TalentManager.assignTalentsToStudent === 'function'){
-                    try{ window.TalentManager.assignTalentsToStudent(s); }catch(e){}
-                  }
+                  // 初始时不自动分配天赋（由训练/集训或显式数据赋予）
                   c.game.students.push(s);
                 }catch(e){
                   // fallback to plain object if Student constructor unavailable
@@ -441,6 +475,44 @@
         }
       });
 
+      // 天赋获取事件
+      this.register({
+        id: 'talent_acquire',
+        name: '天赋获得',
+        description: '学生在训练中可能获得新天赋',
+        check: c => {
+          // 这个事件由其他逻辑手动触发，而不是随机检查
+          return false; 
+        },
+        run: (c, student, talent) => {
+          if (!student || !talent) return;
+          const msg = `${student.name} 获得了天赋：【${talent.name}】！`;
+          c.log && c.log(`[天赋] ${msg}`);
+          //try{ if(window.pushEvent) window.pushEvent({ name: '天赋获得', description: msg, week: c.game.week }); }catch(e){}
+          try{ if(window.showEventModal) window.showEventModal && window.showEventModal({ name: '天赋获得', description: msg, week: c.game.week }); }catch(e){}
+        }
+      });
+
+      // 天赋丧失事件
+      this.register({
+        id: 'talent_loss',
+        name: '天赋丧失',
+        description: '压力过高可能导致学生丧失天赋',
+        
+        check: c => c.game.students.some(s => s.active && s.pressure >= TALENT_LOST_VALUE),
+        run: c => {
+          
+          for (const s of c.game.students) {
+            //alert("DEBUG: 天赋丧失事件" + s.name + " 压力 " + s.pressure);
+            if (s && s.active && s.pressure >= TALENT_LOST_VALUE) {
+              if (window.TalentManager && typeof window.TalentManager.checkAndHandleTalentLoss === 'function') {
+                window.TalentManager.checkAndHandleTalentLoss(s);
+              }
+            }
+          }
+          return null; // 不产生全局弹窗，由 talent.js 自己处理
+        }
+      });
       
     },
 
