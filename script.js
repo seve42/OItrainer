@@ -783,8 +783,8 @@ function trainStudentsWithTask(task, intensity) {
     // 能力提升：根据题目难度和学生能力
     // 做题会同时提升思维和编码能力，但幅度较小
     const abilityGainBase = boostMultiplier * intensityFactor * (1 - Math.min(0.6, s.pressure/200.0));
-    const thinkingGain = uniform(0.3, 0.8) * abilityGainBase;
-    const codingGain = uniform(0.3, 0.8) * abilityGainBase;
+    const thinkingGain = uniform(0.3, 0.8) * abilityGainBase * (typeof TRAINING_EFFECT_MULTIPLIER !== 'undefined' ? TRAINING_EFFECT_MULTIPLIER : 1.0);
+    const codingGain = uniform(0.3, 0.8) * abilityGainBase * (typeof TRAINING_EFFECT_MULTIPLIER !== 'undefined' ? TRAINING_EFFECT_MULTIPLIER : 1.0);
     
     s.thinking += thinkingGain;
     s.coding += codingGain;
@@ -804,6 +804,9 @@ function trainStudentsWithTask(task, intensity) {
     let canteen_reduction = game.facilities.getCanteenPressureReduction();
     let pressure_increase = base_pressure * weather_factor * canteen_reduction * comfort_factor;
     if(s.sick_weeks > 0) pressure_increase += 10;
+    
+    // 应用全局压力增加量增幅
+    pressure_increase *= (typeof PRESSURE_INCREASE_MULTIPLIER !== 'undefined' ? PRESSURE_INCREASE_MULTIPLIER : 1.0);
     
     // 处理天赋对压力的影响
     let finalPressureIncrease = pressure_increase;
@@ -1015,20 +1018,21 @@ function outingTrainingWithSelection(difficulty_choice, province_choice, selecte
       pressure_multiplier = 2.0; // 压力乘2
     }
 
-    // apply gains
-    const knowledge_gain = Math.floor(uniformInt(knowledge_min, knowledge_max) * knowledge_modifier);
+    // apply gains (应用集训效果增幅)
+    const outfitEffectMult = (typeof OUTFIT_EFFECT_MULTIPLIER !== 'undefined' ? OUTFIT_EFFECT_MULTIPLIER : 1.0);
+    const knowledge_gain = Math.floor(uniformInt(knowledge_min, knowledge_max) * knowledge_modifier * outfitEffectMult);
     s.knowledge_ds += knowledge_gain; 
     s.knowledge_graph += knowledge_gain; 
     s.knowledge_string += knowledge_gain; 
     s.knowledge_math += knowledge_gain; 
     s.knowledge_dp += knowledge_gain;
     
-    const ability_gain = uniform(ability_min, ability_max) * ability_modifier;
+    const ability_gain = uniform(ability_min, ability_max) * ability_modifier * outfitEffectMult;
   s.thinking = (s.thinking || 0) + ability_gain;
   s.coding = (s.coding || 0) + ability_gain;
     s.mental = Math.min(100, s.mental + ability_gain * 0.5);
 
-    const pressure_delta = Math.floor(pressure_gain * (mismatch ? pressure_multiplier : 1.0));
+    const pressure_delta = Math.floor(pressure_gain * (mismatch ? pressure_multiplier : 1.0) * (typeof PRESSURE_INCREASE_MULTIPLIER !== 'undefined' ? PRESSURE_INCREASE_MULTIPLIER : 1.0));
     s.pressure = Math.min(100, Number(s.pressure||0) + pressure_delta);
     s.comfort -= 10;
 
