@@ -1013,7 +1013,7 @@ function outingTrainingWithSelection(difficulty_choice, province_choice, selecte
     let ability_modifier = 1.0;
     let pressure_multiplier = 1.0;
     if(mismatch){
-      knowledge_modifier = 0.5; // 收获减半
+      knowledge_modifier = 0.2; // 收获减小
       ability_modifier = 0.5;
       pressure_multiplier = 2.0; // 压力乘2
     }
@@ -2126,57 +2126,156 @@ function trainStudentsUI(){
   };
 }
 
-/* 模拟赛 UI：每题多标签（checkbox），难度以等级显示 */
+/* 模拟赛 UI：付费比赛可选难度和tag，网赛tag随机 */
 function holdMockContestUI(){
-  // Purchase option + difficulty level (labels) + 4 questions each multi-select checkboxes for tags
+  // 构建正式比赛难度级别下拉选项（用于付费比赛）
+  const officialContestOptions = COMPETITION_SCHEDULE.map((comp, idx) => 
+    `<option value="${idx}">${comp.name} (难度${comp.difficulty}, ${comp.numProblems}题)</option>`
+  ).join('');
+  
+  // 构建网赛类型下拉选项
+  const onlineContestOptions = ONLINE_CONTEST_TYPES.map((type, idx) => 
+    `<option value="${idx}">${type.displayName} (${type.numProblems}题)</option>`
+  ).join('');
+  
   let kpHtml = KP_OPTIONS.map(k=>`<label style="margin-right:8px"><input type="checkbox" class="kp-option" value="${k.name}"> ${k.name}</label>`).join("<br/>");
+  
   showModal(`<h3>配置模拟赛（1周）</h3>
-    <div><label class="block">是否购买题目</label><select id="mock-purchase"><option value="0">否（网赛）</option><option value="1">是（付费）</option></select></div>
-    <div style="margin-top:8px"><label class="block">难度等级</label>
-      <select id="mock-diff">${MOCK_CONTEST_DIFFICULTIES.map((d,i)=>`<option value="${i}">${d}</option>`).join('')}</select>
+    <div><label class="block">比赛类型</label>
+      <select id="mock-purchase">
+        <option value="0">网赛（免费）</option>
+        <option value="1">付费比赛（可选难度和tag）</option>
+      </select>
     </div>
-    <div style="margin-top:8px"><div class="small">为每题选择 1 或多个 知识点 标签：</div>
-      ${[1,2,3,4].map(i=>`<div style="margin-top:6px"><strong>第 ${i} 题</strong><br/>${kpHtml}</div>`).join('')}
+    <div id="mock-difficulty-container" style="margin-top:8px;display:none;">
+      <label class="block">比赛难度</label>
+      <select id="mock-difficulty">${officialContestOptions}</select>
+    </div>
+    <div id="mock-online-container" style="margin-top:8px;">
+      <label class="block">网赛类型</label>
+      <select id="mock-contest-type">${onlineContestOptions}</select>
+    </div>
+    <div id="mock-questions-container" style="margin-top:8px">
+      <div class="small">网赛题目标签将随机生成</div>
     </div>
     <div class="modal-actions" style="margin-top:10px">
       <button class="btn btn-ghost" onclick="closeModal()">取消</button>
-  <button class="btn" id="mock-submit">开始模拟赛（1周）</button>
+      <button class="btn" id="mock-submit">开始模拟赛（1周）</button>
     </div>`);
-  $('mock-submit').onclick = ()=>{
-    // read config
-    let isPurchased = $('mock-purchase').value === "1";
-    let diffIdx = parseInt($('mock-diff').value);
-    // for each question collect selected tags
-    let questionTagsArray = [];
-    let kpOptions = Array.from(document.querySelectorAll('.kp-option'));
-    let groupSize = KP_OPTIONS.length;
-    for(let q=0;q<4;q++){
-      let tags = [];
-      for(let k=0;k<groupSize;k++){
-        let idx = q*groupSize + k;
-        if(kpOptions[idx] && kpOptions[idx].checked) tags.push(kpOptions[idx].value);
+  
+  // 动态更新题目数量和标签选择
+  function updateQuestions(){
+    const isPurchased = $('mock-purchase').value === "1";
+    
+    if(isPurchased){
+      // 付费比赛：显示难度选择和tag选择
+      $('mock-difficulty-container').style.display = 'block';
+      $('mock-online-container').style.display = 'none';
+      
+      const diffIdx = parseInt($('mock-difficulty').value);
+      const comp = COMPETITION_SCHEDULE[diffIdx];
+      const numProblems = comp.numProblems;
+      
+      let questionsHtml = '<div class="small">为每题选择 1 或多个 知识点 标签：</div>';
+      for(let i = 1; i <= numProblems; i++){
+        questionsHtml += `<div style="margin-top:6px"><strong>第 ${i} 题</strong><br/>${kpHtml}</div>`;
       }
-      questionTagsArray.push(tags);
+      $('mock-questions-container').innerHTML = questionsHtml;
+    } else {
+      // 网赛：显示网赛类型选择，tag随机
+      $('mock-difficulty-container').style.display = 'none';
+      $('mock-online-container').style.display = 'block';
+      
+      const typeIdx = parseInt($('mock-contest-type').value);
+      const contestType = ONLINE_CONTEST_TYPES[typeIdx];
+      
+      $('mock-questions-container').innerHTML = `<div class="small">网赛共 ${contestType.numProblems} 题，题目标签将随机生成</div>`;
     }
+  }
+  
+  // 初始化题目列表
+  updateQuestions();
+  
+  // 监听比赛类型和难度变化
+  $('mock-purchase').onchange = updateQuestions;
+  $('mock-difficulty').onchange = updateQuestions;
+  $('mock-contest-type').onchange = updateQuestions;
+  
+  $('mock-submit').onclick = ()=>{
+    const isPurchased = $('mock-purchase').value === "1";
+    let difficultyConfig, numProblems, questionTagsArray = [];
+    
+    if(isPurchased){
+      // 付费比赛：使用选择的难度级别和tag
+      const diffIdx = parseInt($('mock-difficulty').value);
+      const comp = COMPETITION_SCHEDULE[diffIdx];
+      difficultyConfig = {
+        type: 'official',
+        difficulty: comp.difficulty,
+        name: comp.name,
+        numProblems: comp.numProblems
+      };
+      numProblems = comp.numProblems;
+      
+      // 收集每题的tag
+      let kpOptions = Array.from(document.querySelectorAll('.kp-option'));
+      let groupSize = KP_OPTIONS.length;
+      for(let q = 0; q < numProblems; q++){
+        let tags = [];
+        for(let k = 0; k < groupSize; k++){
+          let idx = q * groupSize + k;
+          if(kpOptions[idx] && kpOptions[idx].checked) tags.push(kpOptions[idx].value);
+        }
+        questionTagsArray.push(tags);
+      }
+    } else {
+      // 网赛：使用选择的网赛类型，tag随机
+      const typeIdx = parseInt($('mock-contest-type').value);
+      const contestType = ONLINE_CONTEST_TYPES[typeIdx];
+      difficultyConfig = {
+        type: 'online',
+        typeIdx: typeIdx,
+        difficulty: contestType.difficulty,
+        name: contestType.displayName,
+        onlineContestType: contestType.name,
+        numProblems: contestType.numProblems
+      };
+      numProblems = contestType.numProblems;
+      
+      // 为每题生成随机tag（1-2个）
+      const allTags = ["数据结构", "图论", "字符串", "数学", "动态规划"];
+      for(let q = 0; q < numProblems; q++){
+        let tags = [];
+        const numTags = 1 + Math.floor(Math.random() * 2); // 1-2个标签
+        for(let j = 0; j < numTags; j++){
+          const tag = allTags[Math.floor(Math.random() * allTags.length)];
+          if(!tags.includes(tag)) tags.push(tag);
+        }
+        questionTagsArray.push(tags);
+      }
+    }
+    
     closeModal();
-    // if purchased, charge (按人数系数调整)
+    
+    // 扣费
     if(isPurchased){
       let cost = uniformInt(MOCK_CONTEST_PURCHASE_MIN_COST, MOCK_CONTEST_PURCHASE_MAX_COST);
       const adj = Math.round(cost * (game.getExpenseMultiplier ? game.getExpenseMultiplier() : 1));
       if(game.budget < adj){ alert("经费不足，无法购买题目"); return; }
-      game.recordExpense(adj, '购买模拟赛题目');
-      log(`购买模拟赛题目，基础 ¥${cost}，调整后 ¥${adj}`);
+      game.recordExpense(adj, '购买付费比赛题目');
+      log(`购买付费比赛题目（${difficultyConfig.name}）， ¥${adj}`);
     } else {
-      log("参加网赛（免费）");
+      log(`参加网赛（${difficultyConfig.name}，免费）`);
     }
-    // show modal results and apply after user confirms
+    
     // 使用新的比赛模拟系统
     if(typeof window.holdMockContestModalNew === 'function'){
-      window.holdMockContestModalNew(isPurchased, diffIdx, questionTagsArray);
+      window.holdMockContestModalNew(isPurchased, difficultyConfig, questionTagsArray);
     } else {
-      holdMockContestModal(isPurchased, diffIdx, questionTagsArray);
+      alert('比赛系统未加载，请刷新页面');
+      return;
     }
-  safeWeeklyUpdate(1);
+    safeWeeklyUpdate(1);
     renderAll();
   };
 }
@@ -3112,23 +3211,44 @@ window.onload = ()=>{
       card.style.cssText = 'display:inline-block;padding:6px;margin:4px;border:1px solid #ddd;border-radius:6px;cursor:pointer;min-width:120px;text-align:left;font-size:13px;opacity:0.45';
       card.dataset.name = s.name;
       card.dataset.selected = '0'; // default NOT selected
-      // show three-letter grades: 思维 (T), 编码 (C), 知识 (K)
-      const thinkGrade = (typeof s.thinking === 'number') ? getLetterGradeAbility(Math.floor(Number(s.thinking||0))) : '';
-      const codeGrade = (typeof s.coding === 'number') ? getLetterGradeAbility(Math.floor(Number(s.coding||0))) : '';
-      const knowVal = (s.getKnowledgeTotal && typeof s.getKnowledgeTotal === 'function') ? Math.floor(s.getKnowledgeTotal()) : Math.floor((Number(s.knowledge_ds||0) + Number(s.knowledge_graph||0) + Number(s.knowledge_string||0) + Number(s.knowledge_math||0) + Number(s.knowledge_dp||0)));
-      const knowGrade = getLetterGrade(Math.floor(knowVal));
+      // Use the same badge/grade display as the main game UI to ensure consistency
+      let talentsHtml = '';
+      if(s.talents && s.talents.size > 0){
+        const talentArray = Array.from(s.talents);
+        talentsHtml = talentArray.map(talentName => {
+          const talentInfo = window.TalentManager ? window.TalentManager.getTalentInfo(talentName) : { name: talentName, description: '暂无描述', color: '#2b6cb0' };
+          return `<span class="talent-tag" data-talent="${talentName}" style="background-color: ${talentInfo.color}20; color: ${talentInfo.color}; border-color: ${talentInfo.color}40;">
+          ${talentName}
+          <span class="talent-tooltip">${talentInfo.description}</span>
+        </span>`;
+        }).join('');
+      }
       card.innerHTML = `<strong style="display:block">${s.name}</strong>
         <div style="color:#666;margin-top:4px">
-          能力: <span class="knowledge-badges">
-            <span class="kb kb-small" title="思维: ${Math.floor(Number(s.thinking||0))}">${getLetterGrade(Math.floor(Number(s.thinking||0)))}</span>
-            <span class="kb kb-small" title="编码: ${Math.floor(Number(s.coding||0))}">${getLetterGrade(Math.floor(Number(s.coding||0)))}</span>
-            <span class="kb kb-small" title="数据结构: ${Math.floor(Number(s.knowledge_ds||0))}">数据结构${getLetterGrade(Math.floor(Number(s.knowledge_ds||0)))}</span>
-            <span class="kb kb-small" title="图论: ${Math.floor(Number(s.knowledge_graph||0))}">图论${getLetterGrade(Math.floor(Number(s.knowledge_graph||0)))}</span>
-            <span class="kb kb-small" title="字符串: ${Math.floor(Number(s.knowledge_string||0))}">字符串${getLetterGrade(Math.floor(Number(s.knowledge_string||0)))}</span>
-            <span class="kb kb-small" title="数学: ${Math.floor(Number(s.knowledge_math||0))}">数学${getLetterGrade(Math.floor(Number(s.knowledge_math||0)))}</span>
-            <span class="kb kb-small" title="动态规划: ${Math.floor(Number(s.knowledge_dp||0))}">动态规划${getLetterGrade(Math.floor(Number(s.knowledge_dp||0)))}</span>
-          </span>
-        </div>`;
+          <span style="font-size:12px;color:#718096;font-weight:600;">知识</span>
+          <div class="knowledge-badges">
+            <span class="kb" title="数据结构: ${Math.floor(Number(s.knowledge_ds||0))}" data-grade="${getLetterGradeAbility(Math.floor(Number(s.knowledge_ds||0)))}">
+              DS ${getLetterGradeAbility(Math.floor(Number(s.knowledge_ds||0)))}
+            </span>
+            <span class="kb" title="图论: ${Math.floor(Number(s.knowledge_graph||0))}" data-grade="${getLetterGradeAbility(Math.floor(Number(s.knowledge_graph||0)))}">
+              图论 ${getLetterGradeAbility(Math.floor(Number(s.knowledge_graph||0)))}
+            </span>
+            <span class="kb" title="字符串: ${Math.floor(Number(s.knowledge_string||0))}" data-grade="${getLetterGradeAbility(Math.floor(Number(s.knowledge_string||0)))}">
+              字符串${getLetterGradeAbility(Math.floor(Number(s.knowledge_string||0)))}
+            </span>
+            <span class="kb" title="数学: ${Math.floor(Number(s.knowledge_math||0))}" data-grade="${getLetterGradeAbility(Math.floor(Number(s.knowledge_math||0)))}">
+              数学 ${getLetterGradeAbility(Math.floor(Number(s.knowledge_math||0)))}
+            </span>
+            <span class="kb" title="动态规划: ${Math.floor(Number(s.knowledge_dp||0))}" data-grade="${getLetterGradeAbility(Math.floor(Number(s.knowledge_dp||0)))}">
+              DP ${getLetterGradeAbility(Math.floor(Number(s.knowledge_dp||0)))}
+            </span>
+            <!-- ability badges (keep same visual style) -->
+            <span class="kb ability" title="思维: ${Math.floor(Number(s.thinking||0))}" data-grade="${getLetterGradeAbility(Math.floor(Number(s.thinking||0)))}">思维${getLetterGradeAbility(Math.floor(Number(s.thinking||0)))}</span>
+            <span class="kb ability" title="代码: ${Math.floor(Number(s.coding||0))}" data-grade="${getLetterGradeAbility(Math.floor(Number(s.coding||0)))}">代码${getLetterGradeAbility(Math.floor(Number(s.coding||0)))}</span>
+          </div>
+        </div>
+        ${talentsHtml ? `<div style="display:flex;align-items:center;gap:6px;margin-top:6px;"><span style="font-size:12px;color:#718096;font-weight:600;">天赋</span><div class="student-talents">${talentsHtml}</div></div>` : ''}
+      `;
       card.onclick = () => {
         if(card.dataset.selected === '1'){ card.dataset.selected = '0'; card.style.opacity = '0.45'; }
         else { card.dataset.selected = '1'; card.style.opacity = '1.0'; }
