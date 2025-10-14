@@ -21,13 +21,13 @@ input[type="number"], select, input[type="text"]{width:100%;padding:6px;border:1
 .stat{font-weight:700}
 .facility-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 /* province selection grid */
-.prov-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:4px}
-.prov-btn{background:var(--accent);color:#fff;border:none;padding:8px 12px;border-radius:6px;cursor:pointer}
-.prov-btn.selected{box-shadow:0 0 0 2px #333 inset}
+.prov-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));gap:6px;margin-top:4px}
+.prov-btn{background:var(--accent);color:#fff;border:none;padding:5px 6px;border-radius:4px;cursor:pointer;display:block;text-align:center;white-space:normal}
+.prov-btn.selected{background:#fff;color:var(--accent);border:2px solid rgba(43,108,176,0.18);box-shadow:0 4px 14px rgba(43,108,176,0.06);}
 /* option card (used in entertainment modal) */
 .option-card{transition:all 180ms ease;border:1px solid #e6e6e6;background:#fff}
-.option-card:hover{transform:translateY(-3px);box-shadow:0 6px 18px rgba(0,0,0,0.06)}
-.option-card.selected{border-color:var(--accent);background:linear-gradient(180deg, rgba(43,108,176,0.03), rgba(43,108,176,0.01));box-shadow:0 6px 20px rgba(43,108,176,0.12);transform:translateY(-2px)}
+.option-card:hover{transform:translateY(-2px);box-shadow:0 4px 10px rgba(0,0,0,0.04)}
+.option-card.selected{border-color:var(--accent);background:linear-gradient(180deg, rgba(43,108,176,0.04), rgba(43,108,176,0.02));box-shadow:none;transform:none}
 /* theme swatches */
 .theme-swatch{display:inline-block;width:16px;height:16px;border-radius:50%;cursor:pointer;margin-left:4px;border:1px solid #ccc;vertical-align:middle}
 body.theme-red{--accent:#e53e3e;--bg:#fff5f5;--card:#ffffff;--muted:#666}
@@ -622,8 +622,8 @@ body.comp-week .action-cards .action-card:not(#comp-only-action) {
 .talent-card .title{font-weight:700;font-size:14px}
 .talent-card .desc{font-size:12px;color:var(--muted)}
 .talent-card .color-dot{width:12px;height:12px;border-radius:50%;display:inline-block;margin-right:6px;vertical-align:middle;border:1px solid rgba(0,0,0,0.06)}
-.talent-card:hover{transform:translateY(-3px);box-shadow:0 8px 20px rgba(0,0,0,0.06)}
-.talent-card.selected{border-color:var(--accent);background:linear-gradient(180deg, rgba(43,108,176,0.03), rgba(43,108,176,0.01));box-shadow:0 8px 22px rgba(43,108,176,0.10)}
+.talent-card:hover{transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,0,0,0.04)}
+.talent-card.selected{border-color:var(--accent);background:linear-gradient(180deg, rgba(43,108,176,0.04), rgba(43,108,176,0.02));box-shadow:none;transform:none}
 
 /* make modal-actions align nicely on start page */
 .modal-actions{justify-content:flex-end}
