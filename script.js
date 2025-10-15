@@ -2909,7 +2909,11 @@ function initGame(difficulty, province_choice, student_count){
   window.game = game; // 确保全局访问
   game.difficulty = clampInt(difficulty,1,3);
   let prov = PROVINCES[province_choice] || PROVINCES[1];
+  // store province id and climate reference for weather system
+  game.province_id = province_choice;
   game.province_name = prov.name; game.province_type = prov.type; game.is_north = prov.isNorth; game.budget = prov.baseBudget; game.base_comfort = prov.isNorth?BASE_COMFORT_NORTH:BASE_COMFORT_SOUTH;
+  // attach climate object (if present) to game for models to use
+  try{ game.province_climate = prov.climate || null; }catch(e){ game.province_climate = null; }
   if(game.difficulty===1){ game.budget = Math.floor(game.budget * EASY_MODE_BUDGET_MULTIPLIER); }
   else if(game.difficulty===3){ game.budget = Math.floor(game.budget * HARD_MODE_BUDGET_MULTIPLIER); }
   
