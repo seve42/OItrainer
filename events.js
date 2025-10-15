@@ -167,21 +167,21 @@
   this.register({
     id: 'gold_coach_visit',
     name: '金牌教练来访',
-  description: '知名教练莅临指导，学生能力微增，压力微降',
+  description: '知名教练莅临指导，学生能力提升，压力降低',
         check: c => {
           if (!(c.game && c.game.province_name)) return false;
           let prov = c.game.province_name;
           if (typeof prov === 'number' && c.PROVINCES && c.PROVINCES[prov]) prov = c.PROVINCES[prov].name;
           prov = (prov || '') + '';
           prov = prov.replace(/(省|市|自治区|特别行政区)/g, '').trim();
-          return c.game.reputation > 70 && ['北京','上海','江苏','浙江','广东','山东','天津'].includes(prov) && Math.random() < 0.01;
+          return c.game.reputation > 60 && ['北京','上海','江苏','浙江','广东','山东','天津'].includes(prov) && Math.random() < 0.01;
         },
         run: c => {
             for(const s of c.game.students){ if(!s || s.active === false) continue;
-            s.thinking = (s.thinking||0) + c.utils.uniformInt(1,3);
-            s.coding   = (s.coding  ||0) + c.utils.uniformInt(1,3);
+            s.thinking = (s.thinking||0) + c.utils.uniformInt(4,10);
+            s.coding   = (s.coding  ||0) + c.utils.uniformInt(4,10);
             const oldP = Number(s.pressure || 0);
-            s.pressure = Math.max(0,   oldP - c.utils.uniformInt(1,3));
+            s.pressure = Math.max(0,   oldP - c.utils.uniformInt(20,50));
             try{ if(typeof s.triggerTalents === 'function'){ s.triggerTalents('pressure_change', { source: 'coach_visit', amount: s.pressure - oldP }); } }catch(e){ console.error('triggerTalents pressure_change', e); }
           }
           const msg = `金牌教练来访，学生能力微增，压力微降`;
@@ -623,11 +623,11 @@
                   // student leaves, receive compensation and reputation +5
                   const gain = c.utils.uniformInt(30000, 80000);
                   c.game.budget = (c.game.budget || 0) + gain;
-                  c.game.reputation = Math.min(100, (c.game.reputation || 0) + 5);
+                  c.game.reputation = Math.min(100, (c.game.reputation || 0) + 15);
                   try{ if(typeof stud.triggerTalents === 'function') stud.triggerTalents('quit', { reason: 'poached_grace' }); }catch(e){}
                   for(let i = c.game.students.length - 1; i >= 0; i--){ if(c.game.students[i] && c.game.students[i].name === stud.name){ c.game.students.splice(i,1); break; } }
                   c.game.quit_students = (c.game.quit_students || 0) + 1;
-                  const msg = `${stud.name} 离队，获得补偿 ¥${gain}，声誉 +5`;
+                  const msg = `${stud.name} 离队，获得补偿 ¥${gain}，声誉 +15`;
                   c.log && c.log(`[不做干涉] ${msg}`);
                   window.pushEvent && window.pushEvent({ name: '不做干涉', description: msg, week: c.game.week });
                   try{ if(typeof window.renderAll === 'function') window.renderAll(); }catch(e){}
