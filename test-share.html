@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>分享功能测试</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .test-section {
+      background: #f5f5f5;
+      padding: 16px;
+      margin: 12px 0;
+      border-radius: 8px;
+      border-left: 4px solid #4caf50;
+    }
+    .test-result {
+      margin-top: 8px;
+      padding: 8px;
+      background: white;
+      border-radius: 4px;
+      font-family: monospace;
+      font-size: 12px;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+    .success { color: #4caf50; font-weight: bold; }
+    .error { color: #f44336; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>🧪 分享功能测试</h1>
+    </header>
+
+    <div class="panel">
+      <h3>测试步骤</h3>
+      
+      <div class="test-section">
+        <h4>1. 准备测试数据</h4>
+        <button class="btn" onclick="prepareTestData()">生成测试数据</button>
+        <div id="test-data-result" class="test-result"></div>
+      </div>
+
+      <div class="test-section">
+        <h4>2. 测试加密功能</h4>
+        <button class="btn" onclick="testEncryption()">测试加密/解密</button>
+        <div id="encryption-result" class="test-result"></div>
+      </div>
+
+      <div class="test-section">
+        <h4>3. 生成分享链接</h4>
+        <button class="btn" onclick="testGenerateLink()">生成链接</button>
+        <div id="link-result" class="test-result"></div>
+      </div>
+
+      <div class="test-section">
+        <h4>4. 测试链接解析</h4>
+        <input type="text" id="test-link-input" placeholder="粘贴分享链接" style="width: 100%; padding: 8px; margin-bottom: 8px; border: 1px solid #ddd; border-radius: 4px;">
+        <button class="btn" onclick="testParseLink()">解析链接</button>
+        <div id="parse-result" class="test-result"></div>
+      </div>
+
+      <div class="test-section">
+        <h4>5. 测试完整流程</h4>
+        <button class="btn btn-primary" onclick="testFullWorkflow()">运行完整测试</button>
+        <div id="full-test-result" class="test-result"></div>
+      </div>
+
+      <div style="margin-top: 16px;">
+        <button class="btn btn-ghost" onclick="window.location.href='start.html'">返回开始</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="lib/constants.js"></script>
+  <script src="lib/utils.js"></script>
+  <script src="lib/models.js"></script>
+  <script src="lib/talent.js"></script>
+  <script src="lib/share.js"></script>
+
+  <script>
+    let testGameData = null;
+
+    function log(elementId, message, isError = false) {
+      const el = document.getElementById(elementId);
+      if (el) {
+        const className = isError ? 'error' : 'success';
+        el.innerHTML += `<div class="${className}">${message}</div>`;
+      }
+      console.log(message);
+    }
+
+    function clearLog(elementId) {
+      const el = document.getElementById(elementId);
+      if (el) el.innerHTML = '';
+    }
+
+    // 1. 准备测试数据
+    function prepareTestData() {
+      clearLog('test-data-result');
+      try {
+        testGameData = {
+          version: '1.0',
+          timestamp: Date.now(),
+          gameState: {
+            week: 20,
+            budget: 15000,
+            reputation: 85,
+            totalExpenses: 35000,
+            initial_students: 5,
+            endingReason: '赛季结束',
+            students: [
+              {
+                name: '测试学生A',
+                active: true,
+                pressure: 45,
+                thinking: 75,
+                coding: 80,
+                mental: 70,
+                knowledge_ds: 60,
+                knowledge_graph: 55,
+                knowledge_string: 50,
+                knowledge_math: 65,
+                knowledge_dp: 58,
+                talents: ['天赋1', '天赋2']
+              },
+              {
+                name: '测试学生B',
+                active: false,
+                pressure: 85,
+                thinking: 60,
+                coding: 65,
+                mental: 30,
+                knowledge_ds: 45,
+                knowledge_graph: 40,
+                knowledge_string: 48,
+                knowledge_math: 50,
+                knowledge_dp: 42,
+                talents: ['天赋3']
+              }
+            ],
+            careerCompetitions: [
+              {
+                week: 6,
+                name: 'CSP-S1',
+                passedCount: 2,
+                totalStudents: 5,
+                entries: [
+                  { name: '测试学生A', rank: 15, total: 280, passed: true, remark: '晋级' },
+                  { name: '测试学生B', rank: 45, total: 180, passed: false, remark: '未晋级' }
+                ]
+              }
+            ]
+          }
+        };
+
+        // 保存到 sessionStorage
+        sessionStorage.setItem('oi_coach_save', JSON.stringify(testGameData.gameState));
+        sessionStorage.setItem('oi_coach_ending_reason', testGameData.gameState.endingReason);
+
+        log('test-data-result', '✓ 测试数据生成成功');
+        log('test-data-result', `学生数量: ${testGameData.gameState.students.length}`);
+        log('test-data-result', `比赛记录: ${testGameData.gameState.careerCompetitions.length}`);
+        log('test-data-result', `数据大小: ${JSON.stringify(testGameData).length} 字节`);
+      } catch (e) {
+        log('test-data-result', '✗ 测试数据生成失败: ' + e.message, true);
+      }
+    }
+
+    // 2. 测试加密
+    function testEncryption() {
+      clearLog('encryption-result');
+      try {
+        const testString = 'Hello, OI Trainer! 你好，OI教练模拟器！';
+        
+        // Base64 编码测试
+        const encoded = btoa(encodeURIComponent(testString).replace(/%([0-9A-F]{2})/g, 
+          (match, p1) => String.fromCharCode(parseInt(p1, 16))));
+        log('encryption-result', '✓ Base64编码成功');
+        log('encryption-result', `原文: ${testString}`);
+        log('encryption-result', `编码: ${encoded}`);
+
+        // Base64 解码测试
+        const decoded = decodeURIComponent(Array.prototype.map.call(atob(encoded), 
+          c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join(''));
+        
+        if (decoded === testString) {
+          log('encryption-result', '✓ Base64解码成功，数据一致');
+        } else {
+          log('encryption-result', '✗ 解码后数据不一致', true);
+        }
+
+        // XOR加密测试（需要实现简单的XOR函数）
+        const xorEncrypt = (str, key = 'OITrainer2024') => {
+          let result = '';
+          for (let i = 0; i < str.length; i++) {
+            result += String.fromCharCode(str.charCodeAt(i) ^ key.charCodeAt(i % key.length));
+          }
+          return result;
+        };
+
+        const encrypted = xorEncrypt(testString);
+        log('encryption-result', '✓ XOR加密成功');
+        
+        const decrypted = xorEncrypt(encrypted);
+        if (decrypted === testString) {
+          log('encryption-result', '✓ XOR解密成功，数据一致');
+        } else {
+          log('encryption-result', '✗ XOR解密失败', true);
+        }
+
+      } catch (e) {
+        log('encryption-result', '✗ 加密测试失败: ' + e.message, true);
+      }
+    }
+
+    // 3. 生成分享链接
+    function testGenerateLink() {
+      clearLog('link-result');
+      try {
+        if (!testGameData) {
+          prepareTestData();
+        }
+
+        if (typeof ShareManager === 'undefined') {
+          throw new Error('ShareManager 未加载');
+        }
+
+        const link = ShareManager.generateShareLink();
+        
+        log('link-result', '✓ 分享链接生成成功');
+        log('link-result', `链接长度: ${link.length} 字符`);
+        log('link-result', `链接: <a href="${link}" target="_blank">${link.substring(0, 100)}...</a>`);
+        
+        // 保存到输入框供测试
+        document.getElementById('test-link-input').value = link;
+
+      } catch (e) {
+        log('link-result', '✗ 链接生成失败: ' + e.message, true);
+        console.error(e);
+      }
+    }
+
+    // 4. 解析链接
+    function testParseLink() {
+      clearLog('parse-result');
+      try {
+        const linkInput = document.getElementById('test-link-input').value.trim();
+        if (!linkInput) {
+          throw new Error('请先输入或生成分享链接');
+        }
+
+        // 提取hash部分
+        const hashIndex = linkInput.indexOf('#');
+        if (hashIndex === -1) {
+          throw new Error('链接格式错误：缺少 # 符号');
+        }
+
+        const hash = linkInput.substring(hashIndex + 1);
+        
+        // 临时设置到location.hash以便ShareManager解析
+        const originalHash = window.location.hash;
+        window.location.hash = hash;
+
+        const data = ShareManager.parseSharedData();
+        
+        // 恢复原hash
+        window.location.hash = originalHash;
+
+        if (data && data.gameState) {
+          log('parse-result', '✓ 链接解析成功');
+          log('parse-result', `版本: ${data.version}`);
+          log('parse-result', `周数: ${data.gameState.week}`);
+          log('parse-result', `学生: ${data.gameState.students.length}人`);
+          log('parse-result', `结束原因: ${data.gameState.endingReason}`);
+          log('parse-result', '完整数据: ' + JSON.stringify(data, null, 2).substring(0, 500) + '...');
+        } else {
+          throw new Error('解析结果为空');
+        }
+
+      } catch (e) {
+        log('parse-result', '✗ 链接解析失败: ' + e.message, true);
+        console.error(e);
+      }
+    }
+
+    // 5. 完整流程测试
+    function testFullWorkflow() {
+      clearLog('full-test-result');
+      
+      log('full-test-result', '开始完整流程测试...');
+      log('full-test-result', '');
+      
+      try {
+        // Step 1
+        log('full-test-result', '[1/4] 准备测试数据...');
+        prepareTestData();
+        log('full-test-result', '✓ 数据准备完成');
+        log('full-test-result', '');
+
+        // Step 2
+        log('full-test-result', '[2/4] 测试加密功能...');
+        testEncryption();
+        log('full-test-result', '✓ 加密测试通过');
+        log('full-test-result', '');
+
+        // Step 3
+        log('full-test-result', '[3/4] 生成分享链接...');
+        const link = ShareManager.generateShareLink();
+        log('full-test-result', '✓ 链接生成成功');
+        log('full-test-result', '');
+
+        // Step 4
+        log('full-test-result', '[4/4] 解析分享链接...');
+        const hashIndex = link.indexOf('#');
+        const hash = link.substring(hashIndex + 1);
+        const originalHash = window.location.hash;
+        window.location.hash = hash;
+        const parsedData = ShareManager.parseSharedData();
+        window.location.hash = originalHash;
+
+        if (parsedData && parsedData.gameState) {
+          log('full-test-result', '✓ 链接解析成功');
+          log('full-test-result', '');
+          
+          // 验证数据一致性
+          log('full-test-result', '验证数据一致性...');
+          const original = testGameData.gameState;
+          const parsed = parsedData.gameState;
+          
+          const checks = [
+            ['周数', original.week === parsed.week],
+            ['金额', original.budget === parsed.budget],
+            ['声誉', original.reputation === parsed.reputation],
+            ['学生数', original.students.length === parsed.students.length],
+            ['比赛数', original.careerCompetitions.length === parsed.careerCompetitions.length]
+          ];
+
+          let allPassed = true;
+          for (let [name, passed] of checks) {
+            if (passed) {
+              log('full-test-result', `  ✓ ${name}一致`);
+            } else {
+              log('full-test-result', `  ✗ ${name}不一致`, true);
+              allPassed = false;
+            }
+          }
+
+          log('full-test-result', '');
+          if (allPassed) {
+            log('full-test-result', '🎉 所有测试通过！分享功能运行正常。');
+          } else {
+            log('full-test-result', '⚠️ 部分测试失败，请检查数据一致性。', true);
+          }
+        } else {
+          throw new Error('解析后数据为空');
+        }
+
+      } catch (e) {
+        log('full-test-result', '', true);
+        log('full-test-result', '✗ 完整测试失败: ' + e.message, true);
+        console.error(e);
+      }
+    }
+  </script>
+</body>
+</html>

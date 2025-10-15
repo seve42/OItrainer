@@ -81,6 +81,7 @@
     <div id="end-summary" class="small muted">正在加载结算数据……</div>
     <div class="modal-actions" style="margin-top:16px">
       <button class="btn btn-ghost" id="end-back">回到开始</button>
+      <button class="btn" id="end-share" style="background:#667eea;color:white;">🔗 分享结果</button>
       <button class="btn" id="end-playagain">再玩一次</button>
     </div>
   </div>
@@ -88,6 +89,8 @@
 <script src="lib/constants.js"></script>
 <script src="lib/utils.js"></script>
 <script src="lib/models.js"></script>
+<script src="lib/talent.js"></script>
+<script src="lib/share.js"></script>
 <script src="script.js"></script>
 <script>
   document.getElementById('end-back').onclick = ()=>{ window.location.href = 'start.html'; };
@@ -108,6 +111,21 @@
   try{ console.debug('localStorage cleanup executed for oi_coach_save and related keys'); }catch(e){}
     window.location.href = 'start.html'; 
   };
+  
+  // 分享按钮事件
+  document.getElementById('end-share').onclick = () => {
+    try {
+      if (typeof ShareManager !== 'undefined' && ShareManager.showShareDialog) {
+        ShareManager.showShareDialog();
+      } else {
+        alert('分享功能加载失败，请刷新页面重试');
+      }
+    } catch (e) {
+      alert('分享失败：' + e.message);
+      console.error('Share button error:', e);
+    }
+  };
+  
   // render summary if available
   if(typeof renderEndSummary === 'function') renderEndSummary();
 </script>

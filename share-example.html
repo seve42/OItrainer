@@ -1,0 +1,120 @@
+<!-- 
+  分享功能使用示例
+  
+  这个文件展示了如何在其他页面中使用 ShareManager
+-->
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>分享功能使用示例</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="container">
+    <h1>分享功能使用示例</h1>
+    
+    <div class="panel">
+      <h3>示例 1: 基本使用</h3>
+      <pre><code>// 引入模块
+&lt;script src="lib/share.js"&gt;&lt;/script&gt;
+
+// 显示分享对话框
+ShareManager.showShareDialog();
+      </code></pre>
+      <button class="btn" onclick="ShareManager.showShareDialog()">运行示例</button>
+    </div>
+
+    <div class="panel">
+      <h3>示例 2: 生成链接</h3>
+      <pre><code>// 生成分享链接
+const link = ShareManager.generateShareLink();
+console.log(link);
+      </code></pre>
+      <button class="btn" onclick="example2()">运行示例</button>
+      <div id="example2-result" style="margin-top:12px;padding:8px;background:#f5f5f5;border-radius:4px;font-family:monospace;font-size:12px;word-break:break-all;display:none;"></div>
+    </div>
+
+    <div class="panel">
+      <h3>示例 3: 复制到剪贴板</h3>
+      <pre><code>// 复制文本到剪贴板
+const success = await ShareManager.copyToClipboard('Hello, World!');
+console.log(success ? '复制成功' : '复制失败');
+      </code></pre>
+      <button class="btn" onclick="example3()">运行示例</button>
+      <div id="example3-result" style="margin-top:12px;padding:8px;background:#f5f5f5;border-radius:4px;display:none;"></div>
+    </div>
+
+    <div class="panel">
+      <h3>示例 4: 解析分享数据</h3>
+      <p>在 shared.html 页面中使用：</p>
+      <pre><code>// 从 URL hash 解析数据
+const data = ShareManager.parseSharedData();
+if (data && data.gameState) {
+  console.log('解析成功:', data);
+} else {
+  console.error('解析失败');
+}
+      </code></pre>
+    </div>
+
+    <div class="panel">
+      <h3>测试页面</h3>
+      <p>完整的功能测试，请访问：</p>
+      <a href="test-share.html" class="btn">打开测试页面</a>
+    </div>
+  </div>
+
+  <script src="lib/constants.js"></script>
+  <script src="lib/utils.js"></script>
+  <script src="lib/models.js"></script>
+  <script src="lib/talent.js"></script>
+  <script src="lib/share.js"></script>
+  <script src="script.js"></script>
+
+  <script>
+    // 示例 2: 生成链接
+    function example2() {
+      try {
+        // 确保有测试数据
+        const testData = {
+          week: 15,
+          budget: 20000,
+          reputation: 75,
+          students: [
+            { name: '测试学生', active: true, pressure: 50, thinking: 70, coding: 75 }
+          ]
+        };
+        sessionStorage.setItem('oi_coach_save', JSON.stringify(testData));
+        
+        const link = ShareManager.generateShareLink();
+        const resultEl = document.getElementById('example2-result');
+        resultEl.style.display = 'block';
+        resultEl.innerHTML = `生成的链接：<br><a href="${link}" target="_blank">${link.substring(0, 100)}...</a><br>长度：${link.length} 字符`;
+      } catch (e) {
+        alert('错误: ' + e.message);
+      }
+    }
+
+    // 示例 3: 复制到剪贴板
+    async function example3() {
+      try {
+        const text = 'Hello from OI Trainer Share Feature!';
+        const success = await ShareManager.copyToClipboard(text);
+        const resultEl = document.getElementById('example3-result');
+        resultEl.style.display = 'block';
+        if (success) {
+          resultEl.innerHTML = '✓ 复制成功！已复制: "' + text + '"';
+          resultEl.style.color = '#4caf50';
+        } else {
+          resultEl.innerHTML = '✗ 复制失败，请检查浏览器权限';
+          resultEl.style.color = '#f44336';
+        }
+      } catch (e) {
+        alert('错误: ' + e.message);
+      }
+    }
+  </script>
+</body>
+</html>

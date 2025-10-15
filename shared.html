@@ -1,0 +1,387 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>分享结果查看 — OI 教练模拟器</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .shared-banner {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 16px;
+      border-radius: 8px;
+      margin-bottom: 16px;
+      text-align: center;
+    }
+    
+    .shared-banner h2 {
+      margin: 0 0 8px 0;
+      font-size: 24px;
+    }
+    
+    .shared-banner p {
+      margin: 0;
+      opacity: 0.9;
+      font-size: 14px;
+    }
+
+    .ending-highlight {
+      color: #1976d2;
+      text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+    }
+    
+    .ending-animate {
+      animation: pulse 2s ease-in-out;
+    }
+    
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.05); opacity: 0.8; }
+    }
+    
+    #shared-summary h4 {
+      margin: 0 0 8px 0;
+      color: #333;
+      font-size: 16px;
+    }
+    
+    #shared-summary table {
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    
+    #shared-summary table th {
+      background: #f5f5f5 !important;
+    }
+
+    .error-message {
+      background: #ffebee;
+      color: #c62828;
+      padding: 20px;
+      border-radius: 8px;
+      text-align: center;
+      border: 1px solid #ef5350;
+    }
+
+    .error-message h3 {
+      margin: 0 0 12px 0;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>🔗 分享结果查看</h1>
+  </header>
+  
+  <div id="shared-banner" class="shared-banner" style="display:none;">
+    <h2>👀 查看他人的游戏结果</h2>
+    <p>以下是分享者的游戏结算数据</p>
+  </div>
+
+  <div class="panel" id="shared-panel">
+    <div id="shared-summary" class="small muted">正在加载分享数据……</div>
+    <div class="modal-actions" style="margin-top:16px">
+      <button class="btn btn-ghost" id="shared-back">回到开始</button>
+      <button class="btn" id="shared-play">我也来玩</button>
+    </div>
+  </div>
+</div>
+
+<script src="lib/constants.js"></script>
+<script src="lib/utils.js"></script>
+<script src="lib/models.js"></script>
+<script src="lib/talent.js"></script>
+<script src="lib/share.js"></script>
+<script src="script.js"></script>
+<script>
+  // 页面加载后立即解析分享数据
+  document.addEventListener('DOMContentLoaded', function() {
+    renderSharedSummary();
+  });
+
+  document.getElementById('shared-back').onclick = () => { 
+    window.location.href = 'start.html'; 
+  };
+  
+  document.getElementById('shared-play').onclick = () => { 
+    window.location.href = 'start.html'; 
+  };
+
+  /**
+   * 渲染分享的结算数据
+   */
+  function renderSharedSummary() {
+    const el = document.getElementById('shared-summary');
+    const banner = document.getElementById('shared-banner');
+    
+    if (!el) return;
+
+    try {
+      // 使用 ShareManager 解析URL中的数据
+      const sharedData = ShareManager.parseSharedData();
+      
+      if (!sharedData || !sharedData.gameState) {
+        throw new Error('无效的分享链接或数据已损坏');
+      }
+
+      // 显示横幅
+      if (banner) banner.style.display = 'block';
+
+      const o = sharedData.gameState;
+      
+      // 基本信息
+      const active = (o.students || []).filter(s => s && s.active !== false).length;
+      const initial = o.initial_students || (o.students ? o.students.length : 0);
+      const rep = o.reputation || 0;
+      const budget = o.budget || 0;
+      const totalExpenses = o.totalExpenses || 0;
+      const week = o.week || 0;
+      
+      // 计算平均压力
+      let avgP = 0;
+      if (o.students && o.students.length > 0) {
+        avgP = Math.round(o.students.filter(s => s && s.active !== false).reduce((a, s) => a + (s.pressure || 0), 0) / Math.max(1, active));
+      }
+      
+      // 规范化结束原因
+      const endingReason = typeof normalizeEndingReason === 'function' 
+        ? normalizeEndingReason(o.endingReason || '赛季结束')
+        : (o.endingReason || '赛季结束');
+      
+      // 构建学生详细信息
+      let studentsHtml = '';
+      if (o.students && o.students.length > 0) {
+        studentsHtml += `<div style="margin-top:12px"><h4>👥 学生详细信息</h4></div>`;
+        studentsHtml += `<div style="max-height:260px;overflow:auto;border:1px solid #ddd;border-radius:4px;padding:8px;background:#fafafa">`;
+        
+        for (let s of o.students) {
+          const isActive = (s && s.active !== false);
+          const pressureLevel = (s && typeof s.pressure === 'number') ? (s.pressure < 35 ? '低' : s.pressure < 65 ? '中' : '高') : '—';
+          const pressureClass = (s && typeof s.pressure === 'number') ? (s.pressure < 35 ? 'pressure-low' : s.pressure < 65 ? 'pressure-mid' : 'pressure-high') : '';
+          const thinkingVal = Number(s.thinking || 0);
+          const codingVal = Number(s.coding || 0);
+          const mentalVal = Number(s.mental || 0);
+          const thinkGrade = typeof getLetterGradeAbility === 'function' ? getLetterGradeAbility(Math.floor(thinkingVal)) : Math.floor(thinkingVal);
+          const codeGrade = typeof getLetterGradeAbility === 'function' ? getLetterGradeAbility(Math.floor(codingVal)) : Math.floor(codingVal);
+          const mentalRounded = Math.round(mentalVal || 0);
+          
+          // 知识各维度
+          const k_ds = typeof getLetterGrade === 'function' ? getLetterGrade(Math.floor(Number(s.knowledge_ds || 0))) : Math.floor(Number(s.knowledge_ds || 0));
+          const k_graph = typeof getLetterGrade === 'function' ? getLetterGrade(Math.floor(Number(s.knowledge_graph || 0))) : Math.floor(Number(s.knowledge_graph || 0));
+          const k_str = typeof getLetterGrade === 'function' ? getLetterGrade(Math.floor(Number(s.knowledge_string || 0))) : Math.floor(Number(s.knowledge_string || 0));
+          const k_math = typeof getLetterGrade === 'function' ? getLetterGrade(Math.floor(Number(s.knowledge_math || 0))) : Math.floor(Number(s.knowledge_math || 0));
+          const k_dp = typeof getLetterGrade === 'function' ? getLetterGrade(Math.floor(Number(s.knowledge_dp || 0))) : Math.floor(Number(s.knowledge_dp || 0));
+          
+          // 天赋显示
+          let talentsHtml = '';
+          try {
+            if (s.talents && Array.isArray(s.talents)) {
+              talentsHtml = s.talents.map(tn => {
+                const info = (window.TalentManager && typeof window.TalentManager.getTalentInfo === 'function') 
+                  ? window.TalentManager.getTalentInfo(tn) 
+                  : { name: tn, description: '', color: '#2b6cb0' };
+                return `<span class="talent-tag" data-talent="${tn}" style="background-color:${info.color}20;color:${info.color};border-color:${info.color}40;margin-right:6px;">${tn}<span class="talent-tooltip">${info.description || ''}</span></span>`;
+              }).join('');
+            }
+          } catch (e) { 
+            talentsHtml = ''; 
+          }
+
+          studentsHtml += `<div class="student-box" style="margin-bottom:8px;padding:8px;background:white;border-radius:6px;border:1px solid #eee">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <div><strong>${s.name}</strong> ${isActive ? '' : '<span class="warn">[退队]</span>'} <span class="label-pill ${pressureClass}" style="margin-left:8px">压力:${pressureLevel}</span></div>
+              <div style="font-size:12px;color:#666">心理:${mentalRounded}</div>
+            </div>
+            <div class="compact small" style="margin-top:6px">
+              能力: 思维:${thinkGrade} 编码:${codeGrade}
+              <div style="margin-top:6px">知识: <span class="knowledge-badges">
+                <span class="kb" title="数据结构: ${Math.floor(Number(s.knowledge_ds || 0))}">数据结构${k_ds}</span>
+                <span class="kb" title="图论: ${Math.floor(Number(s.knowledge_graph || 0))}">图论${k_graph}</span>
+                <span class="kb" title="字符串: ${Math.floor(Number(s.knowledge_string || 0))}">字符串${k_str}</span>
+                <span class="kb" title="数学: ${Math.floor(Number(s.knowledge_math || 0))}">数学${k_math}</span>
+                <span class="kb" title="动态规划: ${Math.floor(Number(s.knowledge_dp || 0))}">动态规划${k_dp}</span>
+              </span></div>
+            </div>
+            ${talentsHtml ? `<div class="student-talents" style="margin-top:8px">${talentsHtml}</div>` : ''}
+          </div>`;
+        }
+        studentsHtml += `</div>`;
+      }
+      
+      // 构建比赛生涯记录
+      let careerHtml = '';
+      const career = o.careerCompetitions;
+      if (career && Array.isArray(career) && career.length > 0) {
+        careerHtml += `<div style="margin-top:12px"><h4>📊 比赛生涯记录</h4></div>`;
+        careerHtml += `<div style="margin-top:8px;max-height:300px;overflow:auto;border:1px solid #ddd;border-radius:4px;padding:8px;background:#fafafa">`;
+        
+        for (let rec of career) {
+          const passedCount = rec.passedCount || 0;
+          const totalStudents = rec.totalStudents || 0;
+          const passRate = totalStudents > 0 ? ((passedCount / totalStudents) * 100).toFixed(0) : '0';
+          
+          careerHtml += `<div style="margin-bottom:12px;padding:8px;background:white;border-radius:4px;border-left:3px solid #4a90e2">`;
+          careerHtml += `<div style="font-weight:bold;margin-bottom:4px">第 ${rec.week} 周 - ${rec.name}</div>`;
+          careerHtml += `<div style="font-size:13px;color:#666;margin-bottom:6px">晋级：${passedCount}/${totalStudents} 人 (${passRate}%)</div>`;
+          
+          if (rec.entries && rec.entries.length > 0) {
+            careerHtml += `<table style="width:100%;font-size:12px;border-collapse:collapse">`;
+            careerHtml += `<thead><tr style="background:#f0f0f0">
+              <th style="padding:4px;text-align:left">学生</th>
+              <th style="padding:4px;text-align:center">排名</th>
+              <th style="padding:4px;text-align:center">分数</th>
+              <th style="padding:4px;text-align:left">结果</th>
+            </tr></thead><tbody>`;
+            
+            for (let e of rec.entries) {
+              const rankText = e.rank ? `#${e.rank}` : (e.eligible === false ? '-' : '—');
+              const scoreText = (e.total != null && e.total !== undefined) ? (e.total.toFixed ? e.total.toFixed(1) : e.total) : 
+                               (e.score != null && e.score !== undefined) ? (e.score.toFixed ? e.score.toFixed(1) : e.score) : '—';
+              const passedIcon = e.passed ? '✓' : (e.eligible === false ? '' : '✗');
+              const passedStyle = e.passed ? 'color:green;font-weight:bold' : (e.eligible === false ? 'color:#999' : 'color:#d32f2f');
+              let remarkText = e.remark || '';
+              if (!remarkText) {
+                if (e.eligible === false) remarkText = '未参加';
+                else if (e.passed) remarkText = '晋级';
+                else if (e.medal) remarkText = e.medal === 'gold' ? '金牌' : e.medal === 'silver' ? '银牌' : e.medal === 'bronze' ? '铜牌' : '';
+              }
+              
+              careerHtml += `<tr style="border-bottom:1px solid #eee">`;
+              careerHtml += `<td style="padding:4px">${e.name}</td>`;
+              careerHtml += `<td style="padding:4px;text-align:center">${rankText}</td>`;
+              careerHtml += `<td style="padding:4px;text-align:center">${scoreText}</td>`;
+              careerHtml += `<td style="padding:4px;${passedStyle}">${passedIcon} ${remarkText}</td>`;
+              careerHtml += `</tr>`;
+            }
+            
+            careerHtml += `</tbody></table>`;
+          }
+          careerHtml += `</div>`;
+        }
+        
+        careerHtml += `</div>`;
+      } else {
+        careerHtml += `<div class="small muted" style="margin-top:8px">未记录到比赛生涯数据</div>`;
+      }
+
+      // 构建时间轴进度条
+      let timelineHtml = '';
+      if (week > 0) {
+        timelineHtml += `<div style="margin-top:12px"><h4>📅 时间轴进度</h4></div>`;
+        timelineHtml += `<div style="margin-top:8px;padding:12px;background:#f9f9f9;border-radius:8px">`;
+        
+        const competitions = (typeof window !== 'undefined' && Array.isArray(window.competitions) && window.competitions.length > 0)
+          ? window.competitions.slice().sort((a, b) => a.week - b.week)
+          : [
+            { name: 'CSP-S1', week: 6 }, { name: 'CSP-S2', week: 10 }, { name: 'NOIP', week: 14 },
+            { name: '省选', week: 18 }, { name: 'NOI', week: 22 }, { name: 'CSP-S1', week: 26 },
+            { name: 'CSP-S2', week: 30 }, { name: 'NOIP', week: 34 }, { name: '省选', week: 38 },
+            { name: 'NOI', week: 42 }
+          ];
+
+        const lastCompWeek = competitions.length ? Math.max(...competitions.map(c => Number(c.week) || 0)) : 0;
+        const maxWeeks = Math.max(week, lastCompWeek, typeof SEASON_WEEKS !== 'undefined' ? SEASON_WEEKS : 40);
+        const progressPercent = Math.min(100, (week / maxWeeks) * 100);
+        
+        timelineHtml += `<div style="position:relative;height:20px;background:#e0e0e0;border-radius:10px;margin-bottom:12px">`;
+        timelineHtml += `<div style="height:100%;background:linear-gradient(90deg, #4caf50, #2196f3);border-radius:10px;width:${progressPercent}%" title="进度：第${week}周"></div>`;
+        timelineHtml += `<div style="position:absolute;top:50%;left:8px;transform:translateY(-50%);color:white;font-size:12px;font-weight:bold">第 ${week} 周</div>`;
+        timelineHtml += `</div>`;
+        
+        timelineHtml += `<div style="position:relative;height:30px">`;
+        for (let comp of competitions) {
+          const position = (comp.week / maxWeeks) * 100;
+          const isPast = comp.week <= week;
+          const pinColor = isPast ? '#4caf50' : '#ffc107';
+          const pinIcon = isPast ? '✓' : '📍';
+          
+          timelineHtml += `<div style="position:absolute;left:${position}%;transform:translateX(-50%);top:0">`;
+          timelineHtml += `<div style="width:20px;height:20px;background:${pinColor};border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;color:white;border:2px solid white;box-shadow:0 2px 4px rgba(0,0,0,0.2)" title="${comp.name} - 第${comp.week}周">${pinIcon}</div>`;
+          timelineHtml += `<div style="position:absolute;top:22px;left:50%;transform:translateX(-50%);font-size:10px;white-space:nowrap;color:#666">${comp.name}</div>`;
+          timelineHtml += `</div>`;
+        }
+        timelineHtml += `</div></div>`;
+      }
+      
+      // 渲染完整信息
+      el.innerHTML = `
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+          <div>
+            <h4>📈 基本信息</h4>
+            <div style="background:#f9f9f9;padding:12px;border-radius:8px">
+              <div>初始人数: <strong>${initial}</strong></div>
+              <div>当前在队: <strong>${active}</strong></div>
+              <div>平均压力: <strong>${avgP}</strong></div>
+              <div>声誉: <strong>${rep}</strong></div>
+              <div>进行到第: <strong>${week}</strong> 周</div>
+            </div>
+          </div>
+          <div>
+            <h4>💰 财务状况</h4>
+            <div style="background:#f9f9f9;padding:12px;border-radius:8px">
+              <div>当前金额: <strong>¥${budget.toLocaleString()}</strong></div>
+              <div>累计消费: <strong>¥${totalExpenses.toLocaleString()}</strong></div>
+              <div>结束原因: <strong>${endingReason}</strong></div>
+            </div>
+          </div>
+        </div>
+        ${timelineHtml}
+        ${studentsHtml}
+        ${careerHtml}
+        <div id="ending-result" style="margin-top:16px;padding:16px;background:#e3f2fd;border-radius:8px;text-align:center">
+          <div style="font-size:18px;font-weight:bold;margin-bottom:8px">最终结局</div>
+          <div id="ending-text" class="ending-highlight" style="font-size:24px;font-weight:bold">
+            正在计算结局...
+          </div>
+        </div>
+      `;
+      
+      // 计算并显示最终结局
+      setTimeout(() => {
+        const finalEnding = typeof calculateFinalEnding === 'function' 
+          ? calculateFinalEnding(o, endingReason)
+          : '💼 普通结局';
+        const endingEl = document.getElementById('ending-text');
+        const container = document.getElementById('ending-result');
+        const descText = typeof mapEndingToDescription === 'function'
+          ? mapEndingToDescription(finalEnding)
+          : '';
+          
+        if (endingEl) {
+          endingEl.textContent = finalEnding;
+          endingEl.classList.add('ending-animate');
+          setTimeout(() => endingEl.classList.remove('ending-animate'), 2500);
+        }
+        
+        if (container && descText) {
+          let descEl = document.getElementById('ending-desc');
+          if (!descEl) {
+            descEl = document.createElement('div');
+            descEl.id = 'ending-desc';
+            descEl.style.cssText = 'margin-top:8px;color:#0d47a1;font-size:14px;line-height:1.4;';
+            descEl.className = 'small muted';
+            container.appendChild(descEl);
+          }
+          descEl.textContent = descText;
+        }
+      }, 500);
+      
+    } catch (e) {
+      el.innerHTML = `
+        <div class="error-message">
+          <h3>⚠️ 加载失败</h3>
+          <p>${e.message}</p>
+          <p style="margin-top:12px;font-size:13px;opacity:0.8;">请确保链接完整且未被修改</p>
+        </div>
+      `;
+      console.error('renderSharedSummary error:', e);
+      if (banner) banner.style.display = 'none';
+    }
+  }
+</script>
+<footer style="text-align:center;padding:12px 8px;color:#666;font-size:13px;border-top:1px solid #eee;margin-top:18px">
+  作者 @Dreamers-seve · 洛谷: <a href="https://www.luogu.com.cn/user/668972" target="_blank" rel="noopener">https://www.luogu.com.cn/user/668972</a> · GitHub: <a href="https://github.com/Dreamersseve/OItrainer" target="_blank" rel="noopener">https://github.com/Dreamersseve/OItrainer</a>
+</footer>
+</body>
+</html>
