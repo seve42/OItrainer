@@ -338,6 +338,11 @@ th,td{padding:6px;border:1px solid #eee;text-align:center}
 .event-card .more-btn{display:inline-block;margin-top:8px;background:transparent;border:none;color:var(--accent);cursor:pointer;padding:4px 6px;font-size:13px}
 .event-card .more-btn:focus{outline:2px solid rgba(43,108,176,0.15)}
 
+/* 标记：需要选择但尚未选择的事件卡片（红色高亮，兼顾可访问性） */
+.event-required{border-color:#e53e3e !important; background:linear-gradient(180deg, #fff5f5, #fff9f9) !important; box-shadow:0 4px 12px rgba(229,62,62,0.08) !important}
+.event-required .card-title{position:relative}
+.event-required .required-tag{display:inline-block;margin-left:8px;padding:2px 6px;border-radius:12px;background:#ffecec;color:#c53030;font-size:12px;font-weight:700;border:1px solid rgba(197,48,48,0.08)}
+
 /* When description is very long, limit the collapsed view to 2 lines (using line-clamp where available) */
 .card-desc.clamp {
   display: -webkit-box;
@@ -611,7 +616,10 @@ body.comp-week .action-cards .action-card:not(#comp-only-action) {
 .sub-panel.collapsible.collapsed .btn,
 .sub-panel.collapsible.collapsed #talent-selection,
 .sub-panel.collapsible.collapsed #recruited-list,
-.sub-panel.collapsible.collapsed #training-log{
+.sub-panel.collapsible.collapsed #training-log,
+.sub-panel.collapsible.collapsed #talent-grid,
+.sub-panel.collapsible.collapsed .talent-grid,
+.sub-panel.collapsible.collapsed .talent-card{
   display:none !important;
 }
 .sub-panel.collapsible.collapsed {padding-bottom:8px}

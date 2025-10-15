@@ -219,10 +219,17 @@ function renderEventCards(){
     if(ev._isHandled) continue;
     
     const card = document.createElement('div');
-    card.className = 'event-card event-active';
+    // base classes for event card; add `event-required` when this event has options (needs user choice)
+    let cardClass = 'event-card event-active';
+    if (ev.options && ev.options.length > 0) {
+      cardClass += ' event-required';
+    }
+    card.className = cardClass;
 
     // Prepare short summary (one-line) and full detail (preformatted)
-    const titleHtml = `<div class="card-title">${ev.name || '突发事件'}</div>`;
+  const titleHtml = `<div class="card-title">${ev.name || '突发事件'}` +
+            `${(ev.options && ev.options.length > 0) ? '<span class="required-tag">未选择</span>' : ''}` +
+            `</div>`;
     const descText = ev.description || '';
     // Escape HTML in description to avoid injecting markup
     const esc = (s) => String(s||'').replace(/[&<>"']/g, function(ch){return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"})[ch];});
@@ -703,6 +710,12 @@ function trainStudentsWithTask(task, intensity) {
   
   // 输出详细的训练日志
   log(`训练结束。题目：${task.name}`);
+  
+  // Toast 反馈
+  if (window.toastManager) {
+    window.toastManager.show(`训练完成：${task.name}`, 'success');
+  }
+  
   // 训练结束后尝试为每位学生获得天赋（按训练强度放大/降低概率）
   try{
     if(typeof window !== 'undefined' && window.TalentManager && typeof window.TalentManager.tryAcquireTalent === 'function'){
@@ -908,6 +921,16 @@ function outingTrainingWithSelection(difficulty_choice, province_choice, selecte
 
   game.weeks_since_entertainment += 1;
   log("外出集训完成（1周）。");
+  
+  // Toast 反馈
+  if (window.toastManager) {
+    if (selectedStudents.some(s => s.hiddenMockScore < 200)) {
+      window.toastManager.show(`集训完成，部分学生存在不匹配`, 'warning');
+    } else {
+      window.toastManager.show(`集训完成：${target.name}`, 'success');
+    }
+  }
+  
   const __after = __createSnapshot?.();
   if(__before && __after) __summarizeSnapshot(__before, __after, `外出集训：${target.name} 难度${difficulty_choice}`);
 }
@@ -2217,6 +2240,11 @@ function entertainmentUI(){
   safeWeeklyUpdate(1);
     renderAll();
     log("娱乐活动完成");
+    
+    // Toast 反馈
+    if (window.toastManager) {
+      window.toastManager.show(`娱乐活动完成：${opt.label}`, 'success');
+    }
   };
 }
 
@@ -2346,6 +2374,12 @@ function upgradeFacility(f){
       game.recordExpense(costAdj, `设施升级：${f}`);
       game.facilities.upgrade(f);
       log(`设施升级：${f} 到等级 ${current+1}（基础 ¥${cost}，调整后 ¥${costAdj}）`);
+      
+      // Toast 反馈
+      if (window.toastManager) {
+        window.toastManager.show(`设施升级成功：${f} → ${current+1}级`, 'success');
+      }
+      
       closeModal();
       renderAll();
     }catch(e){ console.error('upgrade confirm handler error', e); }
@@ -3023,6 +3057,7 @@ window.onload = ()=>{
       const ok = silentLoad();
       if(!ok){ window.location.href = 'start.html'; return; }
     }
+    
     // bindings
     document.getElementById('action-train').onclick = ()=>{ trainStudentsUI(); };
     document.getElementById('action-entertain').onclick = ()=>{ entertainmentUI(); };
@@ -3139,7 +3174,9 @@ window.onload = ()=>{
       renderAll();
     };
   };
-    document.getElementById('action-save').onclick = ()=>{ if(confirm("保存进度？（将覆盖本地存档）")) saveGame(); else if(confirm("载入存档？")) loadGame(); };
+    // 移除保存/载入按钮绑定（按钮已从HTML中删除）
+    // document.getElementById('action-save').onclick = ...
+    
     // bind inline upgrade buttons under facilities (if present)
     document.querySelectorAll('.btn.upgrade').forEach(b => {
       b.onclick = (e) => {
@@ -3150,7 +3187,15 @@ window.onload = ()=>{
     // action-evict in some UI versions may not exist
     const actionEvictBtn = document.getElementById('action-evict');
     if(actionEvictBtn) actionEvictBtn.onclick = ()=>{ evictStudentUI(); };
+    
     renderAll();
+    
+    // 启动新手引导（仅在新游戏时）
+    if (qs && qs.get('new') === '1' && window.tutorialManager) {
+      setTimeout(() => {
+        window.tutorialManager.start();
+      }, 500);
+    }
   } else {
     // not index page: do nothing. start.html will call renderStartPageUI; end.html will call renderEndSummary.
   }

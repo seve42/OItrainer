@@ -20,55 +20,42 @@
   </header>
   <div class="panel">
     <h3>新游戏设置</h3>
+    
     <label class="block">选择难度</label>
-    <select id="start-diff"><option value="1">简单</option><option value="2" selected>普通</option><option value="3">困难</option></select>
+    <select id="start-diff">
+      <option value="1">简单 - 初始经费更多，学生能力更高</option>
+      <option value="2" selected>普通 - 标准游戏体验</option>
+      <option value="3">困难 - 初始经费更少，学生能力更低</option>
+    </select>
 
     <label class="block" style="margin-top:10px">选择省份</label>
+    <div class="small muted" style="margin-bottom:6px">不同省份影响初始经费和训练质量。<strong>强省</strong>资源丰富但期望更高，<strong>弱省</strong>起步较难但更有成就感。</div>
     <div id="start-prov-grid" class="prov-grid"></div>
 
     <label class="block" style="margin-top:10px">学生人数 (3-10)</label>
+    <div class="small muted" style="margin-bottom:6px">推荐新手选择 5-7 名学生，既有足够的发展空间，又不会太难管理。</div>
     <input id="start-stu" type="number" min="3" max="10" value="5" />
 
-    <!-- 对点招生功能 -->
-    <div class="sub-panel collapsible collapsed" id="recruit-panel">
-      <h4 class="collapsible-head">💰 对点招生（¥50,000 / 人）</h4>
-      <div class="section-body">
-        <label class="block">学生姓名</label>
-        <input id="recruit-name" type="text" placeholder="输入学生姓名" maxlength="20" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:3px" />
+    <!-- 原招生/学前培养 UI 已移除。下面仅展示可用天赋列表 -->
+    <div class="sub-panel collapsible collapsed" id="talent-only-panel" style="margin-top:12px">
+      <h4>游戏核心概念</h4>
+      <div class="small muted" style="line-height:1.6;margin-bottom:10px">
+        <p><strong>🎯 目标</strong>：带领学生在两个赛季内（约26周/赛季）冲击NOI金牌</p>
+        <p><strong>📊 学生属性</strong>：思维、编程、心理三项基础能力 + 五大知识点（数据结构、图论、字符串、数学、DP）</p>
+        <p><strong>💼 经费管理</strong>：升级设施、参加集训都需要经费，需合理规划</p>
+        <p><strong>😰 压力系统</strong>：高压训练会增加压力，压力过高可能导致退队</p>
+        <p><strong>🏆 比赛链</strong>：CSP-S1 → CSP-S2 → NOIP → 省选 → NOI，必须通过前一场才能参加下一场</p>
       </div>
-      <button class="btn" id="recruit-btn" style="font-size:14px">招生</button>
-      <div id="recruited-list" style="margin-top:8px;font-size:13px;color:#666"></div>
-  </div>
-
-    <!-- 学前培养功能 -->
-    <div class="sub-panel collapsible collapsed" id="train-panel">
-      <h4 class="collapsible-head">📚 学前培养（¥30,000 / 次）</h4>
-      <div class="section-body">
-        <label class="block">选择学生</label>
-        <select id="train-student" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:3px">
-          <option value="">请先进行对点招生</option>
-        </select>
-      </div>
-      <div class="section-body">
-        <label class="block">培养方式</label>
-        <select id="train-type" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:3px">
-          <option value="random">随机属性提升 50%</option>
-          <option value="talent">选择天赋</option>
-        </select>
-      </div>
-      <div id="talent-selection" style="display:none;margin-bottom:8px">
-        <label class="block">选择天赋</label>
-        <!-- Hidden native select kept for backward compatibility; kept in sync with grid -->
-        <select id="train-talent" style="display:none"></select>
-        <div id="talent-grid" class="talent-grid"></div>
-      </div>
-      <button class="btn" id="train-btn" style="font-size:14px">培养</button>
-      <div id="training-log" style="margin-top:8px;font-size:13px;color:#666"></div>
+  <h4 class="collapsible-head" style="margin-top:16px">天赋预览</h4>
+  <div class="small muted" style="margin-bottom:6px">学生在训练中有概率获得天赋，天赋会影响比赛表现和训练效果</div>
+      <div id="talent-grid" class="talent-grid"></div>
+      <!-- 保留隐藏 select 以便与旧逻辑兼容（仅用于存储/表单同步） -->
+      <select id="train-talent" style="display:none"></select>
     </div>
 
     <div class="modal-actions" style="margin-top:12px">
-      <button class="btn btn-ghost" id="start-help">帮助</button>
-      <button class="btn" id="start-button">开始游戏</button>
+      <button class="btn btn-ghost" id="start-help">查看详细帮助</button>
+      <button class="btn" id="start-button">开始游戏 🚀</button>
     </div>
   </div>
 </div>
@@ -80,230 +67,12 @@
 <script src="lib/talent.js"></script>
 <script src="script.js"></script>
 <script>
-  // 存储对点招生和学前培养的学生数据
-  let recruitedStudents = [];
-  let initialBudget = 100000; // 默认初始金钱
 
-  // 根据选择的省份和难度更新初始金钱
-  function updateInitialBudget(){
-    const diff = parseInt(document.getElementById('start-diff').value);
-    const provBtn = document.querySelector('#start-prov-grid .prov-btn.selected');
-    const prov = provBtn ? parseInt(provBtn.dataset.val) : 1;
-    const provData = PROVINCES[prov] || PROVINCES[1];
-    
-    let budget = provData.baseBudget;
-    if(diff === 1) budget = Math.floor(budget * EASY_MODE_BUDGET_MULTIPLIER);
-    else if(diff === 3) budget = Math.floor(budget * HARD_MODE_BUDGET_MULTIPLIER);
-    
-    initialBudget = budget;
-    updateBudgetDisplay();
-  }
-
-  function updateBudgetDisplay(){
-    const spent = recruitedStudents.reduce((sum, s) => sum + s.cost, 0);
-    const remaining = initialBudget - spent;
-    
-    // 更新招生按钮状态
-    const recruitBtn = document.getElementById('recruit-btn');
-    if(remaining < 50000){
-      recruitBtn.disabled = true;
-      recruitBtn.textContent = '经费不足';
-    } else {
-      recruitBtn.disabled = false;
-      recruitBtn.textContent = '招生';
-    }
-    
-    // 更新培养按钮状态
-    const trainBtn = document.getElementById('train-btn');
-    if(remaining < 30000 || recruitedStudents.length === 0){
-      trainBtn.disabled = true;
-      if(recruitedStudents.length === 0) trainBtn.textContent = '暂无学生';
-      else trainBtn.textContent = '经费不足';
-    } else {
-      trainBtn.disabled = false;
-      trainBtn.textContent = '培养';
-    }
-  }
-
-  function updateStudentSelect(){
-    const select = document.getElementById('train-student');
-    select.innerHTML = '';
-    
-    if(recruitedStudents.length === 0){
-      select.innerHTML = '<option value="">请先进行对点招生</option>';
-    } else {
-      recruitedStudents.forEach((s, idx) => {
-        const opt = document.createElement('option');
-        opt.value = idx;
-        opt.textContent = s.name;
-        select.appendChild(opt);
-      });
-    }
-  }
-
-  function populateTalentSelect(){
-    const select = document.getElementById('train-talent');
-    select.innerHTML = '';
-    
-    if(typeof window !== 'undefined' && window.TalentManager){
-      const talents = window.TalentManager.getRegistered();
-      talents.forEach(tName => {
-        const info = window.TalentManager.getTalentInfo(tName);
-        const opt = document.createElement('option');
-        opt.value = tName;
-        opt.textContent = `${tName} - ${info.description}`;
-        select.appendChild(opt);
-      });
-    }
-  }
-
-  // 对点招生
-  document.getElementById('recruit-btn').onclick = function(){
-    const nameInput = document.getElementById('recruit-name');
-    let name = nameInput.value.trim();
-    
-    if(!name){
-      alert('请输入学生姓名！');
-      return;
-    }
-    
-    const spent = recruitedStudents.reduce((sum, s) => sum + s.cost, 0);
-    if(initialBudget - spent < 50000){
-      alert('经费不足！需要 ¥50,000');
-      return;
-    }
-    
-    // 创建学生数据
-    const diff = parseInt(document.getElementById('start-diff').value);
-    const provBtn = document.querySelector('#start-prov-grid .prov-btn.selected');
-    const prov = provBtn ? parseInt(provBtn.dataset.val) : 1;
-    const provData = PROVINCES[prov] || PROVINCES[1];
-    
-    let min_val, max_val;
-    if(provData.type === "强省"){ 
-      min_val = STRONG_PROVINCE_MIN_ABILITY; 
-      max_val = STRONG_PROVINCE_MAX_ABILITY; 
-    } else if(provData.type === "弱省"){ 
-      min_val = WEAK_PROVINCE_MIN_ABILITY; 
-      max_val = WEAK_PROVINCE_MAX_ABILITY; 
-    } else { 
-      min_val = NORMAL_PROVINCE_MIN_ABILITY; 
-      max_val = NORMAL_PROVINCE_MAX_ABILITY; 
-    }
-    
-    if(diff === 1){ 
-      min_val += EASY_MODE_ABILITY_BONUS; 
-      max_val += EASY_MODE_ABILITY_BONUS; 
-    } else if(diff === 3){ 
-      min_val -= HARD_MODE_ABILITY_PENALTY; 
-      max_val -= HARD_MODE_ABILITY_PENALTY; 
-    }
-    
-    const mean = (min_val + max_val) / 2;
-    const stddev = (max_val - min_val);
-    const thinking = clamp(normal(mean, stddev), 0, 100);
-    const coding = clamp(normal(mean, stddev), 0, 100);
-    const mental = clamp(normal(mean, stddev), 0, 100);
-    
-    recruitedStudents.push({
-      name: name,
-      thinking: thinking,
-      coding: coding,
-      mental: mental,
-      cost: 50000,
-      talents: [],
-      boosts: []
-    });
-    
-    nameInput.value = '';
-    
-    // 更新显示
-    const list = document.getElementById('recruited-list');
-    const item = document.createElement('div');
-    item.textContent = `✓ ${name}（思维:${thinking.toFixed(1)} 编程:${coding.toFixed(1)} 心理:${mental.toFixed(1)}）`;
-    item.style.marginTop = '4px';
-    list.appendChild(item);
-    
-    updateBudgetDisplay();
-    updateStudentSelect();
-  };
-
-  // 学前培养
-  document.getElementById('train-btn').onclick = function(){
-    const studentIdx = parseInt(document.getElementById('train-student').value);
-    const trainType = document.getElementById('train-type').value;
-    
-    if(isNaN(studentIdx) || studentIdx < 0 || studentIdx >= recruitedStudents.length){
-      alert('请选择要培养的学生！');
-      return;
-    }
-    
-    const spent = recruitedStudents.reduce((sum, s) => sum + s.cost, 0);
-    if(initialBudget - spent < 30000){
-      alert('经费不足！需要 ¥30,000');
-      return;
-    }
-    
-    const student = recruitedStudents[studentIdx];
-    let logMsg = '';
-    
-    if(trainType === 'random'){
-      // 随机属性提升 50%
-      const attrs = ['thinking', 'coding', 'mental'];
-      const selectedAttr = attrs[Math.floor(Math.random() * attrs.length)];
-      const attrNames = {thinking: '思维', coding: '编程', mental: '心理'};
-      
-      const oldValue = student[selectedAttr];
-      student[selectedAttr] = clamp(oldValue * 1.5, 0, 100);
-      student.cost += 30000;
-      student.boosts.push({type: 'attr', attr: selectedAttr, value: 1.5});
-      
-      logMsg = `${student.name} - ${attrNames[selectedAttr]}属性提升 50%（${oldValue.toFixed(1)} → ${student[selectedAttr].toFixed(1)}）`;
-    } else {
-      // 选择天赋
-      const talentName = document.getElementById('train-talent').value;
-      if(!talentName){
-        alert('请选择天赋！');
-        return;
-      }
-      
-      if(student.talents.has(talentName)){
-        alert('该学生已拥有此天赋！');
-        return;
-      }
-      
-      student.talents.add(talentName);
-      student.cost += 30000;
-      student.boosts.push({type: 'talent', name: talentName});
-      
-      logMsg = `${student.name} - 获得天赋「${talentName}」`;
-    }
-    
-    // 更新显示
-    const log = document.getElementById('training-log');
-    const item = document.createElement('div');
-    item.textContent = `✓ ${logMsg}`;
-    item.style.marginTop = '4px';
-    log.appendChild(item);
-    
-    updateBudgetDisplay();
-  };
-
-  // 监听培养方式变化
-  document.getElementById('train-type').onchange = function(){
-    const talentDiv = document.getElementById('talent-selection');
-    if(this.value === 'talent'){
-      talentDiv.style.display = 'block';
-      populateTalentSelect();
-    } else {
-      talentDiv.style.display = 'none';
-    }
-  };
-
-  // 渲染天赋为平铺卡片并同步到隐藏的 select（向后兼容）
+  // 移除对招生/学前培养状态的维护；仅提供渲染天赋网格的功能
   function renderTalentGrid(){
     const grid = document.getElementById('talent-grid');
     const hiddenSelect = document.getElementById('train-talent');
+    if(!grid || !hiddenSelect) return;
     grid.innerHTML = '';
     hiddenSelect.innerHTML = '';
     if(typeof window === 'undefined' || !window.TalentManager) return;
@@ -323,7 +92,7 @@
       card.appendChild(top); card.appendChild(desc);
 
       card.addEventListener('click', ()=>{
-        // toggle selection (single select)
+        // 单选高亮，仅用于展示/选择
         grid.querySelectorAll('.talent-card.selected').forEach(c=>c.classList.remove('selected'));
         card.classList.add('selected');
         hiddenSelect.value = name;
@@ -333,47 +102,41 @@
     });
   }
 
-  // Keep populateTalentSelect compatible: populate hidden select and grid
-  const _oldPopulate = populateTalentSelect;
-  populateTalentSelect = function(){
-    _oldPopulate && _oldPopulate();
-    renderTalentGrid();
-  };
+  // 页面加载后渲染天赋列表：优先在 TalentManager 已注册天赋时立即渲染，
+  // 否则在 window.load 后再渲染，并提供短轮询作为回退，确保在 registerDefaultTalents 之后渲染。
+  function ensureRenderTalentGrid(){
+    try{
+      if(typeof window !== 'undefined' && window.TalentManager && typeof window.TalentManager.getRegistered === 'function'){
+        const reg = window.TalentManager.getRegistered() || [];
+        if(reg.length > 0){ renderTalentGrid(); return true; }
+      }
+    }catch(e){}
+    return false;
+  }
 
-  // initial render if talent mode is visible
-  setTimeout(()=>{
-    if(document.getElementById('train-type').value === 'talent') renderTalentGrid();
-  }, 120);
+  if(!ensureRenderTalentGrid()){
+    // 在 load 事件后再尝试（script.js 在 window.onload 中会调用 registerDefaultTalents）
+    window.addEventListener('load', ()=>{ setTimeout(()=>{ renderTalentGrid(); }, 50); });
 
-  // 监听难度和省份变化
-  document.getElementById('start-diff').onchange = updateInitialBudget;
+    // 作为额外保险，短轮询直到 TalentManager 出现或超时
+    let _tg_tries = 0;
+    const _tg_interval = setInterval(()=>{
+      _tg_tries += 1;
+      if(ensureRenderTalentGrid() || _tg_tries > 12) clearInterval(_tg_interval);
+    }, 200);
+  }
 
-  // render province buttons using PROVINCES from script.js
-  if(typeof PROVINCES !== 'undefined'){
+  // render province buttons using PROVINCES from script.js (保留页面其他功能的兼容性)
+  if(typeof renderStartPageUI !== 'undefined'){
     renderStartPageUI && renderStartPageUI();
-    // 给省份按钮添加点击事件监听
     setTimeout(() => {
-      document.querySelectorAll('#start-prov-grid .prov-btn').forEach(btn => {
-        btn.addEventListener('click', updateInitialBudget);
-      });
-      updateInitialBudget();
+      // 保留帮助与开始按钮行为
+      document.getElementById('start-help').onclick = ()=>{ window.open('help.html','_blank'); };
+      document.getElementById('start-button').onclick = ()=>{ startFromStartPage && startFromStartPage(); };
     }, 100);
   }
-  
-  document.getElementById('start-button').onclick = ()=>{ 
-    // 将招生数据保存到 sessionStorage
-    if(recruitedStudents.length > 0){
-      sessionStorage.setItem('oi_recruited_students', JSON.stringify(recruitedStudents));
-    } else {
-  try{ console.debug('start.html removing sessionStorage key oi_recruited_students, exists:', (sessionStorage.getItem('oi_recruited_students') !== null)); }catch(e){}
-      sessionStorage.removeItem('oi_recruited_students');
-    }
-    startFromStartPage && startFromStartPage(); 
-  };
-  
-  document.getElementById('start-help').onclick = ()=>{ window.open('help.html','_blank'); };
 
-  // 初始化可折叠面板：默认折叠对点招生与学前培养，点击标题切换
+    // 初始化可折叠面板：默认折叠对点招生与学前培养，点击标题切换
   (function(){
     function togglePanel(panel, expand){
       if(expand){
@@ -398,12 +161,19 @@
         const isCollapsed = panel.classList.contains('collapsed');
         togglePanel(panel, isCollapsed);
 
-        // If expanding the train panel, ensure talent grid/select are populated when needed
-        if(panel.id === 'train-panel' && !isCollapsed){
-          const type = document.getElementById('train-type').value;
-          if(type === 'talent') renderTalentGrid();
-          populateTalentSelect();
-        }
+        // 如果展开，尝试渲染面板内的延迟内容（例如天赋网格）
+        try{
+          if(!isCollapsed){
+            // 如果面板包含天赋网格，则渲染
+            if(panel.querySelector && panel.querySelector('#talent-grid')){
+              if(typeof renderTalentGrid === 'function') renderTalentGrid();
+            }
+            // 兼容旧的 train-panel 行为
+            if(panel.id === 'train-panel'){
+              if(typeof populateTalentSelect === 'function') try{ populateTalentSelect(); }catch(e){}
+            }
+          }
+        }catch(e){}
       });
     });
   })();

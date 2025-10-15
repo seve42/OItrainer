@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>UI引导功能测试</title>
+  <style>
+    body {
+      font-family: "PingFang SC", "Microsoft YaHei", Arial, sans-serif;
+      max-width: 800px;
+      margin: 40px auto;
+      padding: 20px;
+      background: #f7f7f8;
+    }
+    .test-section {
+      background: white;
+      padding: 20px;
+      margin: 20px 0;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    h1 {
+      color: #1f2937;
+    }
+    h2 {
+      color: #374151;
+      margin-top: 24px;
+    }
+    .btn {
+      background: #2b6cb0;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 6px;
+      cursor: pointer;
+      margin: 8px 8px 8px 0;
+      font-size: 14px;
+    }
+    .btn:hover {
+      background: #2563eb;
+    }
+    .btn-ghost {
+      background: transparent;
+      border: 1px solid #ddd;
+      color: #333;
+    }
+    .feature-list {
+      list-style: none;
+      padding: 0;
+    }
+    .feature-list li {
+      padding: 8px 0;
+      border-bottom: 1px solid #eee;
+    }
+    .feature-list li:before {
+      content: "✓ ";
+      color: #10b981;
+      font-weight: bold;
+      margin-right: 8px;
+    }
+    .status {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 600;
+      margin-left: 8px;
+    }
+    .status-success {
+      background: #d1fae5;
+      color: #065f46;
+    }
+    .status-pending {
+      background: #fef3c7;
+      color: #92400e;
+    }
+  </style>
+</head>
+<body>
+  <h1>🎮 UI引导功能测试页面</h1>
+  
+  <div class="test-section">
+    <h2>📋 更新内容总结</h2>
+    <ul class="feature-list">
+      <li>新手引导系统 <span class="status status-success">已完成</span></li>
+      <li>改进首次游戏体验 <span class="status status-success">已完成</span></li>
+      <li>交互反馈优化（Toast通知） <span class="status status-success">已完成</span></li>
+      <li>删除保存/载入按钮 <span class="status status-success">已完成</span></li>
+    </ul>
+  </div>
+
+  <div class="test-section">
+    <h2>🧪 功能测试</h2>
+    
+    <h3>1. Toast通知系统测试</h3>
+    <p>点击下面的按钮测试不同类型的Toast通知：</p>
+    <button class="btn" onclick="testToast('success')">成功提示</button>
+    <button class="btn" onclick="testToast('error')">错误提示</button>
+    <button class="btn" onclick="testToast('warning')">警告提示</button>
+    <button class="btn" onclick="testToast('info')">信息提示</button>
+    
+    <h3 style="margin-top: 24px;">2. 新手引导系统测试</h3>
+    <p>新手引导会在新游戏时自动启动，你也可以手动触发：</p>
+    <button class="btn" onclick="testTutorial()">启动新手引导</button>
+    <button class="btn btn-ghost" onclick="resetTutorial()">重置引导状态</button>
+    
+    <h3 style="margin-top: 24px;">3. 改进的开始页面</h3>
+    <p>查看优化后的游戏开始页面：</p>
+    <a href="start.html" class="btn">打开开始页面</a>
+  </div>
+
+  <div class="test-section">
+    <h2>📖 使用说明</h2>
+    <h3>新手引导</h3>
+    <ul>
+      <li>第一次进入游戏时会自动启动</li>
+      <li>可以随时通过"跳过教程"按钮跳过</li>
+      <li>完成后不会再次显示（除非清除localStorage）</li>
+      <li>包含9个步骤，覆盖游戏核心功能</li>
+    </ul>
+    
+    <h3>Toast通知</h3>
+    <ul>
+      <li>在训练、集训、娱乐、升级设施后自动显示</li>
+      <li>3秒后自动消失</li>
+      <li>不同操作类型使用不同颜色</li>
+      <li>不遮挡游戏界面</li>
+    </ul>
+    
+    <h3>自动保存</h3>
+    <ul>
+      <li>游戏在每周结束时自动保存</li>
+      <li>不需要手动保存按钮</li>
+      <li>刷新页面可恢复进度</li>
+    </ul>
+  </div>
+
+  <div class="test-section">
+    <h2>🔗 快速链接</h2>
+    <a href="start.html" class="btn">开始游戏</a>
+    <a href="game.html" class="btn btn-ghost">继续游戏</a>
+    <a href="help.html" class="btn btn-ghost" target="_blank">查看帮助</a>
+  </div>
+
+  <script src="tutorial.js"></script>
+  <script>
+    function testToast(type) {
+      if (!window.toastManager) {
+        alert('Toast系统未加载，请先打开game.html或确保tutorial.js已加载');
+        return;
+      }
+      
+      const messages = {
+        success: '训练完成：算法基础训练',
+        error: '操作失败：经费不足',
+        warning: '集训完成，部分学生存在不匹配',
+        info: '下场比赛：CSP-S1 还有3周'
+      };
+      
+      window.toastManager.show(messages[type] || '测试消息', type);
+    }
+    
+    function testTutorial() {
+      if (!window.tutorialManager) {
+        alert('引导系统未加载，请先打开game.html或确保tutorial.js已加载');
+        return;
+      }
+      
+      // 临时重置以便测试
+      localStorage.removeItem('tutorial_completed');
+      window.tutorialManager.start();
+    }
+    
+    function resetTutorial() {
+      localStorage.removeItem('tutorial_completed');
+      alert('引导状态已重置！下次进入新游戏时将重新显示。');
+    }
+    
+    // 页面加载时显示状态
+    window.addEventListener('load', () => {
+      const tutorialCompleted = localStorage.getItem('tutorial_completed') === 'true';
+      console.log('Tutorial completed:', tutorialCompleted);
+      console.log('Toast manager loaded:', !!window.toastManager);
+      console.log('Tutorial manager loaded:', !!window.tutorialManager);
+    });
+  </script>
+</body>
+</html>
