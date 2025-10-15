@@ -6,6 +6,25 @@
 <title>OI 教练模拟器</title>
 <link rel="stylesheet" href="styles.css">
 <script type="text/javascript">
+  // 防止刷新导致游戏状态丢失，强制跳转回开始页面
+  // 只有通过 start.html 正常进入的页面才能继续
+  (function() {
+    const gameSessionKey = 'oi_game_active_session';
+    const hasValidSession = sessionStorage.getItem(gameSessionKey);
+    
+    // 如果没有有效的会话标记，立即跳转到开始页面
+    if (!hasValidSession) {
+      window.location.replace('start.html');
+      return;
+    }
+    
+    // 页面卸载时清除会话标记（包括刷新、关闭、跳转）
+    window.addEventListener('beforeunload', function() {
+      sessionStorage.removeItem(gameSessionKey);
+    });
+  })();
+</script>
+<script type="text/javascript">
   (function(c,l,a,r,i,t,y){
     c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
     t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;

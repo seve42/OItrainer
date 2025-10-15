@@ -165,11 +165,23 @@
     </ul>
 
     <div class="modal-actions" style="margin-top:18px">
-      <a class="btn" href="game.html">回到游戏</a>
+      <a class="btn" href="#" id="back-to-game-btn">回到游戏</a>
     </div>
 
   </div>
 </div>
+<script>
+  // 回到游戏时设置会话标记
+  document.getElementById('back-to-game-btn').addEventListener('click', function(e) {
+    e.preventDefault();
+    try {
+      sessionStorage.setItem('oi_game_active_session', 'true');
+    } catch(err) {
+      console.error('无法设置 sessionStorage:', err);
+    }
+    window.location.href = 'game.html';
+  });
+</script>
   <footer style="text-align:center;padding:12px 8px;color:#666;font-size:13px;border-top:1px solid #eee;margin-top:18px">
     作者 @Dreamers-seve · 洛谷: <a href="https://www.luogu.com.cn/user/668972" target="_blank" rel="noopener">https://www.luogu.com.cn/user/668972</a> · GitHub: <a href="https://github.com/Dreamersseve/OItrainer" target="_blank" rel="noopener">https://github.com/Dreamersseve/OItrainer</a>
   </footer>

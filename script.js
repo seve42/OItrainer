@@ -1259,14 +1259,34 @@ function holdCompetitionModal(comp){
   html += `<th>总分</th><th>备注</th></tr></thead><tbody>`;
   for(let i=0;i<results.length;i++){
     let r = results[i];
+    // Build human-readable remark including participation, 晋级 and optional award hints
     let remark = '';
-  if(r.eligible === false){ remark = '未参加'; }
-    else if(r.total >= pass_line) remark = '晋级';
-    if(comp.name === "NOI"){
-      // Medal thresholds are relative to the pass_line: 100%, 70%, 50%
-      if(r.eligible === true && r.total >= pass_line * 1.0) remark += (remark? "；":"") + "🥇金牌";
-      else if(r.eligible === true && r.total >= pass_line * 0.7) remark += (remark? "；":"") + "🥈银牌";
-      else if(r.eligible === true && r.total >= pass_line * 0.5) remark += (remark? "；":"") + "🥉铜牌";
+    if(r.eligible === false){
+      remark = '未参加';
+    } else {
+      // Determine awards/hints for specific competitions (提示性质, 不影响判定)
+      // 一等奖 = 晋级 (>= pass_line)
+      // 二等奖 = >= 60% of pass_line
+      // 三等奖 = >= 40% of pass_line
+      const t = (typeof r.total === 'number') ? r.total : (r.total != null ? Number(r.total) : null);
+      // default晋级 remark if meets pass line
+      if(t != null && t >= pass_line) remark = '晋级';
+
+      if(t != null && (comp.name === 'CSP-S1' || comp.name === 'CSP-S2' || comp.name === 'NOIP')){
+        // award hints relative to pass_line
+        if(t >= pass_line){
+          remark += (remark ? '；' : '') + ' 一等奖 晋级';
+        } else if(t >= pass_line * 0.6){
+          remark += (remark ? '；' : '') + ' 二等奖';
+        } else if(t >= pass_line * 0.4){
+          remark += (remark ? '；' : '') + ' 三等奖';
+        }
+      } else if(comp.name === 'NOI'){
+        // 保留原有 NOI 金/银/铜 逻辑（相对 pass_line 的 100%/70%/50%）
+        if(t != null && t >= pass_line * 1.0) remark += (remark? '；' : '') + '🥇金牌';
+        else if(t != null && t >= pass_line * 0.7) remark += (remark? '；' : '') + '🥈银牌';
+        else if(t != null && t >= pass_line * 0.5) remark += (remark? '；' : '') + '🥉铜牌';
+      }
     }
     html += `<tr><td>${i+1}</td><td>${r.name}</td>`;
     if(r.eligible === false){
@@ -1462,13 +1482,32 @@ function holdCompetitionModal(comp){
       game.completedCompetitions.add(doneKey);
       // 记录本场比赛到生涯记录（包括每个学生的名次/分数/备注）
       try{
+        // Create a career record and include the same human-readable remark including award hints
         const record = {
           week: comp.week,
           halfIndex: halfIndexApply,
           name: comp.name,
           passLine: pass_line,
           maxScore: (typeof comp.maxScore === 'number') ? comp.maxScore : ((comp.numProblems||problems.length||4) * 100),
-          entries: results.map((r, idx) => ({ name: r.name, total: r.total, eligible: r.eligible, remark: (r.eligible===false? '未参加' : (r.total>=pass_line? '晋级':'')), rank: r.eligible? (r.total!=null? (results.filter(x=>x.eligible===true).map(x=>x.name).indexOf(r.name)+1) : null) : null }))
+          entries: results.map((r, idx) => {
+            let remark = '';
+            if(r.eligible === false){
+              remark = '未参加';
+            } else {
+              const t = (typeof r.total === 'number') ? r.total : (r.total != null ? Number(r.total) : null);
+              if(t != null && t >= pass_line) remark = '晋级';
+              if(t != null && (comp.name === 'CSP-S1' || comp.name === 'CSP-S2' || comp.name === 'NOIP')){
+                if(t >= pass_line){ remark += (remark ? '；' : '') + '一等奖'; }
+                else if(t >= pass_line * 0.6){ remark += (remark ? '；' : '') + '二等奖'; }
+                else if(t >= pass_line * 0.4){ remark += (remark ? '；' : '') + '三等奖'; }
+              } else if(comp.name === 'NOI'){
+                if(t != null && t >= pass_line * 1.0) remark += (remark? '；' : '') + '🥇金牌';
+                else if(t != null && t >= pass_line * 0.7) remark += (remark? '；' : '') + '🥈银牌';
+                else if(t != null && t >= pass_line * 0.5) remark += (remark? '；' : '') + '🥉铜牌';
+              }
+            }
+            return { name: r.name, total: r.total, eligible: r.eligible, remark: remark, rank: r.eligible? (r.total!=null? (results.filter(x=>x.eligible===true).map(x=>x.name).indexOf(r.name)+1) : null) : null };
+          })
         };
         if(!game.careerCompetitions) game.careerCompetitions = [];
         game.careerCompetitions.push(record);
@@ -2491,6 +2530,15 @@ function startFromStartPage(){
   let provBtn = document.querySelector('#start-prov-grid .prov-btn.selected');
   let prov = provBtn ? parseInt(provBtn.dataset.val) : 1;
   let count = clampInt(parseInt(document.getElementById('start-stu').value),3,10);
+  
+  // 设置会话标记，允许进入 game.html
+  // 这个标记在页面刷新或关闭后会自动清除，确保只能通过 start.html 正常进入游戏
+  try {
+    sessionStorage.setItem('oi_game_active_session', 'true');
+  } catch(e) {
+    console.error('无法设置 sessionStorage:', e);
+  }
+  
   // init game and persist to localStorage, then go to game.html
   // To avoid timing issues with localStorage availability during navigation,
   // pass initialization params via query string and let game.html initialize.
