@@ -21,15 +21,11 @@ let game = window.game;
 /* 每日/每次渲染随机一言 */
 const QUOTES = [
   "想想你的对手正在干什么",
-  "你家孩子跟我保底是个985",
   "课间就是用来放松的？",
-  "没有天赋异禀的幸运",
-  "努力到无能为力，拼搏到感动自己",
-  "失败乃成功之母",
-  "唯有水滴石穿的坚持",
-  "没有一步登天的幻想",
-  "唯有日积月累的付出",
-  "竞赛生没有特权"
+  "没有天赋异禀的幸运，唯有水滴石穿的坚持",
+  "没有一步登天的幻想，唯有日积月累的付出",
+  "竞赛生没有特权",
+  "自律者出众，懒惰者出局"
 ];
 
 /* =========== UI 辅助 =========== */
@@ -261,11 +257,34 @@ function renderEventCards(){
   }
 }
 
+// 是否存在需要玩家选择但尚未处理的事件卡
+function hasPendingRequiredEvents(){
+  try{
+    return recentEvents.some(ev => ev && ev.options && ev.options.length > 0 && !ev._isHandled);
+  }catch(e){ return false; }
+}
+
 // 事件卡的展开/折叠及更多按钮由容器的全局点击监听处理
 // extend existing load handler to support toggle-detail
 window.addEventListener('load', () => {
   const container = $('event-cards-container');
   if (!container) return;
+  // ensure event-detail animation styles are present
+  (function(){
+    if(!document.getElementById('event-detail-animations')){
+      const s = document.createElement('style');
+      s.id = 'event-detail-animations';
+      s.textContent = `
+        @keyframes et-slide-in-right { from { opacity: 0; transform: translateX(24px); } to { opacity: 1; transform: translateX(0); } }
+        @keyframes et-slide-out-right { from { opacity: 1; transform: translateX(0); } to { opacity: 0; transform: translateX(24px); } }
+        .event-detail { display: none; }
+        .event-detail.visible { display: block; animation: et-slide-in-right 0.25s ease both; }
+        .event-detail.hiding { animation: et-slide-out-right 0.22s ease both; }
+      `;
+      document.head.appendChild(s);
+    }
+  })();
+
   container.addEventListener('click', function(e){
     const btn = e.target.closest('.more-btn');
     if (!btn) return;
@@ -274,13 +293,28 @@ window.addEventListener('load', () => {
     const detail = container.querySelector(`.event-detail[data-uid='${uid}']`);
     const desc = container.querySelector(`.card-desc[data-uid='${uid}']`);
     if (!detail || !desc) return;
-    const expanded = detail.style.display !== 'none';
-    if (expanded){
-      detail.style.display = 'none';
+
+    // Use CSS classes + animation instead of immediate display toggling
+    if (detail.classList.contains('visible')){
+      // start hide animation
+      detail.classList.remove('visible');
+      detail.classList.add('hiding');
       desc.classList.add('clamp');
       btn.innerText = '更多';
+      const onAnimEnd = function(ev){
+        // only react to our animation
+        detail.classList.remove('hiding');
+        detail.style.display = 'none';
+        detail.removeEventListener('animationend', onAnimEnd);
+      };
+      detail.addEventListener('animationend', onAnimEnd);
     } else {
+      // show and play enter animation
       detail.style.display = 'block';
+      // force reflow so the animation runs
+      void detail.offsetWidth;
+      detail.classList.remove('hiding');
+      detail.classList.add('visible');
       desc.classList.remove('clamp');
       btn.innerText = '收起';
     }
@@ -510,6 +544,60 @@ function renderAll(){
   // render dynamic event cards
   renderEventCards();
 
+  // 如果存在未处理的必选事件，禁用所有行动卡并引导玩家处理事件
+  try{
+    const pending = hasPendingRequiredEvents();
+    const actionCards = Array.from(document.querySelectorAll('.action-card'));
+    if(pending){
+      // 禁用并添加视觉提示
+      actionCards.forEach(ac => {
+        ac.classList.add('disabled');
+        ac.setAttribute('aria-disabled', 'true');
+        ac.setAttribute('tabindex', '-1');
+        // 阻止旧的 click 处理器（保留原始处理器到 dataset，若需要可恢复）
+        if(!ac.dataset._origOnclick){ ac.dataset._origOnclick = ac.onclick ? ac.onclick.toString() : ''; }
+        ac.onclick = (e) => { e && e.stopPropagation && e.stopPropagation(); e && e.preventDefault && e.preventDefault();
+          const msg = '存在未处理的事件卡片，请先在右侧事件区域选择处理后再进行行动。';
+          if(window.toastManager && typeof window.toastManager.show === 'function') window.toastManager.show(msg, 'warning'); else try{ alert(msg); }catch(e){}
+          // 将第一个未处理事件滚动进视图并轻微闪烁高亮
+          const container = $('event-cards-container');
+          if(container){
+            const firstPending = container.querySelector('.event-card.event-required');
+            if(firstPending){
+              try{ firstPending.scrollIntoView({ behavior: 'smooth', block: 'center' }); }catch(e){}
+              firstPending.classList.add('highlight-pending');
+              setTimeout(()=>{ firstPending.classList.remove('highlight-pending'); }, 1800);
+            }
+          }
+        };
+      });
+      // 高亮并滚动第一个未处理事件卡
+      const container = $('event-cards-container');
+      if(container){
+        const firstPending = container.querySelector('.event-card.event-required');
+        if(firstPending){ try{ firstPending.scrollIntoView({ behavior: 'smooth', block: 'center' }); }catch(e){}; firstPending.classList.add('highlight-pending'); setTimeout(()=>{ firstPending.classList.remove('highlight-pending'); }, 1800); }
+      }
+    } else {
+      // 恢复行动卡的交互
+      actionCards.forEach(ac => {
+        ac.classList.remove('disabled');
+        ac.removeAttribute('aria-disabled');
+        ac.setAttribute('tabindex', '0');
+        // 恢复 onclick 如果为空则忽略
+        try{
+          if(ac.dataset && ac.dataset._origOnclick && ac.dataset._origOnclick.length > 0){
+            // We cannot reliably restore original function from string; just clear stored marker
+            ac.dataset._origOnclick = '';
+          }
+          // remove any temporary onclick that was set to block
+          if(ac.onclick && ac.onclick.toString().includes('存在未处理的事件卡片')){
+            ac.onclick = null;
+          }
+        }catch(e){}
+      });
+    }
+  }catch(e){ /* ignore UI assist failures */ }
+
   // Competition-week: 如果当前周有未完成的比赛，则注入 "参加比赛" 按钮
   // 只处理尚未完成的比赛
   let compNow = null;
@@ -710,12 +798,12 @@ function trainStudentsWithTask(task, intensity) {
   
   // 输出详细的训练日志
   log(`训练结束。题目：${task.name}`);
-  
+  /*
   // Toast 反馈
   if (window.toastManager) {
     window.toastManager.show(`训练完成：${task.name}`, 'success');
   }
-  
+  */
   // 训练结束后尝试为每位学生获得天赋（按训练强度放大/降低概率）
   try{
     if(typeof window !== 'undefined' && window.TalentManager && typeof window.TalentManager.tryAcquireTalent === 'function'){
@@ -921,7 +1009,7 @@ function outingTrainingWithSelection(difficulty_choice, province_choice, selecte
 
   game.weeks_since_entertainment += 1;
   log("外出集训完成（1周）。");
-  
+  /*
   // Toast 反馈
   if (window.toastManager) {
     if (selectedStudents.some(s => s.hiddenMockScore < 200)) {
@@ -930,7 +1018,7 @@ function outingTrainingWithSelection(difficulty_choice, province_choice, selecte
       window.toastManager.show(`集训完成：${target.name}`, 'success');
     }
   }
-  
+  */
   const __after = __createSnapshot?.();
   if(__before && __after) __summarizeSnapshot(__before, __after, `外出集训：${target.name} 难度${difficulty_choice}`);
 }
@@ -1586,6 +1674,19 @@ function checkRandomEvents(){
 
 /* 周结算（默认 2 周） */
 function weeklyUpdate(weeks=1){
+  // 防御性检查：如果存在需要玩家选择的未处理事件，则阻止周结算
+  try{
+    if(hasPendingRequiredEvents()){
+      const msg = '存在未处理的事件卡片，请先处理所有可选择的事件再进行回合推进。';
+      console.log('weeklyUpdate blocked: pending required events');
+      if(window.toastManager && typeof window.toastManager.show === 'function'){
+        window.toastManager.show(msg, 'warning');
+      } else {
+        try{ alert(msg); }catch(e){}
+      }
+      return;
+    }
+  }catch(e){ /* ignore and continue if check fails */ }
   let comfort = game.getComfort();
   
   // 先处理生病恢复，并检测自愈天赋
@@ -1687,6 +1788,19 @@ function weeklyUpdate(weeks=1){
 }
 // 安全的周更新：在多周跳转时不跳过即将到来的比赛
 function safeWeeklyUpdate(weeks = 1) {
+  // 如果存在需玩家选择的未处理事件，则阻止推进周数，直到玩家处理完这些事件
+  try{
+    if(hasPendingRequiredEvents()){
+      const msg = '存在未处理的事件卡片，请先处理所有可选择的事件再进行回合推进。';
+      console.log('safeWeeklyUpdate blocked: pending required events');
+      if(window.toastManager && typeof window.toastManager.show === 'function'){
+        window.toastManager.show(msg, 'warning');
+      } else {
+        try{ alert(msg); }catch(e){}
+      }
+      return; // 阻止推进
+    }
+  }catch(e){ /* ignore and continue if check fails */ }
   // If a contest live modal is active, defer the weekly advance until it closes.
   try{
     if(window.__contest_live_modal_active){
@@ -2279,11 +2393,12 @@ function entertainmentUI(){
   safeWeeklyUpdate(1);
     renderAll();
     log("娱乐活动完成");
-    
+    /*
     // Toast 反馈
     if (window.toastManager) {
       window.toastManager.show(`娱乐活动完成：${opt.label}`, 'success');
     }
+    */
   };
 }
 
@@ -2413,12 +2528,12 @@ function upgradeFacility(f){
       game.recordExpense(costAdj, `设施升级：${f}`);
       game.facilities.upgrade(f);
       log(`设施升级：${f} 到等级 ${current+1}（基础 ¥${cost}，调整后 ¥${costAdj}）`);
-      
+      /*
       // Toast 反馈
       if (window.toastManager) {
         window.toastManager.show(`设施升级成功：${f} → ${current+1}级`, 'success');
       }
-      
+      */
       closeModal();
       renderAll();
     }catch(e){ console.error('upgrade confirm handler error', e); }

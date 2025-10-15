@@ -89,82 +89,28 @@ class ToastManager {
   }
 
   init() {
-    // 创建 toast 容器
-    this.container = document.createElement('div');
-    this.container.id = 'toast-container';
-    this.container.style.cssText = `
-      position: fixed;
-      top: 80px;
-      right: 20px;
-      z-index: 10000;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      pointer-events: none;
-    `;
-    document.body.appendChild(this.container);
+    // NOTE: To avoid conflicts with the in-game event cards, we don't create a
+    // visual toast container by default. The ToastManager API remains available
+    // so callers can still call window.toastManager.show(...). By default we
+    // forward notifications into the event card system (pushEvent) which is the
+    // single source of truth for event display.
+    this.container = null;
   }
 
   show(message, type = 'info', duration = 3000) {
-    const toast = document.createElement('div');
-    toast.className = `toast toast-${type}`;
-    
-    const icons = {
-      success: '✓',
-      error: '✗',
-      warning: '⚠',
-      info: 'ℹ'
-    };
-    
-    const colors = {
-      success: '#10b981',
-      error: '#ef4444',
-      warning: '#f59e0b',
-      info: '#3b82f6'
-    };
-    
-    toast.style.cssText = `
-      background: white;
-      border-left: 4px solid ${colors[type]};
-      padding: 12px 16px;
-      border-radius: 8px;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-      min-width: 200px;
-      max-width: 350px;
-      pointer-events: auto;
-      animation: slideInRight 0.3s ease;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    `;
-    
-    toast.innerHTML = `
-      <span style="
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 24px;
-        height: 24px;
-        border-radius: 50%;
-        background: ${colors[type]}20;
-        color: ${colors[type]};
-        font-weight: bold;
-        font-size: 14px;
-      ">${icons[type]}</span>
-      <span style="flex: 1; color: #1f2937; font-size: 14px;">${message}</span>
-    `;
-    
-    this.container.appendChild(toast);
-    
-    // 自动消失
-    setTimeout(() => {
-      toast.style.animation = 'slideOutRight 0.3s ease';
-      setTimeout(() => {
-        if (toast.parentNode) {
-          toast.parentNode.removeChild(toast);
-        }
-      }, 300);
-    }, duration);
+    // Default behavior: forward to event cards so messages are visible in the
+    // right-side event panel and avoid duplicated floating UIs that conflict
+    // with the game's layout. If pushEvent is unavailable, fallback to console.
+    try {
+      if (typeof window.pushEvent === 'function') {
+        // Normalize a short title from type
+        const title = (type === 'success') ? '通知' : (type === 'warning') ? '警告' : (type === 'error') ? '错误' : '提示';
+        window.pushEvent({ name: title, description: String(message), week: (window.game && window.game.week) ? window.game.week : 0 });
+        return;
+      }
+    } catch (e) { /* ignore */ }
+    // final fallback
+    console.log(`[toast:${type}] ${message}`);
   }
 }
 
