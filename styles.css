@@ -654,14 +654,12 @@ body.comp-week .action-cards .action-card:not(#comp-only-action) {
   transform: translateX(-50%) translateY(-8px);
 }
 
-/* 强制移除天赋标签的颜色差异（覆盖 script.js 中的内联 style）
-   目的是：天赋标签保持中性外观，只保留等级徽章（.kb[data-grade]）的颜色语义。
-*/
+/* 恢复天赋标签颜色由内联样式或天赋定义控制。保留一个非强制性的默认外观（不使用 !important）作为回退。 */
 .talent-tag {
-  background: #f3f4f6 !important;
-  color: #1f2937 !important;
-  border-color: rgba(30,41,59,0.06) !important;
-  box-shadow: none !important;
+  background: #f3f4f6;
+  color: #1f2937;
+  border-color: rgba(30,41,59,0.06);
+  box-shadow: none;
 }
 
 /* ========== 学生卡片折叠与交互增强 ========== */

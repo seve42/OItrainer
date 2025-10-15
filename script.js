@@ -3161,6 +3161,9 @@ function initGame(difficulty, province_choice, student_count){
       for(let talentName of recruited.talents){
         newStud.addTalent(talentName);
       }
+    } else {
+      // 如果对点招生学生没有显式天赋，分配一个初始天赋（按天赋概率权重选择）
+      try{ if(window.TalentManager && typeof window.TalentManager.assignInitialTalent === 'function') window.TalentManager.assignInitialTalent(newStud); }catch(e){}
     }
     
     game.students.push(newStud);
@@ -3177,7 +3180,8 @@ function initGame(difficulty, province_choice, student_count){
     let coding = clamp(normal(mean, stddev), 0, 100);
     let mental = clamp(normal(mean, stddev), 0, 100);
     const newStud = new Student(name, thinking, coding, mental);
-    // 初始时不自动分配天赋（talents 仅通过对点招生或后续训练/集训获得）
+    // 初始学生强制分配一个天赋（按各天赋的 prob 权重随机），以满足“初始学生100%附带随机一个天赋”的需求
+    try{ if(window.TalentManager && typeof window.TalentManager.assignInitialTalent === 'function') window.TalentManager.assignInitialTalent(newStud); }catch(e){}
     game.students.push(newStud);
   }
   game.updateWeather();
