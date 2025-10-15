@@ -210,6 +210,43 @@
           return msg;
         }
       });
+      // 构造题忘放checker
+      this.register({
+        id: 'forgot_checker',
+        name: '构造题忘放checker',
+        description: '练习结束后资料库等级低时可能忘记放置checker',
+        check: c => {
+          // 仅在资料库等级较低且刚结束练习时才有可能触发
+          const libraryLevel = (c.game.facilities && c.game.facilities.library) || 1;
+          if (libraryLevel > 2) return false;
+          // 依赖脚本在训练结束时设置的标志：lastTrainingFinishedWeek
+          if (!c.game || typeof c.game.lastTrainingFinishedWeek !== 'number') return false;
+          // 仅在训练刚结束的那一周触发一次
+          if (c.game.lastTrainingFinishedWeek !== c.game.week) return false;
+          // 20% 概率触发
+          return Math.random() < 0.20;
+        },
+        run: c => {
+          for(const s of c.game.students){
+            if(!s || s.active === false) continue;
+            const oldP = Number(s.pressure || 0);
+            s.pressure = Math.min(100, oldP + 20);
+            try{ 
+              if(typeof s.triggerTalents === 'function'){ 
+                s.triggerTalents('pressure_change', { source: 'forgot_checker', amount: s.pressure - oldP }); 
+              } 
+            }catch(e){ 
+              console.error('triggerTalents pressure_change', e); 
+            }
+          }
+          const msg = `练习时构造题忘放checker，全体学生压力 +20`;
+          c.log && c.log(`[构造题忘放checker] ${msg}`);
+          window.pushEvent && window.pushEvent({ name:'构造题忘放checker', description: msg, week: c.game.week });
+          // 清理训练结束标志，避免本事件在同一周再次触发
+          try{ c.game.lastTrainingFinishedWeek = null; }catch(e){}
+          return msg;
+        }
+      });
       // 上级拨款
       this.register({
         id: 'funding_allocation',

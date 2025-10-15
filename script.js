@@ -554,8 +554,13 @@ function renderAll(){
         ac.classList.add('disabled');
         ac.setAttribute('aria-disabled', 'true');
         ac.setAttribute('tabindex', '-1');
-        // 阻止旧的 click 处理器（保留原始处理器到 dataset，若需要可恢复）
-        if(!ac.dataset._origOnclick){ ac.dataset._origOnclick = ac.onclick ? ac.onclick.toString() : ''; }
+        // 保存原始 onclick 引用以便恢复（比保存字符串更可靠）
+        try{
+          if(typeof ac._origOnclickFn === 'undefined'){
+            ac._origOnclickFn = ac.onclick || null;
+          }
+        }catch(e){}
+        // 设置临时阻塞处理器
         ac.onclick = (e) => { e && e.stopPropagation && e.stopPropagation(); e && e.preventDefault && e.preventDefault();
           const msg = '存在未处理的事件卡片，请先在右侧事件区域选择处理后再进行行动。';
           if(window.toastManager && typeof window.toastManager.show === 'function') window.toastManager.show(msg, 'warning'); else try{ alert(msg); }catch(e){}
@@ -583,15 +588,16 @@ function renderAll(){
         ac.classList.remove('disabled');
         ac.removeAttribute('aria-disabled');
         ac.setAttribute('tabindex', '0');
-        // 恢复 onclick 如果为空则忽略
         try{
-          if(ac.dataset && ac.dataset._origOnclick && ac.dataset._origOnclick.length > 0){
-            // We cannot reliably restore original function from string; just clear stored marker
-            ac.dataset._origOnclick = '';
-          }
-          // remove any temporary onclick that was set to block
-          if(ac.onclick && ac.onclick.toString().includes('存在未处理的事件卡片')){
-            ac.onclick = null;
+          // 如果我们之前保存了原始 onclick 引用，则恢复它
+          if(typeof ac._origOnclickFn !== 'undefined'){
+            try{ ac.onclick = ac._origOnclickFn; }catch(e){}
+            try{ delete ac._origOnclickFn; }catch(e){}
+          } else {
+            // 兼容旧逻辑：如果当前 onclick 是我们的阻塞函数（通过文本判断），则清除它
+            if(ac.onclick && ac.onclick.toString && ac.onclick.toString().includes('存在未处理的事件卡片')){
+              ac.onclick = null;
+            }
           }
         }catch(e){}
       });
@@ -819,6 +825,11 @@ function trainStudentsWithTask(task, intensity) {
   const __after = typeof __createSnapshot === 'function' ? __createSnapshot() : null;
   if(__before && __after) __summarizeSnapshot(__before, __after, `做题训练：${task.name}`);
 }
+
+  // 标记本周刚刚完成了一次训练，供事件系统检测（如构造题忘放checker）
+  try{ game.lastTrainingFinishedWeek = game.week; }catch(e){}
+  // 训练结束后立即检查随机事件（会触发依赖刚结束训练的事件）
+  try{ checkRandomEvents(); }catch(e){ console.error('post-training checkRandomEvents failed', e); }
 
 
 // 辅助：为单个学生运行一次隐藏模拟赛，返回总分（0..400）
