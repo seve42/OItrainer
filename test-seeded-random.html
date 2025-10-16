@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>种子随机数测试</title>
+  <style>
+    body {
+      font-family: 'Microsoft YaHei', sans-serif;
+      max-width: 1200px;
+      margin: 20px auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .test-section {
+      background: white;
+      padding: 20px;
+      margin: 20px 0;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    h1 {
+      color: #2c3e50;
+    }
+    h2 {
+      color: #3498db;
+      border-bottom: 2px solid #3498db;
+      padding-bottom: 10px;
+    }
+    button {
+      background: #3498db;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      margin: 5px;
+    }
+    button:hover {
+      background: #2980b9;
+    }
+    .success {
+      color: #27ae60;
+      font-weight: bold;
+    }
+    .fail {
+      color: #e74c3c;
+      font-weight: bold;
+    }
+    .result {
+      background: #ecf0f1;
+      padding: 10px;
+      margin: 10px 0;
+      border-radius: 4px;
+      font-family: 'Courier New', monospace;
+    }
+    input {
+      padding: 8px;
+      border: 1px solid #bdc3c7;
+      border-radius: 4px;
+      margin: 5px;
+    }
+  </style>
+</head>
+<body>
+  <h1>🎲 种子随机数一致性测试</h1>
+  
+  <div class="test-section">
+    <h2>测试说明</h2>
+    <p>此页面用于验证种子随机数生成器 (SeededRandom) 是否能产生一致的随机数序列。</p>
+    <p><strong>测试原理：</strong>使用相同的种子初始化两次，应该得到完全相同的随机数序列。</p>
+  </div>
+
+  <div class="test-section">
+    <h2>1. 基础一致性测试</h2>
+    <p>使用固定种子 12345，生成两组随机数并对比</p>
+    <button onclick="testBasicConsistency()">运行测试</button>
+    <div id="test1-result"></div>
+  </div>
+
+  <div class="test-section">
+    <h2>2. 自定义种子测试</h2>
+    <p>输入任意种子值，验证是否能产生一致的随机数</p>
+    <input type="number" id="custom-seed" placeholder="输入种子值" value="20251016">
+    <input type="number" id="random-count" placeholder="生成数量" value="10">
+    <button onclick="testCustomSeed()">运行测试</button>
+    <div id="test2-result"></div>
+  </div>
+
+  <div class="test-section">
+    <h2>3. 今日挑战种子测试</h2>
+    <p>测试今日挑战功能生成的种子</p>
+    <button onclick="testDailyChallengeConsistency()">运行测试</button>
+    <div id="test3-result"></div>
+  </div>
+
+  <div class="test-section">
+    <h2>4. 游戏逻辑模拟测试</h2>
+    <p>模拟实际游戏场景：学生名字生成、天赋分配等</p>
+    <button onclick="testGameLogic()">运行测试</button>
+    <div id="test4-result"></div>
+  </div>
+
+  <script src="lib/utils.js"></script>
+  <script>
+    // 测试1：基础一致性
+    function testBasicConsistency() {
+      const seed = 12345;
+      const count = 10;
+      
+      // 第一次生成
+      setRandomSeed(seed);
+      const sequence1 = [];
+      for (let i = 0; i < count; i++) {
+        sequence1.push(getRandom());
+      }
+      
+      // 第二次生成
+      setRandomSeed(seed);
+      const sequence2 = [];
+      for (let i = 0; i < count; i++) {
+        sequence2.push(getRandom());
+      }
+      
+      // 对比结果
+      let isConsistent = true;
+      for (let i = 0; i < count; i++) {
+        if (sequence1[i] !== sequence2[i]) {
+          isConsistent = false;
+          break;
+        }
+      }
+      
+      const resultDiv = document.getElementById('test1-result');
+      resultDiv.innerHTML = `
+        <div class="result">
+          <strong>序列1：</strong><br>${sequence1.map(n => n.toFixed(6)).join(', ')}<br><br>
+          <strong>序列2：</strong><br>${sequence2.map(n => n.toFixed(6)).join(', ')}<br><br>
+          <strong>结果：</strong><span class="${isConsistent ? 'success' : 'fail'}">
+            ${isConsistent ? '✓ 通过 - 两次生成的序列完全一致！' : '✗ 失败 - 序列不一致！'}
+          </span>
+        </div>
+      `;
+    }
+
+    // 测试2：自定义种子
+    function testCustomSeed() {
+      const seed = parseInt(document.getElementById('custom-seed').value);
+      const count = parseInt(document.getElementById('random-count').value);
+      
+      if (isNaN(seed) || isNaN(count)) {
+        alert('请输入有效的数字！');
+        return;
+      }
+      
+      // 第一次生成
+      setRandomSeed(seed);
+      const sequence1 = [];
+      for (let i = 0; i < count; i++) {
+        sequence1.push(getRandom());
+      }
+      
+      // 第二次生成
+      setRandomSeed(seed);
+      const sequence2 = [];
+      for (let i = 0; i < count; i++) {
+        sequence2.push(getRandom());
+      }
+      
+      // 对比
+      let isConsistent = sequence1.every((val, idx) => val === sequence2[idx]);
+      
+      const resultDiv = document.getElementById('test2-result');
+      resultDiv.innerHTML = `
+        <div class="result">
+          <strong>种子：</strong>${seed}<br>
+          <strong>生成数量：</strong>${count}<br><br>
+          <strong>序列1：</strong><br>${sequence1.map(n => n.toFixed(6)).join(', ')}<br><br>
+          <strong>序列2：</strong><br>${sequence2.map(n => n.toFixed(6)).join(', ')}<br><br>
+          <strong>结果：</strong><span class="${isConsistent ? 'success' : 'fail'}">
+            ${isConsistent ? '✓ 通过' : '✗ 失败'}
+          </span>
+        </div>
+      `;
+    }
+
+    // 测试3：今日挑战种子
+    function testDailyChallengeConsistency() {
+      if (typeof getDailyChallengeParams !== 'function') {
+        document.getElementById('test3-result').innerHTML = `
+          <div class="result">
+            <span class="fail">✗ 错误：getDailyChallengeParams 函数未定义！</span>
+          </div>
+        `;
+        return;
+      }
+      
+      const params = getDailyChallengeParams();
+      const { seed, province, difficulty, date } = params;
+      
+      // 使用今日种子生成两组数据
+      setRandomSeed(seed);
+      const data1 = {
+        names: [generateName(), generateName(), generateName()],
+        randoms: [getRandom(), getRandom(), getRandom()]
+      };
+      
+      setRandomSeed(seed);
+      const data2 = {
+        names: [generateName(), generateName(), generateName()],
+        randoms: [getRandom(), getRandom(), getRandom()]
+      };
+      
+      const namesMatch = data1.names.every((name, idx) => name === data2.names[idx]);
+      const randomsMatch = data1.randoms.every((val, idx) => val === data2.randoms[idx]);
+      const allMatch = namesMatch && randomsMatch;
+      
+      const resultDiv = document.getElementById('test3-result');
+      resultDiv.innerHTML = `
+        <div class="result">
+          <strong>今日日期：</strong>${date}<br>
+          <strong>种子：</strong>${seed}<br>
+          <strong>省份：</strong>${province}<br>
+          <strong>难度：</strong>${difficulty}<br><br>
+          
+          <strong>第一次生成：</strong><br>
+          学生名字：${data1.names.join(', ')}<br>
+          随机数：${data1.randoms.map(n => n.toFixed(6)).join(', ')}<br><br>
+          
+          <strong>第二次生成：</strong><br>
+          学生名字：${data2.names.join(', ')}<br>
+          随机数：${data2.randoms.map(n => n.toFixed(6)).join(', ')}<br><br>
+          
+          <strong>结果：</strong><span class="${allMatch ? 'success' : 'fail'}">
+            ${allMatch ? '✓ 通过 - 今日挑战种子工作正常！' : '✗ 失败'}
+          </span><br>
+          名字匹配：${namesMatch ? '✓' : '✗'}<br>
+          随机数匹配：${randomsMatch ? '✓' : '✗'}
+        </div>
+      `;
+    }
+
+    // 测试4：游戏逻辑模拟
+    function testGameLogic() {
+      const seed = 99999;
+      
+      // 模拟游戏初始化流程（两次）
+      function simulateGameInit(seedValue) {
+        setRandomSeed(seedValue);
+        
+        return {
+          students: [
+            { name: generateName(), thinking: uniformInt(50, 80), coding: uniformInt(50, 80) },
+            { name: generateName(), thinking: uniformInt(50, 80), coding: uniformInt(50, 80) },
+            { name: generateName(), thinking: uniformInt(50, 80), coding: uniformInt(50, 80) }
+          ],
+          weather: {
+            temp: normal(20, 5),
+            precipitation: getRandom() < 0.3 ? '雨' : '晴'
+          },
+          eventChance: getRandom()
+        };
+      }
+      
+      const game1 = simulateGameInit(seed);
+      const game2 = simulateGameInit(seed);
+      
+      // 对比
+      const studentsMatch = game1.students.every((s, idx) => 
+        s.name === game2.students[idx].name &&
+        s.thinking === game2.students[idx].thinking &&
+        s.coding === game2.students[idx].coding
+      );
+      
+      const weatherMatch = 
+        game1.weather.temp === game2.weather.temp &&
+        game1.weather.precipitation === game2.weather.precipitation;
+      
+      const eventMatch = game1.eventChance === game2.eventChance;
+      
+      const allMatch = studentsMatch && weatherMatch && eventMatch;
+      
+      const resultDiv = document.getElementById('test4-result');
+      resultDiv.innerHTML = `
+        <div class="result">
+          <strong>测试种子：</strong>${seed}<br><br>
+          
+          <strong>第一次模拟：</strong><br>
+          学生：${game1.students.map(s => `${s.name}(思维${s.thinking}/代码${s.coding})`).join(', ')}<br>
+          天气：${game1.weather.precipitation} ${game1.weather.temp.toFixed(1)}°C<br>
+          事件概率：${game1.eventChance.toFixed(6)}<br><br>
+          
+          <strong>第二次模拟：</strong><br>
+          学生：${game2.students.map(s => `${s.name}(思维${s.thinking}/代码${s.coding})`).join(', ')}<br>
+          天气：${game2.weather.precipitation} ${game2.weather.temp.toFixed(1)}°C<br>
+          事件概率：${game2.eventChance.toFixed(6)}<br><br>
+          
+          <strong>结果：</strong><span class="${allMatch ? 'success' : 'fail'}">
+            ${allMatch ? '✓ 通过 - 游戏逻辑完全可复现！' : '✗ 失败'}
+          </span><br>
+          学生匹配：${studentsMatch ? '✓' : '✗'}<br>
+          天气匹配：${weatherMatch ? '✓' : '✗'}<br>
+          事件匹配：${eventMatch ? '✓' : '✗'}
+        </div>
+      `;
+    }
+  </script>
+</body>
+</html>

@@ -55,6 +55,7 @@
 
     <div class="modal-actions" style="margin-top:12px">
       <button class="btn btn-ghost" id="start-help">查看详细帮助</button>
+      <button class="btn" id="daily-challenge-btn" style="background:#667eea;color:white;">📅 今日挑战</button>
       <button class="btn" id="start-button">开始游戏 🚀</button>
     </div>
   </div>
@@ -133,6 +134,34 @@
       // 保留帮助与开始按钮行为
       document.getElementById('start-help').onclick = ()=>{ window.open('help.html','_blank'); };
       document.getElementById('start-button').onclick = ()=>{ startFromStartPage && startFromStartPage(); };
+      
+      // 今日挑战按钮
+      document.getElementById('daily-challenge-btn').onclick = ()=>{ 
+        if(typeof getDailyChallengeParams === 'function'){
+          const params = getDailyChallengeParams();
+          // 显示今日挑战信息
+          const provinceName = (typeof PROVINCES !== 'undefined' && PROVINCES[params.provinceId]) 
+            ? PROVINCES[params.provinceId].name 
+            : '未知省份';
+          
+          if(confirm(`📅 今日挑战（${params.displayDate}）\n\n省份：${provinceName}\n难度：普通\n种子：${params.seed}\n\n所有玩家今天都将使用相同的初始条件！\n\n确认开始今日挑战？`)){
+            // 设置今日挑战标记
+            try {
+              sessionStorage.setItem('oi_game_active_session', 'true');
+              sessionStorage.setItem('oi_daily_challenge', 'true');
+              sessionStorage.setItem('oi_daily_challenge_date', params.date);
+            } catch(e) {
+              console.error('无法设置 sessionStorage:', e);
+            }
+            
+            // 跳转到游戏页面，带上今日挑战参数
+            const url = `game.html?new=1&daily=1&d=${params.difficulty}&p=${params.provinceId}&c=5&seed=${params.seed}`;
+            window.location.href = url;
+          }
+        } else {
+          alert('今日挑战功能加载失败，请刷新页面重试');
+        }
+      };
     }, 100);
   }
 

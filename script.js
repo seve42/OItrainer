@@ -1707,7 +1707,7 @@ function weeklyUpdate(weeks=1){
       s.sick_weeks--;
       // 检测自愈天赋：有30%概率额外减少1周病程
       if(s.talents && s.talents.has('自愈') && s.sick_weeks > 0){
-        if(Math.random() < 0.30){
+        if(getRandom() < 0.30){
           s.sick_weeks = Math.max(0, s.sick_weeks - 1);
           window.pushEvent && window.pushEvent({
             name: '自愈',
@@ -2286,9 +2286,9 @@ function holdMockContestUI(){
       const allTags = ["数据结构", "图论", "字符串", "数学", "动态规划"];
       for(let q = 0; q < numProblems; q++){
         let tags = [];
-        const numTags = 1 + Math.floor(Math.random() * 2); // 1-2个标签
+        const numTags = 1 + Math.floor(getRandom() * 2); // 1-2个标签
         for(let j = 0; j < numTags; j++){
-          const tag = allTags[Math.floor(Math.random() * allTags.length)];
+          const tag = allTags[Math.floor(getRandom() * allTags.length)];
           if(!tags.includes(tag)) tags.push(tag);
         }
         questionTagsArray.push(tags);
@@ -2980,6 +2980,10 @@ function renderEndSummary(){
     
     // 构建完整的结算信息
     el.innerHTML = `
+      ${o.isDailyChallenge ? `<div style="background:linear-gradient(135deg, #667eea 0%, #764ba2 100%);color:white;padding:12px 16px;border-radius:8px;margin-bottom:16px;text-align:center;box-shadow:0 4px 6px rgba(0,0,0,0.1)">
+        <div style="font-size:16px;font-weight:bold;margin-bottom:4px">📅 今日挑战</div>
+        <div style="font-size:13px;opacity:0.9">${o.dailyChallengeDate || '日期未知'} · 种子: ${o.dailyChallengeSeed || 'N/A'}</div>
+      </div>` : ''}
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
         <div>
           <h4>📈 基本信息</h4>
@@ -3228,7 +3232,36 @@ window.onload = ()=>{
       const diff = clampInt(parseInt(qs.get('d')||2),1,3);
       const prov = clampInt(parseInt(qs.get('p')||1),1,Object.keys(PROVINCES).length);
       const count = clampInt(parseInt(qs.get('c')||5),3,10);
-      initGame(diff, prov, count);
+      
+      // 检查是否是今日挑战模式
+      const isDaily = qs.get('daily') === '1';
+      const seed = qs.get('seed') ? parseInt(qs.get('seed')) : null;
+      
+      if(isDaily && seed !== null){
+        // 今日挑战模式：设置固定种子
+        if(typeof setRandomSeed === 'function'){
+          setRandomSeed(seed);
+          console.log(`[今日挑战] 种子已设置: ${seed}`);
+        } else {
+          console.warn('[今日挑战] setRandomSeed 函数未定义，种子设置失败');
+        }
+        // 保存今日挑战标记到游戏状态
+        initGame(diff, prov, count);
+        game.isDailyChallenge = true;
+        game.dailyChallengeSeed = seed;
+        try{
+          const dailyDate = sessionStorage.getItem('oi_daily_challenge_date');
+          if(dailyDate) game.dailyChallengeDate = dailyDate;
+        }catch(e){}
+        console.log(`[今日挑战] 游戏初始化完成，省份: ${prov}, 种子: ${seed}`);
+      } else {
+        // 普通模式：不设置种子，使用默认随机
+        if(typeof setRandomSeed === 'function'){
+          setRandomSeed(null);
+        }
+        initGame(diff, prov, count);
+      }
+      
       try{ localStorage.setItem('oi_coach_save', JSON.stringify(game)); }catch(e){}
     } else {
       // try to load saved game; if none, redirect to start page

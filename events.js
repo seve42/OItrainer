@@ -1,4 +1,4 @@
-/* events.js
+﻿/* events.js
    事件管理器：为项目提供可扩展的随机事件系统
    - Event structure: {id, name, check(ctx) => boolean, run(ctx) => void, description}
    - 使用 register/registerDefaultEvents/clear/checkRandomEvents
@@ -38,7 +38,7 @@
           let p = 0;
           if (w >= 20 && w <= 39) p = 0.08;
           else if ((w >= 14 && w <= 19) || (w >= 40 && w <= 45)) p = 0.03;
-          return Math.random() < p;
+          return getRandom() < p;
         },
         run: c => {
           for(let s of c.game.students){
@@ -80,7 +80,7 @@
               pr = pr * 0.5;
             }
             
-            if(Math.random() < pr){
+            if(getRandom() < pr){
               s.sick_weeks = utils.uniformInt(1,2);
               sickList.push(s.name);
               // trigger talent: sickness event for this student
@@ -120,7 +120,7 @@
                   prob = prob * 0.5;
                 }
                 
-                if(Math.random() < prob){
+                if(getRandom() < prob){
                   quitList.push(s.name);
                   c.game.students.splice(i, 1);
                   c.game.quit_students = (c.game.quit_students||0) + 1;
@@ -150,7 +150,7 @@
         id: 'corporate_sponsorship',
         name: '企业赞助',
         description: '声誉良好时获得企业赞助资金与声誉提升',
-        check: c => c.game.reputation > 55 && c.game.week >= 10 && c.game.week <= 20 && Math.random() < 0.03,
+        check: c => c.game.reputation > 55 && c.game.week >= 10 && c.game.week <= 20 && getRandom() < 0.03,
         run: c => {
           const gain = c.utils.uniformInt(20000, 50000);
           c.game.budget = (c.game.budget || 0) + gain;
@@ -174,7 +174,7 @@
           if (typeof prov === 'number' && c.PROVINCES && c.PROVINCES[prov]) prov = c.PROVINCES[prov].name;
           prov = (prov || '') + '';
           prov = prov.replace(/(省|市|自治区|特别行政区)/g, '').trim();
-          return c.game.reputation > 60 && ['北京','上海','江苏','浙江','广东','山东','天津'].includes(prov) && Math.random() < 0.01;
+          return c.game.reputation > 60 && ['北京','上海','江苏','浙江','广东','山东','天津'].includes(prov) && getRandom() < 0.01;
         },
         run: c => {
             for(const s of c.game.students){ if(!s || s.active === false) continue;
@@ -195,7 +195,7 @@
         id: 'quality_course_found',
         name: '发现优质网课',
         description: '资料库等级越高，越容易发现优质网课',
-        check: c => Math.random() < 0.02 * (c.game.facilities.library || 1),
+        check: c => getRandom() < 0.02 * (c.game.facilities.library || 1),
         run: c => {
           // 使用游戏中实际的知识类型
           const topics = ['数据结构','图论','字符串','数学','DP'];
@@ -224,7 +224,7 @@
           // 仅在训练刚结束的那一周触发一次
           if (c.game.lastTrainingFinishedWeek !== c.game.week) return false;
           // 20% 概率触发
-          return Math.random() < 0.20;
+          return getRandom() < 0.20;
         },
         run: c => {
           for(const s of c.game.students){
@@ -252,7 +252,7 @@
         id: 'funding_allocation',
         name: '上级拨款',
         description: '比赛佳绩后获得额外经费与声誉提升',
-        check: c => c.game.recentSuccess && (c.game.week - (c.game.recentSuccessWeek||0)) <= 2 && Math.random() < 0.5,
+        check: c => c.game.recentSuccess && (c.game.week - (c.game.recentSuccessWeek||0)) <= 2 && getRandom() < 0.5,
         run: c => {
           const gain = c.utils.uniformInt(5000, 20000);
           c.game.budget = (c.game.budget || 0) + gain;
@@ -277,7 +277,7 @@
             const hasBadLuck = Array.isArray(c.game.students) && c.game.students.some(s => s && s.active !== false && s.talents && typeof s.talents.has === 'function' && s.talents.has('扫把星'));
             if(hasBadLuck) base = base * 1.5;
           }catch(e){ /* ignore talent checks */ }
-          return Math.random() < base;
+          return getRandom() < base;
         },
         run: c => {
           const cost = c.utils.uniformInt(5000, 20000);
@@ -313,7 +313,7 @@
             const hasBadLuck = Array.isArray(c.game.students) && c.game.students.some(s => s && s.active !== false && s.talents && typeof s.talents.has === 'function' && s.talents.has('扫把星'));
             if(hasBadLuck) p = p * 1.5;
           }catch(e){ /* ignore talent checks */ }
-          return Math.random() < p;
+          return getRandom() < p;
         },
         run: c => {
           for (const s of c.game.students) {
@@ -342,7 +342,7 @@
             const hasBadLuck = Array.isArray(c.game.students) && c.game.students.some(s => s && s.active !== false && s.talents && typeof s.talents.has === 'function' && s.talents.has('扫把星'));
             if(hasBadLuck) p = p * 1.5;
           }catch(e){ }
-          return Math.random() < p;
+          return getRandom() < p;
         },
         run: c => {
           const weeks = c.utils.uniformInt(1, 2);
@@ -379,7 +379,7 @@
         id: 'exchange_invite',
         name: '友校交流邀请',
         description: '接受或拒绝友校交流邀请',
-        check: c => Math.random() < 0.02,
+        check: c => getRandom() < 0.02,
         run: c => {
           const options = [
             { label: '接受邀请', effect: () => {
@@ -413,7 +413,7 @@
         id: 'genius_apply',
         name: '学生自荐',
         description: '外省空降学生申请加入',
-        check: c => c.game.reputation > 60 && Math.random() < 0.005,
+        check: c => c.game.reputation > 60 && getRandom() < 0.005,
         run: c => {
           const options = [
             { label: '接收', effect: () => {
@@ -449,7 +449,7 @@
         id: 'media_interview',
         name: '媒体采访请求',
         description: '采访后可选择高调或低调',
-        check: c => c.game.recentMedal && Math.random() < 0.5,
+        check: c => c.game.recentMedal && getRandom() < 0.5,
         run: c => {
           const options = [
             { label: '高调宣传', effect: () => {
@@ -482,7 +482,7 @@
         id: 'commercial_activity',
         name: '参加商业活动',
         description: '是否参加商业活动',
-        check: c => c.game.week >= 10 && c.game.week <= 20 && Math.random() < 0.05,
+        check: c => c.game.week >= 10 && c.game.week <= 20 && getRandom() < 0.05,
         run: c => {
           const options = [
             { label: '参加', effect: () => {
@@ -596,7 +596,7 @@
                     c.game.budget = Math.max(0, (c.game.budget||0) - expense);
                   }
                   // if budget insufficient, still perform (recordExpense caps at 0)
-                  const roll = Math.random();
+                  const roll = getRandom();
                   if(roll < successProb){
                     // success: student stays and mental +5
                     stud.mental = Math.min(100, Number(stud.mental || 0) + 5);
