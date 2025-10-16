@@ -30,6 +30,14 @@ const TUTORIAL_STEPS = [
     highlight: true
   },
   {
+    id: 'talents',
+    target: '.student-talents',
+    title: '学生天赋',
+    content: '<strong>天赋</strong>是学生的特殊能力，可以提供各种加成效果。<br>• <strong>获得</strong>：训练、集训后有概率获得<br>• <strong>丧失</strong>：压力过高或特殊事件可能失去<br>• <strong>效果</strong>：如提升训练效率、降低压力、减免费用等<br>鼠标悬停在天赋标签上可查看详细说明。',
+    position: 'right',
+    highlight: true
+  },
+  {
     id: 'comfort',
     target: '.flex-between',
     title: '舒适度系统',
@@ -151,9 +159,10 @@ class TutorialSystem {
       left: 0;
       width: 100%;
       height: 100%;
-      background: rgba(0, 0, 0, 0.5);
-      z-index: 10001;
+      background: rgba(0, 0, 0, 0.7);
+      z-index: 9998;
       transition: opacity 0.3s ease;
+      pointer-events: none;
     `;
     document.body.appendChild(this.overlay);
 
@@ -169,6 +178,7 @@ class TutorialSystem {
       box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
       max-width: 400px;
       animation: fadeInScale 0.3s ease;
+      pointer-events: auto;
     `;
     document.body.appendChild(this.tooltip);
   }
@@ -208,9 +218,15 @@ class TutorialSystem {
         if (computedPosition === 'static') {
           targetEl.style.position = 'relative';
         }
-        // 使用10000确保高于模态框（模态框是9999）
+        // 设置高于遮罩的 z-index
         targetEl.style.zIndex = '10000';
+        
+        // 创建挖空效果：使用大范围的 box-shadow
+        this.updateOverlayMask(targetEl);
       }
+    } else {
+      // 没有高亮元素时，清除挖空效果
+      this.clearOverlayMask();
     }
 
     // 定位提示框
@@ -218,6 +234,39 @@ class TutorialSystem {
 
     // 渲染提示框内容
     this.renderTooltip(step);
+  }
+
+  updateOverlayMask(targetEl) {
+    if (!this.overlay) return;
+    
+    const rect = targetEl.getBoundingClientRect();
+    const padding = 8; // 高亮区域的内边距
+    
+    // 使用巨大的 box-shadow 创建挖空效果
+    // 原理：在目标周围创建四个大阴影块，覆盖整个屏幕，中间留空
+    this.overlay.style.boxShadow = `
+      0 0 0 ${rect.top}px rgba(0, 0, 0, 0.7),
+      0 0 0 9999px rgba(0, 0, 0, 0.7)
+    `;
+    
+    // 更简单的方法：使用 clip-path 的反向裁剪
+    // 但由于兼容性，我们使用多层叠加方式
+    this.overlay.style.background = 'transparent';
+    
+    // 创建四个遮罩块来实现挖空效果
+    this.overlay.innerHTML = `
+      <div style="position: absolute; top: 0; left: 0; right: 0; height: ${rect.top - padding}px; background: rgba(0, 0, 0, 0.7);"></div>
+      <div style="position: absolute; top: ${rect.top - padding}px; left: 0; width: ${rect.left - padding}px; height: ${rect.height + padding * 2}px; background: rgba(0, 0, 0, 0.7);"></div>
+      <div style="position: absolute; top: ${rect.top - padding}px; left: ${rect.right + padding}px; right: 0; height: ${rect.height + padding * 2}px; background: rgba(0, 0, 0, 0.7);"></div>
+      <div style="position: absolute; top: ${rect.bottom + padding}px; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.7);"></div>
+    `;
+  }
+
+  clearOverlayMask() {
+    if (!this.overlay) return;
+    this.overlay.style.background = 'rgba(0, 0, 0, 0.7)';
+    this.overlay.style.boxShadow = '';
+    this.overlay.innerHTML = '';
   }
 
   positionTooltip(step) {
@@ -430,9 +479,10 @@ style.textContent = `
   }
 
   .tutorial-highlight {
-    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.5), 0 0 20px rgba(59, 130, 246, 0.3) !important;
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.8), 0 0 20px rgba(59, 130, 246, 0.6) !important;
     border-radius: 8px !important;
     transition: all 0.3s ease !important;
+    background: white !important;
     /* 不设置position和z-index，由JS动态控制 */
   }
 
