@@ -573,7 +573,7 @@
             // compute retention cost based on student ability (scale using getAbilityAvg)
             let abilityAvg = (typeof stud.getAbilityAvg === 'function') ? Number(stud.getAbilityAvg()) : (Number(stud.thinking||0) + Number(stud.coding||0))/2;
             abilityAvg = Math.max(0, Math.min(100, abilityAvg));
-            const cost = Math.round(50000 + (abilityAvg/100.0) * 50000); // 50k - 100k
+            const cost = Math.round(40000 + (abilityAvg/100.0) * 60000); // 50k - 100k
 
             // retention success probability depends on reputation and student's mental
             const rep = (c.game && typeof c.game.reputation === 'number') ? Math.max(0, Math.min(100, c.game.reputation)) : 50;
@@ -621,7 +621,7 @@
               },
               { label: '不作干涉，获得补偿', effect: () => {
                   // student leaves, receive compensation and reputation +5
-                  const gain = c.utils.uniformInt(30000, 80000);
+                  const gain = c.utils.uniformInt(30000, 50000);
                   c.game.budget = (c.game.budget || 0) + gain;
                   c.game.reputation = Math.min(100, (c.game.reputation || 0) + 15);
                   try{ if(typeof stud.triggerTalents === 'function') stud.triggerTalents('quit', { reason: 'poached_grace' }); }catch(e){}

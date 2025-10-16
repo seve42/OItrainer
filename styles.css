@@ -454,6 +454,9 @@ body.comp-week .action-cards .action-card:not(#comp-only-action) {
   border-radius: 8px;
   padding: 12px;
   box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  position: relative;
+  /* transform动画由JS控制 */
+  will-change: transform;
 }
 
 .student-name {
@@ -467,6 +470,7 @@ body.comp-week .action-cards .action-card:not(#comp-only-action) {
   font-size: 14px;
   margin-bottom: 4px;
   color: #4a5568;
+  transition: all 0.3s ease;
 }
 
 .student-score span {
@@ -498,7 +502,7 @@ body.comp-week .action-cards .action-card:not(#comp-only-action) {
   border-radius: 6px;
   padding: 8px 4px;
   text-align: center;
-  transition: all 0.2s ease;
+  transition: all 0.3s ease;
 }
 
 .problem-item.unattempted {
@@ -515,6 +519,24 @@ body.comp-week .action-cards .action-card:not(#comp-only-action) {
   background: #d1fae5;
   border-color: #34d399;
   font-weight: 700;
+}
+
+/* 题目状态更新动画 */
+@keyframes problemUpdate {
+  0% { 
+    transform: scale(1);
+  }
+  50% { 
+    transform: scale(1.15) rotate(2deg);
+    box-shadow: 0 4px 12px rgba(52, 211, 153, 0.5);
+  }
+  100% { 
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+.problem-update-animation {
+  animation: problemUpdate 0.6s ease-in-out;
 }
 
 .problem-id {
@@ -558,6 +580,17 @@ body.comp-week .action-cards .action-card:not(#comp-only-action) {
   background: #f3f4f6;
   font-weight: 700;
   color: #374151;
+}
+
+.result-table td:first-child {
+  font-weight: 700;
+  color: #3b82f6;
+  background: #eff6ff;
+}
+
+.result-table td:nth-child(3) {
+  font-weight: 700;
+  color: #059669;
 }
 
 .result-table tbody tr:hover {

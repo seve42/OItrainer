@@ -1417,23 +1417,46 @@ function holdCompetitionModal(comp){
       }
     }
 
-    // 如果处于第二轮赛季（halfIndexApply === 1）且本场比赛无人晋级 -> 视为晋级链断裂，直接结束赛季
+    // 暂存是否需要触发结局的标记，稍后在确认弹窗中处理
+    let shouldTriggerEnding = false;
+    let endingReason = '';
+    // 如果处于第二轮赛季（halfIndexApply === 1）且本场比赛无人晋级 -> 视为晋级链断裂
     try{
       if(halfIndexApply === 1 && pass_count === 0){
-        // 使用新的统一结局触发函数
-        triggerGameEnding('晋级链断裂');
-        return; // 中止后续比赛应用逻辑
+        shouldTriggerEnding = true;
+        endingReason = '晋级链断裂';
       }
     }catch(e){ console.error('early season-end check failed', e); }
 
     let gold=0,silver=0,bronze=0;
     if(comp.name==="NOI"){
+      // 使用与显示逻辑一致的阈值：pass_line（晋级线）及其系数
+      // 这样金牌计数与金牌徽章显示保持一致
+      const gold_threshold = pass_line * 1.0;
+      const silver_threshold = pass_line * 0.7;
+      const bronze_threshold = pass_line * 0.5;
+      
+      console.log('[NOI金牌检测] comp.maxScore:', comp.maxScore);
+      console.log('[NOI金牌检测] pass_line:', pass_line);
+      console.log('[NOI金牌检测] 金牌阈值:', gold_threshold);
+      console.log('[NOI金牌检测] 银牌阈值:', silver_threshold);
+      console.log('[NOI金牌检测] 铜牌阈值:', bronze_threshold);
+      
       for(let r of results){
         if(r.eligible !== true) continue;
-        if(r.total >= comp.maxScore * NOI_GOLD_THRESHOLD) gold++;
-        else if(r.total >= comp.maxScore * NOI_SILVER_THRESHOLD) silver++;
-        else if(r.total >= comp.maxScore * NOI_BRONZE_THRESHOLD) bronze++;
+        console.log(`[NOI金牌检测] ${r.name}: ${r.total} 分`);
+        if(r.total >= gold_threshold){
+          gold++;
+          console.log(`[NOI金牌检测] ${r.name} 获得金牌！`);
+        } else if(r.total >= silver_threshold){
+          silver++;
+          console.log(`[NOI金牌检测] ${r.name} 获得银牌`);
+        } else if(r.total >= bronze_threshold){
+          bronze++;
+          console.log(`[NOI金牌检测] ${r.name} 获得铜牌`);
+        }
       }
+      console.log(`[NOI金牌检测] 奖牌统计 - 金:${gold} 银:${silver} 铜:${bronze}`);
     }
 
     // update students' pressure/mental and game state (rewards)
@@ -1616,26 +1639,532 @@ function holdCompetitionModal(comp){
     // 比赛不再消耗周数：保留一次性事件模态抑制以避免弹窗干扰
     try{ game.suppressEventModalOnce = true; }catch(e){}
     renderAll();
-    // 如果这是第二次 NOI（通常在第二半季），则在应用比赛结果后立刻结算
+    
+    // 关闭当前弹窗
+    closeModal();
+    
+    // 检查是否需要触发结局（第二次 NOI 或赛季结束）
     try{
+      alert(1);
       const halfIndexAfter = (currWeek() > WEEKS_PER_HALF) ? 1 : 0;
+      console.log('[国家集训队检测] comp.name:', comp.name);
+      console.log('[国家集训队检测] halfIndexAfter:', halfIndexAfter);
+      console.log('[国家集训队检测] gold:', gold);
+      console.log('[国家集训队检测] WEEKS_PER_HALF:', WEEKS_PER_HALF);
+      console.log('[国家集训队检测] currWeek():', currWeek());
+      
+      // 第二年NOI：检查是否有金牌选手，决定是否进入国家集训队
+      if(comp.name === 'NOI' && halfIndexAfter === 1 && gold > 0){
+        // 有金牌选手，设置标志并弹出国家集训队选择事件
+        console.log('[国家集训队检测] ✅ 条件满足，显示国家集训队选择弹窗');
+        // 设置标志，防止周更新时触发赛季结束
+        game.nationalTeamChoicePending = true;
+        showNationalTeamChoice(results, comp.maxScore);
+        return; // 不再继续后续逻辑，直接退出
+      }
+      
+      // 如果没有金牌或不是第二年NOI，按原逻辑处理
       if(comp.name === 'NOI' && halfIndexAfter === 1){
-        try{
-          console.log('第二年NOI结束，立刻触发游戏结算');
-          triggerGameEnding('赛季结束');
-          return; // 结束后续逻辑
-        }catch(e){ console.error('第二年NOI结算失败', e); }
+        shouldTriggerEnding = true;
+        endingReason = '赛季结束';
       }
     }catch(e){ console.error('第二年NOI结算检查失败', e); }
+    
+    // 检查赛季是否结束
+    try{
+      if(game.week > SEASON_WEEKS && !game.seasonEndTriggered){
+        shouldTriggerEnding = true;
+        endingReason = '赛季结束';
+      }
+    }catch(e){ console.error('post-competition season-end check failed', e); }
+    
+    // 显示成绩汇总和晋级情况的确认弹窗
+    showCompetitionSummary(comp, results, pass_line, pass_count, shouldTriggerEnding, endingReason);
   };
 
   // 在应用比赛结果后，若当前周已达到赛季末且尚未结算，则立即触发赛季结算（确保最终比赛结果被纳入结算）
+  // 注意：这段代码现在移到了 showCompetitionSummary 的确认按钮中
+  /*
   try{
     if(game.week > SEASON_WEEKS && !game.seasonEndTriggered){
       console.debug(game.week + "结束");
       triggerGameEnding('赛季结束');
     }
   }catch(e){ console.error('post-competition season-end check failed', e); }
+  */
+}
+
+/* 显示比赛成绩汇总和晋级情况的确认弹窗 */
+function showCompetitionSummary(comp, results, pass_line, pass_count, shouldTriggerEnding, endingReason){
+  let html = `<h3>${comp.name} - 成绩汇总</h3>`;
+  html += `<div style="margin:12px 0;">`;
+  
+  // 显示晋级情况
+  const eligible_count = results.filter(r => r.eligible === true).length;
+  const pass_rate = eligible_count > 0 ? ((pass_count / eligible_count) * 100).toFixed(1) : '0.0';
+  
+  html += `<div style="background:#f0f8ff;padding:10px;border-radius:5px;margin-bottom:12px;">`;
+  html += `<div style="font-size:16px;font-weight:bold;margin-bottom:8px;">📊 比赛统计</div>`;
+  html += `<div>参赛人数：${eligible_count} 人</div>`;
+  html += `<div>晋级人数：${pass_count} 人</div>`;
+  html += `<div>晋级率：${pass_rate}%</div>`;
+  html += `<div>晋级线：${pass_line.toFixed(1)} 分</div>`;
+  html += `</div>`;
+  
+  // 显示晋级学生名单
+  const passedStudents = results.filter(r => r.eligible === true && r.total >= pass_line);
+  if(passedStudents.length > 0){
+    html += `<div style="background:#e8f5e9;padding:10px;border-radius:5px;margin-bottom:12px;">`;
+    html += `<div style="font-size:16px;font-weight:bold;margin-bottom:8px;color:#2e7d32;">✅ 晋级名单</div>`;
+    for(let s of passedStudents){
+      html += `<div style="margin:4px 0;">• ${s.name}：${s.total} 分</div>`;
+    }
+    html += `</div>`;
+  }
+  
+  // 显示未晋级学生名单
+  const failedStudents = results.filter(r => r.eligible === true && r.total < pass_line);
+  if(failedStudents.length > 0){
+    html += `<div style="background:#ffebee;padding:10px;border-radius:5px;margin-bottom:12px;">`;
+    html += `<div style="font-size:16px;font-weight:bold;margin-bottom:8px;color:#c62828;">❌ 未晋级名单</div>`;
+    for(let s of failedStudents){
+      html += `<div style="margin:4px 0;">• ${s.name}：${s.total} 分</div>`;
+    }
+    html += `</div>`;
+  }
+  
+  // 如果需要触发结局，显示提示
+  if(shouldTriggerEnding){
+    html += `<div style="background:#fff3e0;padding:10px;border-radius:5px;margin-bottom:12px;border:2px solid #ff9800;">`;
+    html += `<div style="font-size:16px;font-weight:bold;margin-bottom:8px;color:#e65100;">⚠️ 游戏即将结束</div>`;
+    html += `<div>结束原因：${endingReason}</div>`;
+    html += `</div>`;
+  }
+  
+  html += `</div>`;
+  
+  // 添加确认按钮
+  html += `<div class="modal-actions" style="margin-top:8px;">`;
+  html += `<button class="btn" id="comp-summary-confirm">确认并继续</button>`;
+  html += `</div>`;
+  
+  showModal(html);
+  
+  $('comp-summary-confirm').onclick = ()=>{
+    closeModal();
+    
+    // 如果需要触发结局，现在执行
+    if(shouldTriggerEnding){
+      try{
+        console.log('比赛汇总确认后触发游戏结局：' + endingReason);
+        triggerGameEnding(endingReason);
+      }catch(e){
+        console.error('触发游戏结局失败', e);
+      }
+    }
+  };
+}
+
+/* 国家集训队选择弹窗 */
+/* 国家集训队选择弹窗 */
+function showNationalTeamChoice(noiResults, noiMaxScore) {
+  // 找出所有金牌选手
+  const goldMedalThreshold = noiMaxScore * NOI_GOLD_THRESHOLD;
+  const goldStudents = noiResults.filter(r => r.eligible === true && r.total >= goldMedalThreshold);
+  
+  if(goldStudents.length === 0) {
+    // 没有金牌选手，直接结束
+    triggerGameEnding('赛季结束');
+    return;
+  }
+  
+  let html = `<h3>🏅 国家集训队邀请</h3>`;
+  html += `<div style="margin:12px 0;">`;
+  html += `<div style="background:#fff9c4;padding:12px;border-radius:5px;margin-bottom:12px;border:2px solid #fbc02d;">`;
+  html += `<div style="font-size:16px;font-weight:bold;margin-bottom:8px;color:#f57f17;">🎉 恭喜！</div>`;
+  html += `<div style="margin-bottom:8px;">以下学生在NOI中获得金牌，获得国家集训队资格：</div>`;
+  for(let s of goldStudents){
+    html += `<div style="margin:4px 0;">• ${s.name}（${s.total} 分）</div>`;
+  }
+  html += `</div>`;
+  
+  html += `<div style="background:#e3f2fd;padding:12px;border-radius:5px;margin-bottom:12px;">`;
+  html += `<div style="font-size:14px;font-weight:bold;margin-bottom:8px;">📋 国家集训队说明</div>`;
+  html += `<div style="font-size:13px;line-height:1.6;">`;
+  html += `<p>• 进入国家集训队后，将进行CTT（4周后）、CTS（5周后）比赛</p>`;
+  html += `<p>• 没有金牌的学生将自动退队（不减少声誉）</p>`;
+  html += `<p>• 根据CTT+CTS总分排名，前2名晋级IOI国家队</p>`;
+  html += `<p>• IOI获得奖牌将获得"顶尖结局"，满分则为"AKIOI"结局</p>`;
+  html += `</div>`;
+  html += `</div>`;
+  
+  html += `</div>`;
+  
+  html += `<div class="modal-actions" style="margin-top:8px;">`;
+  html += `<button class="btn btn-ghost" id="national-team-decline">否，直接结算</button>`;
+  html += `<button class="btn" id="national-team-accept">是，进入国家集训队</button>`;
+  html += `</div>`;
+  
+  showModal(html);
+  
+  // 拒绝：直接结算
+  $('national-team-decline').onclick = ()=>{
+    closeModal();
+    game.nationalTeamChoicePending = false;
+    triggerGameEnding('赛季结束');
+  };
+  
+  // 接受：进入国家集训队
+  $('national-team-accept').onclick = ()=>{
+    closeModal();
+    game.nationalTeamChoicePending = false;
+    enterNationalTeam(goldStudents);
+  };
+}
+
+/* 进入国家集训队 */
+function enterNationalTeam(goldStudents) {
+  // 标记进入国家集训队模式
+  game.inNationalTeam = true;
+  game.nationalTeamResults = {
+    goldStudents: goldStudents.map(s => s.name),
+    cttScores: [],  // 改为数组，用于存储CTT成绩记录
+    ctsScores: [],  // 改为数组，用于存储CTS成绩记录
+    totalScores: {},
+    ioiQualified: []
+  };
+  
+  // 让没有金牌的学生自动退队（不减声誉）
+  const goldNames = new Set(goldStudents.map(s => s.name));
+  for(let student of game.students) {
+    if(student.active !== false && !goldNames.has(student.name)) {
+      student.active = false;
+      log(`${student.name} 未获得金牌，退出国家集训队`);
+    }
+  }
+  
+  log(`进入国家集训队！金牌选手：${Array.from(goldNames).join('、')}`);
+  pushEvent({
+    name: '进入国家集训队',
+    description: `恭喜${goldStudents.length}名学生进入国家集训队！`,
+    week: game.week
+  });
+  
+  // 动态添加国家集训队比赛到 competitions 数组
+  const currentWeek = game.week;
+  const nationalTeamComps = [
+    {week: currentWeek + 2, name:"CTT-day1-2", difficulty:500, maxScore:600, numProblems:6, nationalTeam:true},
+    {week: currentWeek + 3, name:"CTT-day3-4", difficulty:500, maxScore:600, numProblems:6, nationalTeam:true},
+    {week: currentWeek + 4, name:"CTS", difficulty:520, maxScore:800, numProblems:8, nationalTeam:true}
+    // IOI 会在 CTS 结束后根据晋级情况动态添加
+  ];
+  
+  // 添加到全局 competitions 数组
+  if(typeof window.competitions !== 'undefined' && Array.isArray(window.competitions)) {
+    for(let comp of nationalTeamComps) {
+      window.competitions.push(comp);
+    }
+    console.log('[国家集训队] 已添加比赛到 competitions 数组:', nationalTeamComps);
+  }
+  
+  // 刷新UI
+  renderAll();
+}
+
+/* 计算国家集训队晋级（CTT+CTS） */
+function calculateNationalTeamQualification() {
+  // 从 nationalTeamResults 中提取成绩
+  const cttScores = game.nationalTeamResults.cttScores || [];
+  const ctsScores = game.nationalTeamResults.ctsScores || [];
+  
+  // 计算每个学生的总分（CTT + CTS）
+  let totalScores = [];
+  let studentScoreMap = {};
+  
+  // 累计CTT成绩（两天）
+  for(let record of cttScores){
+    if(!studentScoreMap[record.studentName]){
+      studentScoreMap[record.studentName] = { ctt: 0, cts: 0 };
+    }
+    studentScoreMap[record.studentName].ctt += record.score;
+  }
+  
+  // 累计CTS成绩
+  for(let record of ctsScores){
+    if(!studentScoreMap[record.studentName]){
+      studentScoreMap[record.studentName] = { ctt: 0, cts: 0 };
+    }
+    studentScoreMap[record.studentName].cts = record.score;
+  }
+  
+  // 构建总分数组
+  for(let name in studentScoreMap){
+    const scores = studentScoreMap[name];
+    totalScores.push({
+      name,
+      cttScore: scores.ctt,
+      ctsScore: scores.cts,
+      total: scores.ctt + scores.cts
+    });
+  }
+  
+  // 按总分排序
+  totalScores.sort((a,b) => b.total - a.total);
+  
+  // 计算晋级线（总分的50%）
+  const maxPossible = 600 + 600 + 800; // CTT-day1-2 + CTT-day3-4 + CTS
+  const passLine = maxPossible * 0.5;
+  
+  // 晋级：前2名且总分超过晋级线
+  let qualified = [];
+  for(let i = 0; i < Math.min(2, totalScores.length); i++){
+    if(totalScores[i].total >= passLine){
+      qualified.push(totalScores[i]);
+    }
+  }
+  
+  // 如果晋级人数超过2人，提高晋级线
+  if(qualified.length > 2){
+    qualified = qualified.slice(0, 2);
+  }
+  
+  if(!game.nationalTeamResults.totalScores) game.nationalTeamResults.totalScores = {};
+  for(let s of totalScores){
+    game.nationalTeamResults.totalScores[s.name] = s.total;
+  }
+  
+  game.nationalTeamResults.ioiQualified = qualified.map(q => q.name);
+  
+  // 显示晋级结果
+  let html = `<h3>🏆 国家队选拔结果</h3>`;
+  html += `<div style="margin:12px 0;">`;
+  html += `<div style="background:#f0f8ff;padding:12px;border-radius:5px;margin-bottom:12px;">`;
+  html += `<div style="font-size:16px;font-weight:bold;margin-bottom:8px;">📊 总成绩（CTT + CTS）</div>`;
+  html += `<table><thead><tr><th>排名</th><th>姓名</th><th>CTT</th><th>CTS</th><th>总分</th><th>结果</th></tr></thead><tbody>`;
+  
+  for(let i = 0; i < totalScores.length; i++){
+    let s = totalScores[i];
+    const isQualified = game.nationalTeamResults.ioiQualified.includes(s.name);
+    const resultText = isQualified ? '✅ 晋级IOI' : '❌ 未晋级';
+    const rowStyle = isQualified ? 'background:#e8f5e9' : '';
+    html += `<tr style="${rowStyle}"><td>${i+1}</td><td>${s.name}</td><td>${s.cttScore}</td><td>${s.ctsScore}</td><td><strong>${s.total}</strong></td><td>${resultText}</td></tr>`;
+  }
+  
+  html += `</tbody></table>`;
+  html += `<div style="margin-top:8px;font-size:13px;color:#666;">晋级线：${passLine.toFixed(0)} 分（总分50%），最多2人晋级</div>`;
+  html += `</div>`;
+  
+  if(qualified.length > 0){
+    html += `<div style="background:#fff9c4;padding:12px;border-radius:5px;margin-bottom:12px;border:2px solid #fbc02d;">`;
+    html += `<div style="font-size:16px;font-weight:bold;margin-bottom:8px;color:#f57f17;">🎉 恭喜晋级IOI！</div>`;
+    html += `<div>晋级选手：${qualified.map(q => q.name).join('、')}</div>`;
+    html += `<div style="margin-top:8px;font-size:13px;">1周后将参加IOI比赛</div>`;
+    html += `</div>`;
+  } else {
+    html += `<div style="background:#ffebee;padding:12px;border-radius:5px;margin-bottom:12px;">`;
+    html += `<div style="font-size:16px;font-weight:bold;margin-bottom:8px;color:#c62828;">❌ 无人晋级</div>`;
+    html += `<div>没有选手达到晋级标准，国家集训队之旅到此结束</div>`;
+    html += `</div>`;
+  }
+  
+  html += `</div>`;
+  html += `<div class="modal-actions"><button class="btn" id="nt-qual-confirm">确认</button></div>`;
+  
+  showModal(html);
+  
+  $('nt-qual-confirm').onclick = ()=>{
+    closeModal();
+    
+    if(qualified.length > 0){
+      // 有人晋级，动态添加IOI比赛到competitions数组
+      const currentWeek = game.week;
+      const ioiComp = {
+        week: currentWeek + 1,
+        name: "IOI",
+        difficulty: 550,
+        maxScore: 600,
+        numProblems: 6,
+        nationalTeam: true,
+        subtasksPerProblem: 15
+      };
+      
+      // 检查是否已添加IOI比赛
+      const hasIOI = window.competitions.some(c => c.name === 'IOI' && c.nationalTeam);
+      if(!hasIOI){
+        window.competitions.push(ioiComp);
+        console.log('【国家集训队】动态添加IOI比赛到competitions:', ioiComp);
+      }
+      
+      log(`IOI比赛将在第 ${ioiComp.week} 周进行`);
+      pushEvent({
+        name: 'IOI晋级',
+        description: `${qualified.length}名选手晋级IOI`,
+        week: currWeek()
+      });
+      
+      renderAll();
+    } else {
+      // 无人晋级，游戏结束
+      game.inNationalTeam = false;
+      triggerGameEnding('赛季结束');
+    }
+  };
+}
+
+/* 计算IOI结果 */
+function calculateIOIResults() {
+  // 从 careerCompetitions 中提取IOI成绩
+  const ioiRecord = game.careerCompetitions.find(c => c.name === 'IOI');
+  if(!ioiRecord){
+    console.error('未找到IOI比赛记录');
+    return;
+  }
+  
+  const maxScore = 600; // IOI满分
+  const goldThreshold = maxScore * IOI_GOLD_THRESHOLD;
+  const silverThreshold = maxScore * IOI_SILVER_THRESHOLD;
+  const bronzeThreshold = maxScore * IOI_BRONZE_THRESHOLD;
+  
+  // 使用 contest-integration 保存的全部参赛选手成绩（包含国际选手）优先
+  const allResults = (game.lastIOIAllResults && Array.isArray(game.lastIOIAllResults) && game.lastIOIAllResults.length > 0)
+    ? game.lastIOIAllResults.slice()
+    : (ioiRecord.entries || []).map(e => ({ name: e.name, score: Number(e.score) || 0, rank: e.rank || 0, isInternational: false }));
+
+  // 按分数降序排序
+  allResults.sort((a,b) => b.score - a.score);
+
+  const n = allResults.length;
+  const goldMax = Math.floor(n * 0.10); // 最多 10%
+  const silverMax = Math.floor(n * 0.30); // 最多 30%
+  const bronzeMax = Math.floor(n * 0.50); // 最多 50%
+
+  // 计算前10%分数阈值（用于更严格的金牌线）
+  const top10Index = Math.max(0, Math.floor(n * 0.1) - 1);
+  const top10Score = (allResults[top10Index] && typeof allResults[top10Index].score !== 'undefined') ? allResults[top10Index].score : 0;
+
+  const goldThresholdStrict = Math.max(goldThreshold, top10Score);
+
+  // 初始按阈值分配
+  const medals = { gold: [], silver: [], bronze: [], none: [] };
+  let hasFullScore = false;
+  let chineseHasFullScore = false; // 专门记录中国队是否满分
+  
+  for(const r of allResults){
+    const isChinese = !r.isInternational; // 中国队选手标识
+    const isFullScore = r.score >= maxScore;
+    
+    if(r.score >= goldThresholdStrict){ 
+      medals.gold.push(r); 
+      if(isFullScore){
+        hasFullScore = true;
+        if(isChinese) chineseHasFullScore = true;
+      }
+    }
+    else if(r.score >= silverThreshold){ medals.silver.push(r); }
+    else if(r.score >= bronzeThreshold){ medals.bronze.push(r); }
+    else { medals.none.push(r); }
+  }
+
+  // 强制上限（如果超出则从该级别最低分逐步下调）
+  function enforceLimit(groupArray, limit, demoteTo){
+    if(groupArray.length <= limit) return;
+    // 按分数升序排序，先降分低者
+    groupArray.sort((a,b) => a.score - b.score);
+    while(groupArray.length > limit){
+      const demoted = groupArray.shift();
+      demoteTo.push(demoted);
+    }
+  }
+
+  // 注意：执行顺序从金牌向下，这样被降级的会进入下一个级别并可能再次受限
+  enforceLimit(medals.gold, goldMax, medals.silver);
+  enforceLimit(medals.silver, silverMax, medals.bronze);
+  enforceLimit(medals.bronze, bronzeMax, medals.none);
+
+  // 重新构建 results 列表（用于显示），保持按分数降序
+  const results = [].concat(medals.gold, medals.silver, medals.bronze, medals.none);
+  
+  // 保存IOI结果到游戏状态
+  game.ioiResults = {
+    medals,
+    hasFullScore,
+    chineseHasFullScore, // 保存中国队是否满分的信息
+    maxScore
+  };
+  
+  // 显示IOI结果
+  let html = `<h3>🌍 IOI 比赛结果</h3>`;
+  html += `<div style="margin:12px 0;">`;
+  
+  // 成绩表
+  html += `<div style="background:#f0f8ff;padding:12px;border-radius:5px;margin-bottom:12px;">`;
+  html += `<table><thead><tr><th>排名</th><th>姓名</th><th>总分</th><th>奖牌</th></tr></thead><tbody>`;
+  
+  for(let i = 0; i < results.length; i++){
+    let r = results[i];
+    let medal = '';
+    let rowStyle = '';
+    // 判断所在分组
+    if(medals.gold.includes(r)){
+      medal = '🥇 金牌'; rowStyle = 'background:#fff9c4';
+    } else if(medals.silver.includes(r)){
+      medal = '🥈 银牌'; rowStyle = 'background:#f5f5f5';
+    } else if(medals.bronze.includes(r)){
+      medal = '🥉 铜牌'; rowStyle = 'background:#ffebcc';
+    }
+    html += `<tr style="${rowStyle}"><td>${i+1}</td><td>${r.name}</td><td><strong>${r.score}</strong></td><td>${medal}</td></tr>`;
+  }
+  
+  html += `</tbody></table>`;
+  html += `<div style="margin-top:8px;font-size:13px;color:#666;">`;
+  html += `金牌线：${goldThreshold.toFixed(0)} | 银牌线：${silverThreshold.toFixed(0)} | 铜牌线：${bronzeThreshold.toFixed(0)}`;
+  html += `</div>`;
+  html += `</div>`;
+  
+  // 结局提示 - 只有中国队选手满分才显示AKIOI
+  const chineseGoldCount = medals.gold.filter(r => !r.isInternational).length;
+  const chineseMedalCount = medals.gold.filter(r => !r.isInternational).length + 
+                            medals.silver.filter(r => !r.isInternational).length + 
+                            medals.bronze.filter(r => !r.isInternational).length;
+  
+  if(chineseHasFullScore){
+    html += `<div style="background:linear-gradient(135deg, #ffd700 0%, #ffed4e 100%);padding:12px;border-radius:5px;margin-bottom:12px;border:3px solid #ffd700;">`;
+    html += `<div style="font-size:18px;font-weight:bold;margin-bottom:8px;color:#b8860b;">👑 AKIOI！满分！</div>`;
+    html += `<div>恭喜！中国队选手在IOI上取得满分，这是最高荣誉！</div>`;
+    html += `</div>`;
+  } else if(chineseGoldCount > 0){
+    html += `<div style="background:#fff9c4;padding:12px;border-radius:5px;margin-bottom:12px;border:2px solid #fbc02d;">`;
+    html += `<div style="font-size:16px;font-weight:bold;margin-bottom:8px;color:#f57f17;">🥇 获得IOI金牌！</div>`;
+    html += `<div>恭喜！中国队选手获得${chineseGoldCount}枚金牌，达成顶尖结局！</div>`;
+    html += `</div>`;
+  } else if(chineseMedalCount > 0){
+    html += `<div style="background:#e3f2fd;padding:12px;border-radius:5px;margin-bottom:12px;">`;
+    html += `<div style="font-size:16px;font-weight:bold;margin-bottom:8px;color:#1976d2;">🏅 获得IOI奖牌！</div>`;
+    html += `<div>恭喜！中国队选手获得${chineseMedalCount}枚奖牌，达成顶尖结局！</div>`;
+    html += `</div>`;
+  } else {
+    html += `<div style="background:#ffebee;padding:12px;border-radius:5px;margin-bottom:12px;">`;
+    html += `<div style="font-size:16px;font-weight:bold;margin-bottom:8px;color:#c62828;">未获得奖牌</div>`;
+    html += `<div>虽然中国队未获得奖牌，但参加IOI本身就是了不起的成就！</div>`;
+    html += `</div>`;
+  }
+  
+  html += `</div>`;
+  html += `<div class="modal-actions"><button class="btn" id="ioi-finish">查看结局</button></div>`;
+  
+  showModal(html);
+  
+  $('ioi-finish').onclick = ()=>{
+    closeModal();
+    // 触发特殊结局 - 只有中国队满分才是AKIOI
+    if(chineseHasFullScore){
+      triggerGameEnding('AKIOI');
+    } else if(chineseMedalCount > 0){
+      triggerGameEnding('顶尖结局');
+    } else {
+      triggerGameEnding('赛季结束');
+    }
+  };
 }
 
 /* 随机事件（和周结算） - 使用 events.js 的 EventManager 调度，可扩展 */
@@ -1896,7 +2425,13 @@ function checkAndTriggerEnding() {
   // 此处不再进行晋级链断裂检查，避免误判
   
   // 条件4：达到赛季结束
+  // 注意：如果正在国家集训队流程中或等待国家集训队选择，不触发赛季结束
   if (game.week > SEASON_WEEKS) {
+    // 检查是否在国家集训队流程中或等待选择
+    if(game.inNationalTeam === true || game.nationalTeamChoicePending === true) {
+      console.log('[结算检测] 当前在国家集训队流程中或等待选择，暂不触发赛季结束');
+      return false; // 不触发结算，让国家集训队流程继续
+    }
     triggerGameEnding('赛季结束');
     return true;
   }
@@ -1910,16 +2445,25 @@ function normalizeEndingReason(raw) {
     if(!raw) return '赛季结束';
     const s = String(raw).trim();
     if(s === '') return '赛季结束';
+    
+    // 优先检查特殊结局
+    if(s === 'AKIOI' || s === '👑 AKIOI') return 'AKIOI';
+    if(s === '顶尖结局' || s === '🌟 顶尖结局') return '顶尖结局';
+    
     // 兼容英文或旧字段
     const low = s.toLowerCase();
+    if(low.includes('akioi')) return 'AKIOI';
+    if(low.includes('顶尖')) return '顶尖结局';
     if(low.includes('budget') || low.includes('经费') || low.includes('money') || low.includes('fund')) return '经费不足';
     if(low.includes('无学生') || low.includes('all quit') || low.includes('所有学生') || low.includes('退队') || low.includes('崩溃')) return '无学生';
     if(low.includes('晋级链') || low.includes('晋级链断裂') || low.includes('chain') || low.includes('qualification')) return '晋级链断裂';
     if(low.includes('赛季') || low.includes('season')) return '赛季结束';
+    
     // 兼容简短老值
     if(s === '无学生') return '无学生';
     if(s === '经费不足' || s === '经费耗尽') return '经费不足';
     if(s === '晋级链断裂') return '晋级链断裂';
+    
     return s;
   }catch(e){ return '赛季结束'; }
 }
@@ -3071,10 +3615,32 @@ function renderEndSummary(){
 /* 计算最终结局 */
 function calculateFinalEnding(gameData, endingReason) {
   try {
-  // 检查学生数量（兼容旧存档：未设置 active 则视为在队）
-  const activeStudents = (gameData.students || []).filter(s => s && s.active !== false).length;
+    // 检查学生数量（兼容旧存档：未设置 active 则视为在队）
+    const activeStudents = (gameData.students || []).filter(s => s && s.active !== false).length;
     
-    // 检查是否有NOI金牌
+    // 规范化输入的 endingReason 以避免多写法问题
+    const norm = normalizeEndingReason(endingReason);
+    
+    // 优先级1：检查特殊结局（AKIOI、顶尖结局）
+    if(norm === 'AKIOI'){
+      return "👑 AKIOI";
+    }
+    
+    if(norm === '顶尖结局'){
+      return "🌟 顶尖结局";
+    }
+    
+    // 优先级2：检查是否进入国家集训队（保底荣耀结局）
+    if (gameData.inNationalTeam === true) {
+      return "🌟 荣耀结局";
+    }
+    
+    // 优先级3：检查经费（优先级高于其他普通结局）
+    if (gameData.budget < 5000) {
+      return "💸 经费耗尽结局";
+    }
+    
+    // 优先级4：检查是否有NOI金牌（荣耀结局）
     let hasNoiGold = false;
     if (gameData.careerCompetitions && Array.isArray(gameData.careerCompetitions)) {
       for (let comp of gameData.careerCompetitions) {
@@ -3090,22 +3656,11 @@ function calculateFinalEnding(gameData, endingReason) {
       }
     }
     
-
-    
-    // 规范化输入的 endingReason 以避免多写法问题
-    const norm = normalizeEndingReason(endingReason);
-
-    // 检查经费（优先级高于其他）
-    if (gameData.budget < 5000) {
-      return "💸 经费耗尽结局";
-    }
-
-    // 基于成就判定（荣耀结局优先级最高）
     if (hasNoiGold) {
       return "🌟 荣耀结局";
     }
-
-    // 基于结束原因判定（使用规范化值）
+    
+    // 优先级5：基于结束原因判定（使用规范化值）
     switch (norm) {
       case '经费不足':
         return "💸 经费耗尽结局";
@@ -3127,7 +3682,9 @@ function calculateFinalEnding(gameData, endingReason) {
 function mapEndingToDescription(endingTitle){
   const map = {
     '💸 经费耗尽结局': '项目经费枯竭，无法继续运作。研究与招生被迫停摆，学校的信息学团队被迫解散，曾经的努力戛然而止。',
-    '🌟 荣耀结局': '队伍取得辉煌胜利，获国NOI金牌，你也因此成为金牌教练，学校声誉大增，学生与导师名声大振，未来发展与资源扶持接踵而至。',
+    '🌟 荣耀结局': '队伍取得辉煌胜利，获得NOI金牌或进入国家集训队，你也因此成为金牌教练，学校声誉大增，学生与导师名声大振，未来发展与资源扶持接踵而至。',
+    '🌟 顶尖结局': '学生在IOI国际赛场上获得奖牌，为国争光！这是信息学竞赛的最高荣誉，你培养出了世界级选手，成为传奇教练。',
+    '👑 AKIOI': '不可思议！学生在IOI上取得满分，这是人类智慧的巅峰表现！你的名字将永远铭刻在信息学竞赛的历史上，成为最伟大的教练之一。',
     '😵 崩溃结局': '管理失误，团队陷入混乱，学生因为高压管理训练接连AFO，与赛事缺乏支撑，最终不得不终止项目。',
     '💼 普通结局': '项目平稳结束，虽无惊艳成就但积累了经验，信息学团队平庸地继续发展。',
     '❓ 未知结局': '结局信息不完整或读取异常，无法判定具体结果。请检查存档或重放以获得正确结算。'
@@ -3431,4 +3988,201 @@ window.onload = ()=>{
     // not index page: do nothing. start.html will call renderStartPageUI; end.html will call renderEndSummary.
   }
 };
+/* ==================== 调试函数 ==================== */
+
+/**
+ * 调试函数：生成超强学生并跳转到第二年NOI
+ * 使用方法：在浏览器控制台中输入
+ *  debugJumpToNOI() 即可
+ * 
+ * 功能：
+ * 1. 清空当前所有学生
+ * 2. 创建一个所有属性为500的超强学生
+ * 3. 自动跳转到第二年NOI前（第14周）
+ * 4. 自动授予所有比赛的晋级资格
+ * 5. 设置充足的经费
+ */
+
+function debugzak() {
+  if(typeof game === 'undefined' || !game) {
+    console.error('游戏未初始化，请先开始游戏');
+    alert('请先开始游戏再使用调试功能');
+    return;
+  }
+  
+  console.log('🔧 [调试] 开始生成超强学生并跳转到NOI...');
+  
+  // 1. 清空当前学生
+  game.students = [];
+  
+  // 2. 创建超强学生
+  const superStudent = new Student('zak', 500, 500, 500);
+  // 设置所有知识点为500
+  superStudent.knowledge_ds = 500;
+  superStudent.knowledge_graph = 500;
+  superStudent.knowledge_string = 500;
+  superStudent.knowledge_math = 500;
+  superStudent.knowledge_dp = 500;
+  // 设置其他属性
+  superStudent.pressure = 0; // 无压力
+  superStudent.comfort = 100; // 最高舒适度
+  superStudent.sick_weeks = 0; // 不生病
+  superStudent.active = true; // 激活状态
+  
+  game.students.push(superStudent);
+  console.log('✅ [调试] 已创建超强学生：', superStudent.name);
+  
+  // 3. 设置充足经费
+  game.budget = 1000000;
+  console.log('✅ [调试] 已设置经费：¥1,000,000');
+  
+  // 4. 跳转到第二年NOI前（假设SEASON_WEEKS=28，第二年NOI在第14周）
+  // 先找到第二年NOI的周数
+  const secondYearNOI = competitions.find(c => c.name === 'NOI' && c.week > WEEKS_PER_HALF);
+  const targetWeek = secondYearNOI ? secondYearNOI.week - 1 : 27; // NOI前一周
+  
+  if(game.week < targetWeek) {
+    const weeksToJump = targetWeek - game.week;
+    console.log(`⏭️ [调试] 从第${game.week}周跳转到第${targetWeek}周（跳过${weeksToJump}周）...`);
+    game.week = targetWeek;
+  }
+  
+  // 5. 授予所有比赛的晋级资格（第二赛季）
+  const halfIndex = 1; // 第二赛季
+  if(!game.qualification[halfIndex]) {
+    game.qualification[halfIndex] = {};
+  }
+  
+  // 授予所有比赛的晋级资格
+  for(let compName of COMPETITION_ORDER) {
+    if(!game.qualification[halfIndex][compName]) {
+      game.qualification[halfIndex][compName] = new Set();
+    }
+    game.qualification[halfIndex][compName].add(superStudent.name);
+  }
+  console.log('✅ [调试] 已授予所有比赛晋级资格');
+  
+  // 6. 标记已完成第二赛季前的所有比赛
+  if(!game.completedCompetitions) {
+    game.completedCompetitions = new Set();
+  }
+  
+  for(let comp of competitions) {
+    if(comp.week < targetWeek && comp.week > WEEKS_PER_HALF) {
+      const key = `${halfIndex}_${comp.name}_${comp.week}`;
+      game.completedCompetitions.add(key);
+    }
+  }
+  console.log('✅ [调试] 已标记完成前序比赛');
+  
+  // 7. 更新天气
+  game.updateWeather();
+  
+  // 8. 刷新UI
+  if(typeof renderAll === 'function') {
+    renderAll();
+  }
+  
+  console.log('🎉 [调试] 完成！');
+  console.log(`📊 当前状态：`);
+  console.log(`   - 周数: ${game.week}/${SEASON_WEEKS}`);
+  console.log(`   - 学生: ${game.students.length}人`);
+  console.log(`   - 经费: ¥${game.budget.toLocaleString()}`);
+  console.log(`   - 下场比赛: ${game.getNextCompetition()}`);
+  console.log('💡 提示：现在可以参加NOI比赛了！');
+  
+  alert(`🔧 调试模式已激活！\n\n✅ 已创建"${superStudent.name}"\n✅ 已跳转到第${game.week}周\n✅ 已授予所有晋级资格\n✅ 经费：¥${game.budget.toLocaleString()}\n\n下场比赛：${game.getNextCompetition()}\n\n提示：点击"参加比赛"按钮即可开始NOI比赛`);
+}
+
+/**
+ * 调试函数：直接跳转到国家集训队（假设已完成NOI并获得金牌）
+ * 使用方法：在浏览器控制台中输入 debugEnterNationalTeam() 即可
+ */
+/*
+function debugEnterNationalTeam() {
+  if(typeof game === 'undefined' || !game) {
+    console.error('游戏未初始化，请先开始游戏');
+    alert('请先开始游戏再使用调试功能');
+    return;
+  }
+  
+  console.log('🔧 [调试] 开始模拟进入国家集训队...');
+  
+  // 先执行debugJumpToNOI确保基础设置
+  debugJumpToNOI();
+  
+  // 模拟NOI金牌成绩
+  const superStudent = game.students[0];
+  const mockNOIResults = [
+    { name: superStudent.name, total: 700, scores: [100,100,100,100,100,100,100], eligible: true }
+  ];
+  
+  console.log('✅ [调试] 模拟NOI金牌成绩：700分');
+  
+  // 直接调用国家集训队选择弹窗
+  setTimeout(() => {
+    showNationalTeamChoice(mockNOIResults, 700);
+    console.log('✅ [调试] 已弹出国家集训队选择弹窗');
+    console.log('💡 提示：请在弹窗中选择"是，进入国家集训队"');
+  }, 500);
+  
+  alert('🔧 调试模式：国家集训队\n\n✅ 已模拟NOI金牌（700分）\n✅ 即将弹出国家集训队选择弹窗\n\n提示：在弹窗中选择"是"即可进入集训队流程');
+}
+*/
+/**
+ * 调试函数：显示当前游戏状态
+ * 使用方法：在浏览器控制台中输入 debugShowStatus() 即可
+ */
+/*
+function debugShowStatus() {
+  if(typeof game === 'undefined' || !game) {
+    console.error('游戏未初始化');
+    return;
+  }
+  
+  console.log('📊 ==================== 游戏状态 ====================');
+  console.log(`周数: ${game.week}/${SEASON_WEEKS}`);
+  console.log(`半赛季: ${game.week > WEEKS_PER_HALF ? '第二年' : '第一年'}`);
+  console.log(`经费: ¥${game.budget.toLocaleString()}`);
+  console.log(`声誉: ${game.reputation}`);
+  console.log(`学生数: ${game.students.length}人`);
+  
+  if(game.students.length > 0) {
+    console.log('\n👥 学生列表:');
+    game.students.forEach((s, i) => {
+      if(s && s.active !== false) {
+        console.log(`  ${i+1}. ${s.name}`);
+        console.log(`     - 思维:${Math.floor(s.thinking)} 编码:${Math.floor(s.coding)} 心理:${Math.floor(s.mental)}`);
+        console.log(`     - 知识: DS:${Math.floor(s.knowledge_ds)} 图:${Math.floor(s.knowledge_graph)} 串:${Math.floor(s.knowledge_string)} 数:${Math.floor(s.knowledge_math)} DP:${Math.floor(s.knowledge_dp)}`);
+        console.log(`     - 压力:${Math.floor(s.pressure)} 舒适度:${Math.floor(s.comfort)}`);
+      }
+    });
+  }
+  
+  console.log(`\n🏆 下场比赛: ${game.getNextCompetition()}`);
+  
+  if(game.inNationalTeam) {
+    console.log('\n🎖️ 国家集训队模式：激活');
+    console.log(`   阶段: ${game.nationalTeamPhase || '未知'}`);
+    if(game.nationalTeamResults) {
+      console.log(`   金牌学生: ${game.nationalTeamResults.goldStudents?.join(', ') || '无'}`);
+      console.log(`   IOI晋级: ${game.nationalTeamResults.ioiQualified?.join(', ') || '未定'}`);
+    }
+  }
+  
+  console.log('==================================================');
+}
+
+// 将调试函数暴露到全局window对象，方便在控制台调用
+if(typeof window !== 'undefined') {
+  window.debugJumpToNOI = debugJumpToNOI;
+  window.debugEnterNationalTeam = debugEnterNationalTeam;
+  window.debugShowStatus = debugShowStatus;
+  console.log('🔧 调试函数已加载！可用命令：');
+  console.log('   - debugJumpToNOI()          : 生成超强学生并跳转到第二年NOI');
+  console.log('   - debugEnterNationalTeam()  : 模拟进入国家集训队');
+  console.log('   - debugShowStatus()         : 显示当前游戏状态');
+}
+
+*/
 
