@@ -398,10 +398,34 @@ body.comp-week .action-cards .action-card:not(#comp-only-action) {
 
 .time-info {
   font-size: 16px;
-  font-weight: 700;
-  margin-bottom: 8px;
-  color: #333;
 }
+
+/* Guidance & emphasis for required selections */
+.highlight-required {
+  animation: highlightPulse 1.4s ease-in-out 2;
+  border: 2px dashed #fda4af !important;
+  box-shadow: 0 6px 18px rgba(229,62,62,0.08) !important;
+}
+
+@keyframes highlightPulse {
+  0% { box-shadow: 0 0 0 rgba(229,62,62,0); transform: translateY(0); }
+  30% { box-shadow: 0 10px 30px rgba(229,62,62,0.12); transform: translateY(-3px); }
+  60% { box-shadow: 0 4px 12px rgba(229,62,62,0.06); transform: translateY(0); }
+  100% { box-shadow: 0 0 0 rgba(229,62,62,0); transform: translateY(0); }
+}
+
+/* Shake animation to draw attention */
+.shake { animation: shakeIt 0.9s cubic-bezier(.36,.07,.19,.97) both; }
+@keyframes shakeIt {
+  10%, 90% { transform: translate3d(-1px, 0, 0); }
+  20%, 80% { transform: translate3d(2px, 0, 0); }
+  30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+  40%, 60% { transform: translate3d(4px, 0, 0); }
+}
+
+/* Stronger selected styles for task cards and intensity buttons */
+.task-card.selected { border-color: #3182ce !important; box-shadow: 0 8px 24px rgba(49,130,206,0.12); transform: translateY(-2px); }
+.option-btn.selected { background:#dee8ff !important; color:#fff !important; border:2px solid rgba(37,99,235,0.12); box-shadow:0 6px 18px rgba(37,99,235,0.08); }
 
 .progress-bar-container {
   width: 100%;

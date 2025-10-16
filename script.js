@@ -2101,7 +2101,7 @@ function trainStudentsUI(){
   const intensityHtml = `
     <div id="train-int-grid" style="display:flex;gap:8px;margin-top:6px">
       <button class="prov-btn option-btn" data-val="1">轻度</button>
-      <button class="prov-btn option-btn" data-val="2" style="background:#3498db;color:white">中度</button>
+      <button class="prov-btn option-btn" data-val="2">中度</button>
       <button class="prov-btn option-btn" data-val="3">重度</button>
     </div>
     <div class="small muted" style="margin-top:6px">强度影响压力和训练时长</div>
@@ -2111,8 +2111,10 @@ function trainStudentsUI(){
     <div class="small muted" style="margin-bottom:10px">从下方5道题目中选择一道进行训练。题目提升效果受学生能力与难度匹配度影响。</div>
     <label class="block">可选题目</label>
     <div id="train-task-grid" style="display:flex;gap:12px;flex-wrap:wrap;margin-top:8px;overflow-x:auto;max-height:300px;overflow-y:auto;">${taskCards}</div>
+    <div id="train-task-helper" class="small muted" style="margin-top:6px;display:none;color:#c53030;font-weight:700"></div>
     <label class="block" style="margin-top:14px">训练强度</label>
     ${intensityHtml}
+    <div id="train-int-helper" class="small muted" style="margin-top:6px;display:none;color:#c53030;font-weight:700"></div>
     <div class="modal-actions" style="margin-top:16px">
       <button class="btn btn-ghost" onclick="closeModal()">取消</button>
       <button class="btn" id="train-confirm">开始训练（1周）</button>
@@ -2121,20 +2123,26 @@ function trainStudentsUI(){
   // 题目卡片选择行为
   const tCards = Array.from(document.querySelectorAll('#train-task-grid .task-card'));
   if(tCards.length > 0) tCards[0].classList.add('selected');
-  tCards.forEach(c => { 
-    c.onclick = () => { 
-      tCards.forEach(x => x.classList.remove('selected')); 
-      c.classList.add('selected'); 
-    }; 
+  tCards.forEach(c => {
+    c.onclick = () => {
+      tCards.forEach(x => { x.classList.remove('selected'); x.classList.remove('shake'); });
+      c.classList.add('selected');
+      // remove helper / highlight when user selects
+      const helper = $('train-task-helper'); if(helper){ helper.style.display='none'; helper.innerText=''; }
+      const grid = $('train-task-grid'); if(grid) grid.classList.remove('highlight-required');
+    };
   });
 
   // 强度按钮选择行为（默认选中中度）
   const intBtns = document.querySelectorAll('#train-int-grid .option-btn');
   intBtns.forEach((b, i) => {
     if(i === 1) b.classList.add('selected'); // 默认中度
-    b.onclick = () => { 
-      intBtns.forEach(x => x.classList.remove('selected')); 
-      b.classList.add('selected'); 
+    b.onclick = () => {
+      intBtns.forEach(x => { x.classList.remove('selected'); x.classList.remove('shake'); });
+      b.classList.add('selected');
+      // remove helper / highlight when user selects
+      const helper = $('train-int-helper'); if(helper){ helper.style.display='none'; helper.innerText=''; }
+      const grid = $('train-int-grid'); if(grid) grid.classList.remove('highlight-required');
     };
   });
 
@@ -2142,12 +2150,24 @@ function trainStudentsUI(){
   $('train-confirm').onclick = () => {
     let taskBtn = document.querySelector('#train-task-grid .task-card.selected');
     let intBtn = document.querySelector('#train-int-grid .option-btn.selected');
-    
+
+    // Enhanced inline validation & guidance
     if(!taskBtn) {
-      alert('请选择一道题目');
+      const helper = $('train-task-helper'); if(helper){ helper.style.display='block'; helper.innerText='请先选择一道训练题目以开始训练'; }
+      const grid = $('train-task-grid'); if(grid) grid.classList.add('highlight-required');
+      const first = document.querySelector('#train-task-grid .task-card');
+      if(first){ first.classList.add('shake'); setTimeout(()=>first.classList.remove('shake'), 900); try{ first.scrollIntoView({ behavior: 'smooth', block: 'center' }); }catch(e){} }
       return;
     }
-    
+
+    if(!intBtn) {
+      const helper = $('train-int-helper'); if(helper){ helper.style.display='block'; helper.innerText='请选择训练强度（轻/中/重）'; }
+      const grid = $('train-int-grid'); if(grid) grid.classList.add('highlight-required');
+      const first = document.querySelector('#train-int-grid .option-btn');
+      if(first){ first.classList.add('shake'); setTimeout(()=>first.classList.remove('shake'), 900); try{ first.scrollIntoView({ behavior: 'smooth', block: 'center' }); }catch(e){} }
+      return;
+    }
+
     let taskIdx = parseInt(taskBtn.dataset.idx);
     let selectedTask = tasks[taskIdx];
     let intensity = intBtn ? parseInt(intBtn.dataset.val) : 2;
