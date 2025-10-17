@@ -1691,7 +1691,7 @@ function holdCompetitionModal(comp){
         console.log('[国家集训队检测] ✅ 条件满足，显示国家集训队选择弹窗');
         // 设置标志，防止周更新时触发赛季结束
         game.nationalTeamChoicePending = true;
-        showNationalTeamChoice(results, comp.maxScore);
+        showNationalTeamChoice(results, comp.maxScore, pass_line);
         return; // 不再继续后续逻辑，直接退出
       }
       
@@ -1799,9 +1799,10 @@ function showCompetitionSummary(comp, results, pass_line, pass_count, shouldTrig
 
 /* 国家集训队选择弹窗 */
 /* 国家集训队选择弹窗 */
-function showNationalTeamChoice(noiResults, noiMaxScore) {
+function showNationalTeamChoice(noiResults, noiMaxScore, passLine) {
   // 找出所有金牌选手
-  const goldMedalThreshold = noiMaxScore * NOI_GOLD_THRESHOLD;
+  // 优先使用传入的 passLine（来自比赛时计算的晋级线），以保证阈值一致
+  const goldMedalThreshold = (typeof passLine === 'number' && !isNaN(passLine)) ? passLine : (noiMaxScore * NOI_GOLD_THRESHOLD);
   const goldStudents = noiResults.filter(r => r.eligible === true && r.total >= goldMedalThreshold);
   
   if(goldStudents.length === 0) {
