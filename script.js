@@ -442,6 +442,10 @@ function renderAll(){
   // 比赛时间轴按周次排序展示
   const scheduleComps = competitions.slice().sort((a, b) => a.week - b.week);
   $('comp-schedule').innerText = scheduleComps.map(c => `${c.week}:${c.name}`).join("  |  ");
+  // comfort (舒适度显示更新)
+  const currentComfort = game.getComfort();
+  const comfortEl = $('comfort-val');
+  if(comfortEl) comfortEl.innerText = Math.floor(currentComfort);
   // facilities
   $('fac-computer').innerText = game.facilities.computer;
   $('fac-library').innerText = game.facilities.library;

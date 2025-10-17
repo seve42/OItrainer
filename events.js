@@ -566,14 +566,14 @@
             const stud = Array.isArray(c.game.students) ? c.game.students.find(s => s && s.name === targetEntry.name && s.active !== false) : null;
             if(!stud) return null;
 
-            // avoid repeating for same student in same week
-            if(stud._poaching_offer_handled_week === c.game.week) return null;
-            stud._poaching_offer_handled_week = c.game.week;
+            // avoid repeating in the same game (entire session)
+            if(c.game._poaching_offer_triggered) return null;
+            c.game._poaching_offer_triggered = true;
 
             // compute retention cost based on student ability (scale using getAbilityAvg)
             let abilityAvg = (typeof stud.getAbilityAvg === 'function') ? Number(stud.getAbilityAvg()) : (Number(stud.thinking||0) + Number(stud.coding||0))/2;
             abilityAvg = Math.max(0, Math.min(100, abilityAvg));
-            const cost = Math.round(40000 + (abilityAvg/100.0) * 60000); // 50k - 100k
+            const cost = Math.round(20000 + (abilityAvg/100.0) * 10000); // 50k - 100k
 
             // retention success probability depends on reputation and student's mental
             const rep = (c.game && typeof c.game.reputation === 'number') ? Math.max(0, Math.min(100, c.game.reputation)) : 50;
