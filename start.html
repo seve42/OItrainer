@@ -5,6 +5,41 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>开始 — OI 教练模拟器</title>
   <link rel="stylesheet" href="styles.css">
+  <style>
+    /* 启动蒙版样式 */
+    .oi-start-mask{
+      position:fixed;
+      inset:0;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      z-index:9999;
+      background:linear-gradient(180deg, rgba(10,25,47,0.95), rgba(22,32,54,0.95)), url('assets/start-bg.jpg') center/cover no-repeat;
+      color: #fff;
+      padding:20px;
+      box-sizing:border-box;
+      flex-direction:column;
+    }
+    .oi-start-mask .mask-content{
+      max-width:880px;
+      text-align:center;
+      backdrop-filter: blur(2px);
+    }
+    .oi-start-mask h2{
+      font-size:34px;
+      margin:0 0 12px 0;
+      text-shadow:0 2px 8px rgba(0,0,0,0.6);
+    }
+    .oi-start-mask p{
+      margin:0 0 18px 0;
+      color:rgba(255,255,255,0.9);
+      font-size:16px;
+    }
+    .oi-start-mask .mask-actions{margin-top:8px}
+    .oi-start-mask .btn{min-width:150px;padding:10px 16px;font-size:16px;border-radius:6px}
+    .oi-start-mask .btn-start{background:#38a169;border:none;color:white}
+    .oi-start-mask .btn-skip{background:transparent;border:1px solid rgba(255,255,255,0.2);color:white;margin-left:8px}
+  </style>
 <script type="text/javascript">
   (function(c,l,a,r,i,t,y){
     c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
@@ -14,6 +49,22 @@
 </script>
 </head>
 <body>
+  <!-- 启动蒙版：加载时完全覆盖页面，点击开始后隐藏 -->
+  <div id="oiStartMask" class="oi-start-mask" role="dialog" aria-label="游戏开始">
+    <div class="mask-content">
+      <h2>OI 教练模拟器</h2>
+      <h3 class="oi-start-subtitle" style="font-size:16px;margin:6px 0 12px;color:rgba(255,255,255,0.9);font-weight:400;">
+        高二省选，你被追忆创飞无缘省队。<br>
+        一觉醒来，你发现你坐在机房前，成为了你们学校信息学竞赛的总教练。<br>
+        回想起之前构造题没checker，模拟赛没大样例，一个月没有半天假期的训练生活<br>
+        你决定要改变这一切。
+      </h3>
+      <p></p>
+      <div class="mask-actions">
+       <button id="oiMaskSkipBtn" class="btn btn-skip">进入游戏</button>
+      </div>
+    </div>
+  </div>
 <div class="container">
   <header>
     <h1>OI 教练模拟器 — 开始</h1>
@@ -22,11 +73,14 @@
     <h3>新游戏设置</h3>
     
     <label class="block">选择难度</label>
-    <select id="start-diff">
+    <!-- 平铺式难度选择卡（保留隐藏 select 用于兼容旧逻辑） -->
+    <select id="start-diff" style="display:none">
       <option value="1">简单 - 适合初次体验的人</option>
       <option value="2" selected>普通 - 标准游戏体验</option>
       <option value="3">困难 - 适合寻求挑战的人</option>
     </select>
+    <div id="start-diff-grid" class="diff-grid" style="display:flex;gap:10px;margin-top:8px"></div>
+    <div id="diff-note" class="small muted" style="margin-top:6px"></div>
 
     <label class="block" style="margin-top:10px">选择省份</label>
     <div class="small muted" style="margin-bottom:6px">不同省份影响初始经费和训练质量。<strong>强省</strong>资源丰富<strong>弱省</strong>具有挑战性。</div>
@@ -127,6 +181,49 @@
     }, 200);
   }
 
+    // Render difficulty as tiled options and sync with hidden select (#start-diff)
+    function renderDiffGrid(){
+      const defs = [
+        {v:1,label:'简单',desc:'适合初次体验的人'},
+        {v:2,label:'普通',desc:'标准游戏体验'},
+        {v:3,label:'困难',desc:'适合寻求挑战的人'}
+      ];
+      const grid = document.getElementById('start-diff-grid');
+      const hidden = document.getElementById('start-diff');
+      const note = document.getElementById('diff-note');
+      if(!grid || !hidden) return;
+      grid.innerHTML = '';
+      defs.forEach(d => {
+        const card = document.createElement('div');
+        card.className = 'option-card';
+        card.dataset.val = d.v;
+        card.style.cursor = 'pointer';
+        card.style.padding = '10px 12px';
+        card.style.border = '1px solid #e6e6e6';
+        card.style.borderRadius = '8px';
+        card.style.minWidth = '110px';
+        card.style.textAlign = 'center';
+        card.innerHTML = `<div style="font-weight:600;margin-bottom:6px">${d.label}</div><div class="small muted">${d.desc}</div>`;
+        card.addEventListener('click', ()=>{
+          grid.querySelectorAll('.option-card.selected').forEach(c=>c.classList.remove('selected'));
+          card.classList.add('selected');
+          // sync hidden select
+          hidden.value = ''+d.v;
+          // show note under grid
+          if(note) note.textContent = d.label + ' — ' + d.desc;
+        });
+        grid.appendChild(card);
+      });
+
+      // mark initial selection based on select value
+      const initial = hidden.value || '2';
+      const chosen = grid.querySelector(`.option-card[data-val='${initial}']`);
+      if(chosen) chosen.classList.add('selected');
+      if(note){ const c = grid.querySelector('.option-card.selected'); note.textContent = c ? (c.querySelector('div').textContent + ' — ' + c.querySelector('.small').textContent) : ''; }
+    }
+
+    try{ renderDiffGrid(); }catch(e){ console.error('渲染难度网格失败', e); }
+
   // render province buttons using PROVINCES from script.js (保留页面其他功能的兼容性)
   if(typeof renderStartPageUI !== 'undefined'){
     renderStartPageUI && renderStartPageUI();
@@ -204,6 +301,38 @@
           }
         }catch(e){}
       });
+    });
+  })();
+</script>
+<script>
+  (function(){
+    // 等待 DOM 就绪（页面脚本已加载）
+    function hideMask(){
+      try{
+        const mask = document.getElementById('oiStartMask');
+        if(!mask) return;
+        mask.style.transition = 'opacity 220ms ease';
+        mask.style.opacity = '0';
+        setTimeout(()=>{ mask.parentNode && mask.parentNode.removeChild(mask); }, 260);
+      }catch(e){ console.error('隐藏启动蒙版失败', e); }
+    }
+
+    window.addEventListener('load', ()=>{
+      const startBtn = document.getElementById('oiMaskStartBtn');
+      const skipBtn = document.getElementById('oiMaskSkipBtn');
+      const pageStartBtn = document.getElementById('start-button');
+
+      startBtn && startBtn.addEventListener('click', ()=>{
+        // 隐藏蒙版，然后触发页面的开始逻辑（若存在）
+        hideMask();
+        try{ if(typeof startFromStartPage === 'function') startFromStartPage(); }
+        catch(e){}
+      });
+
+      skipBtn && skipBtn.addEventListener('click', ()=>{ hideMask(); });
+
+      // 如果用户在蒙版存在时点击页面原有的开始按钮（不应可见），确保也能正常工作
+      pageStartBtn && pageStartBtn.addEventListener('click', ()=>{ hideMask(); });
     });
   })();
 </script>

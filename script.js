@@ -901,12 +901,17 @@ function computeOutingCostQuadratic(difficulty_choice, province_choice, particip
 }
 
 // 新的外出集训实现：仅对 selectedNames 的学生进行集训
-function outingTrainingWithSelection(difficulty_choice, province_choice, selectedNames){
+function outingTrainingWithSelection(difficulty_choice, province_choice, selectedNames, inspireTalents){
   const target = PROVINCES[province_choice];
   const __before = typeof __createSnapshot === 'function' ? __createSnapshot() : null;
   const selectedStudents = game.students.filter(s => s && s.active && selectedNames.includes(s.name));
   const participantCount = selectedStudents.length;
   let final_cost = computeOutingCostQuadratic(difficulty_choice, province_choice, participantCount);
+  
+  // 计算天赋激发费用
+  inspireTalents = inspireTalents || [];
+  const talentInspireCost = inspireTalents.length * 12000;
+  final_cost += talentInspireCost;
 
   // 在结算前询问每位参与学生的天赋，收集可能的开支减免（action: 'reduce_outing_cost'）
   try{
@@ -1015,11 +1020,34 @@ function outingTrainingWithSelection(difficulty_choice, province_choice, selecte
         try{ window.TalentManager.tryAcquireTalent(s, 1.0); }catch(e){}
       }
     }catch(e){ console.error('outing_finished tryAcquireTalent error', e); }
+    
+    // 天赋激发：每个选中的天赋有30%概率被获得
+    if(inspireTalents && inspireTalents.length > 0){
+      for(const talentName of inspireTalents){
+        if(Math.random() < 0.3){
+          // 检查学生是否已有该天赋
+          if(!s.talents.has(talentName)){
+            s.talents.add(talentName);
+            pushEvent({ 
+              name: '天赋激发成功', 
+              description: `${s.name} 在集训中获得了天赋「${talentName}」！`, 
+              week: game.week 
+            });
+            log(`${s.name} 激发了天赋：${talentName}`);
+          }
+        }
+      }
+    }
 
     if(mismatch){
       const message = `这次集训与学生${s.name}实力不匹配，压力增加，收获减少`;
       pushEvent({ name: '集训不匹配', description: message, week: game.week });
     }
+  }
+  
+  // 记录天赋激发费用
+  if(talentInspireCost > 0){
+    log(`天赋激发费用：¥${talentInspireCost}（${inspireTalents.length}个天赋 × ¥12,000）`);
   }
 
   game.weeks_since_entertainment += 1;
@@ -2760,10 +2788,11 @@ function holdMockContestUI(){
     </div>
     <div id="mock-online-container" style="margin-top:8px;">
       <label class="block">网赛类型</label>
-      <select id="mock-contest-type">${onlineContestOptions}</select>
+      <!-- 平铺网赛类型选择（保留隐藏 select 以兼容现有逻辑） -->
+      <select id="mock-contest-type" style="display:none">${onlineContestOptions}</select>
+      <div id="mock-contest-type-grid" style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap"></div>
     </div>
     <div id="mock-questions-container" style="margin-top:8px">
-      <div class="small">网赛题目标签将随机生成</div>
     </div>
     <div class="modal-actions" style="margin-top:10px">
       <button class="btn btn-ghost" onclick="closeModal()">取消</button>
@@ -2796,7 +2825,7 @@ function holdMockContestUI(){
       const typeIdx = parseInt($('mock-contest-type').value);
       const contestType = ONLINE_CONTEST_TYPES[typeIdx];
       
-      $('mock-questions-container').innerHTML = `<div class="small">网赛共 ${contestType.numProblems} 题，题目标签将随机生成</div>`;
+      $('mock-questions-container').innerHTML = `<div class="small">网赛共 ${contestType.numProblems} 题</div>`;
     }
   }
   
@@ -2806,7 +2835,42 @@ function holdMockContestUI(){
   // 监听比赛类型和难度变化
   $('mock-purchase').onchange = updateQuestions;
   $('mock-difficulty').onchange = updateQuestions;
+  // wire up mock-contest-type changes; the visible grid will sync to hidden select
   $('mock-contest-type').onchange = updateQuestions;
+
+  // render tiled grid for online contest types and sync with hidden select
+  function renderMockContestTypeGrid(){
+    const grid = document.getElementById('mock-contest-type-grid');
+    const hidden = document.getElementById('mock-contest-type');
+    if(!grid || !hidden) return;
+    grid.innerHTML = '';
+    ONLINE_CONTEST_TYPES.forEach((t, idx) => {
+      const card = document.createElement('div');
+      card.className = 'option-card';
+      card.dataset.val = idx;
+      card.style.padding = '10px';
+      card.style.border = '1px solid #e6e6e6';
+      card.style.borderRadius = '8px';
+      card.style.cursor = 'pointer';
+      card.style.minWidth = '120px';
+      card.innerHTML = `<div style="font-weight:600">${t.displayName}</div><div class="small muted">${t.numProblems}题</div>`;
+      card.addEventListener('click', ()=>{
+        grid.querySelectorAll('.option-card.selected').forEach(c=>c.classList.remove('selected'));
+        card.classList.add('selected');
+        hidden.value = ''+idx;
+        // trigger onchange handler
+        try{ hidden.onchange && hidden.onchange(); }catch(e){}
+      });
+      grid.appendChild(card);
+    });
+
+    // initial selection
+    const initial = hidden.value || '0';
+    const chosen = grid.querySelector(`.option-card[data-val='${initial}']`);
+    if(chosen) chosen.classList.add('selected');
+  }
+
+  try{ renderMockContestTypeGrid(); }catch(e){ console.error('渲染网赛类型网格失败', e); }
   
   $('mock-submit').onclick = ()=>{
     const isPurchased = $('mock-purchase').value === "1";
@@ -3861,8 +3925,21 @@ window.onload = ()=>{
       <div id="out-prov-grid" class="prov-grid"></div>
       <label class="block">选择学生（点击卡片选择参加）</label>
       <div id="out-student-grid" class="student-grid" style="max-height:180px;overflow:auto;border:1px solid #eee;padding:6px;margin-bottom:8px"></div>
+      
+      <!-- 天赋激发面板（默认折叠） -->
+      <div class="talent-inspire-panel collapsible collapsed" style="margin-top:12px;margin-bottom:12px;padding:10px;border:1px solid #e2e8f0;border-radius:6px;background:#f7fafc">
+        <h4 class="collapsible-head" style="margin:0;cursor:pointer;user-select:none;display:flex;align-items:center;justify-content:space-between">
+          <span>✨ 天赋激发</span>
+          <span class="collapse-arrow" style="font-size:12px;transition:transform 0.2s">▼</span>
+        </h4>
+        <div class="collapsible-content" style="margin-top:8px">
+          <div class="small muted" style="margin-bottom:8px">每选择一个激发天赋消耗 ¥12,000，参加集训的学生有 30% 概率获得该天赋</div>
+          <div id="out-talent-grid" class="talent-grid" style="max-height:200px;overflow:auto"></div>
+        </div>
+      </div>
+      
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-        <div>预计费用: <strong id="out-cost-preview">¥0</strong></div>
+        <div>预计费用: <strong id="out-cost-preview">¥0</strong> <span id="out-talent-cost-text" style="font-size:12px;color:#666"></span></div>
         <div style="font-size:12px;color:#666">费用与人数和声誉有关</div>
       </div>
       <div class="modal-actions" style="margin-top:8px">
@@ -3885,6 +3962,66 @@ window.onload = ()=>{
     });
     // default select first
     if(outGrid.firstChild) outGrid.firstChild.classList.add('selected');
+    
+    // 渲染天赋激发网格
+    const outTalentGrid = document.getElementById('out-talent-grid');
+    if(outTalentGrid && window.TalentManager){
+      const allTalents = window.TalentManager.getRegistered() || [];
+      allTalents.forEach(talentName => {
+        const info = window.TalentManager.getTalentInfo(talentName) || { name: talentName, description: '', color: '#2b6cb0' };
+        const card = document.createElement('div');
+        card.className = 'talent-card';
+        card.dataset.talent = talentName;
+        card.dataset.selected = '0';
+        card.style.cssText = 'cursor:pointer;opacity:0.5;transition:opacity 0.2s';
+        
+        const top = document.createElement('div');
+        const dot = document.createElement('span');
+        dot.className = 'color-dot';
+        dot.style.background = info.color || '#2b6cb0';
+        const title = document.createElement('span');
+        title.className = 'title';
+        title.textContent = talentName;
+        top.appendChild(dot);
+        top.appendChild(title);
+        
+        const desc = document.createElement('div');
+        desc.className = 'desc';
+        desc.textContent = info.description || '';
+        
+        card.appendChild(top);
+        card.appendChild(desc);
+        
+        card.onclick = () => {
+          if(card.dataset.selected === '1'){
+            card.dataset.selected = '0';
+            card.style.opacity = '0.5';
+          } else {
+            card.dataset.selected = '1';
+            card.style.opacity = '1.0';
+          }
+          updateOutingCostPreview();
+        };
+        
+        outTalentGrid.appendChild(card);
+      });
+    }
+    
+    // 添加折叠面板功能
+    const talentInspirePanel = document.querySelector('.talent-inspire-panel');
+    if(talentInspirePanel){
+      const head = talentInspirePanel.querySelector('.collapsible-head');
+      const arrow = head.querySelector('.collapse-arrow');
+      head.onclick = () => {
+        talentInspirePanel.classList.toggle('collapsed');
+        if(talentInspirePanel.classList.contains('collapsed')){
+          arrow.style.transform = 'rotate(0deg)';
+        } else {
+          arrow.style.transform = 'rotate(180deg)';
+        }
+      };
+    }
+    
     // render student selection cards
     const outStudentGrid = document.getElementById('out-student-grid');
     const activeStudents = game.students.filter(s=>s && s.active);
@@ -3944,8 +4081,22 @@ window.onload = ()=>{
       const selectedCount = Array.from(document.querySelectorAll('#out-student-grid .student-card')).filter(c=>c.dataset.selected==='1').length || 0;
       const d = parseInt($('out-diff').value);
       const p = parseInt(document.querySelector('#out-prov-grid .prov-btn.selected').dataset.val);
-      const cost = computeOutingCostQuadratic(d, p, selectedCount);
-      document.getElementById('out-cost-preview').textContent = `¥${cost}`;
+      const baseCost = computeOutingCostQuadratic(d, p, selectedCount);
+      
+      // 计算天赋激发费用
+      const selectedTalents = Array.from(document.querySelectorAll('#out-talent-grid .talent-card')).filter(c=>c.dataset.selected==='1').length || 0;
+      const talentCost = selectedTalents * 12000;
+      const totalCost = baseCost + talentCost;
+      
+      document.getElementById('out-cost-preview').textContent = `¥${totalCost}`;
+      const talentCostText = document.getElementById('out-talent-cost-text');
+      if(talentCostText){
+        if(selectedTalents > 0){
+          talentCostText.textContent = `(含天赋激发 ¥${talentCost})`;
+        } else {
+          talentCostText.textContent = '';
+        }
+      }
     }
     // bind diff/prov change to update preview
     document.getElementById('out-diff').onchange = updateOutingCostPreview;
@@ -3958,8 +4109,12 @@ window.onload = ()=>{
       // collect selected students
       const selectedNames = Array.from(document.querySelectorAll('#out-student-grid .student-card')).filter(c=>c.dataset.selected==='1').map(c=>c.dataset.name);
       if(!selectedNames || selectedNames.length === 0){ alert('请至少选择一名学生参加集训！'); return; }
+      
+      // collect selected inspire talents
+      const selectedTalents = Array.from(document.querySelectorAll('#out-talent-grid .talent-card')).filter(c=>c.dataset.selected==='1').map(c=>c.dataset.talent);
+      
       closeModal();
-      outingTrainingWithSelection(d, p, selectedNames);
+      outingTrainingWithSelection(d, p, selectedNames, selectedTalents);
       // 安全更新，避免外出集训跳过比赛
       safeWeeklyUpdate(1);
       renderAll();

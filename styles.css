@@ -681,6 +681,15 @@ body.comp-week .action-cards .action-card:not(#comp-only-action) {
 }
 .sub-panel.collapsible.collapsed {padding-bottom:8px}
 
+/* 通用折叠面板样式（用于外出集训等模态框中的折叠面板） */
+.collapsible.collapsed .collapsible-content{
+  display:none !important;
+}
+.collapsible .collapsible-head{
+  cursor:pointer;
+  user-select:none;
+}
+
 /* talent selection grid (flat cards instead of select dropdown) */
 .talent-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;margin-top:8px}
 .talent-card{border:1px solid #eee;background:#fff;padding:8px;border-radius:8px;cursor:pointer;display:flex;flex-direction:column;gap:6px;align-items:flex-start;transition:all 150ms ease}
