@@ -581,8 +581,7 @@
             let base = 0.25; // base chance
             const repFactor = (rep / 100.0) * 0.5; // up to +0.5
             const mentalFactor = (mental / 100.0) * 0.25; // up to +0.25
-            let successProb = Math.min(0.95, base + repFactor + mentalFactor);
-
+            let successProb = 1.01;//百分百挽留成功
             const options = [
               { label: `消耗 ¥${cost}，全力挽留`, effect: () => {
                   // charge cost (use game.recordExpense if available to apply COST_MULTIPLIER centrally)
