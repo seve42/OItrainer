@@ -43,13 +43,12 @@
   <script>
     // Google Analytics (gtag) — load only if full page load <= 2000ms
     (function(){
-      const navStart = (performance && performance.timing && performance.timing.navigationStart) ? performance.timing.navigationStart : Date.now();
       function injectGtag(){
         const s = document.createElement('script'); s.async = true; s.src = 'https://www.googletagmanager.com/gtag/js?id=G-XKWM01T7ZE';
         s.onload = function(){ window.dataLayer = window.dataLayer || []; function gtag(){dataLayer.push(arguments);} window.gtag = window.gtag || gtag; gtag('js', new Date()); gtag('config','G-XKWM01T7ZE'); };
         document.head.appendChild(s);
       }
-      window.addEventListener('load', function(){ try{ const now = Date.now(); if(now - navStart <= 2000) injectGtag(); else console.info('gtag skipped (load time >2s)', now - navStart); }catch(e){} });
+      window.addEventListener('load', function(){ try{ injectGtag(); }catch(e){} });
     })();
   </script>
 </head>
