@@ -730,19 +730,19 @@ function trainStudentsWithTask(task, intensity) {
     // 计算机影响能力提升
     const computerLevel = game.facilities.computer;
     let computerBonus = 0;
-    if(computerLevel === 1) computerBonus = -0.15;
-    else if(computerLevel === 2) computerBonus = -0.05;
-    else if(computerLevel === 3) computerBonus = 0.08;
-    else if(computerLevel === 4) computerBonus = 0.10;
-    else if(computerLevel === 5) computerBonus = 0.15;
+    if(computerLevel === 1) computerBonus = -0.2;
+    else if(computerLevel === 2) computerBonus = 0;
+    else if(computerLevel === 3) computerBonus = 0.1;
+    else if(computerLevel === 4) computerBonus = 0.2;
+    else if(computerLevel === 5) computerBonus = 0.3;
     
     const computerMultiplier = 1.0 + computerBonus;
     
     // 能力提升：根据题目难度和学生能力
     // 做题会同时提升思维和编码能力，但幅度较小
     const abilityGainBase = boostMultiplier * intensityFactor * (1 - Math.min(0.6, s.pressure/200.0));
-    const thinkingGain = uniform(0.3, 0.8) * abilityGainBase * computerMultiplier * (typeof TRAINING_EFFECT_MULTIPLIER !== 'undefined' ? TRAINING_EFFECT_MULTIPLIER : 1.0);
-    const codingGain = uniform(0.3, 0.8) * abilityGainBase * computerMultiplier * (typeof TRAINING_EFFECT_MULTIPLIER !== 'undefined' ? TRAINING_EFFECT_MULTIPLIER : 1.0);
+    const thinkingGain = uniform(0.6, 1.5) * abilityGainBase * computerMultiplier * (typeof TRAINING_EFFECT_MULTIPLIER !== 'undefined' ? TRAINING_EFFECT_MULTIPLIER : 1.0);
+    const codingGain = uniform(1, 2.5) * abilityGainBase * computerMultiplier * (typeof TRAINING_EFFECT_MULTIPLIER !== 'undefined' ? TRAINING_EFFECT_MULTIPLIER : 1.0);
     
     s.thinking += thinkingGain;
     s.coding += codingGain;
