@@ -2051,11 +2051,10 @@ function calculateIOIResults() {
     return;
   }
   
-  const maxScore = 600; // IOI满分
-  const goldThreshold = maxScore * IOI_GOLD_THRESHOLD;
-  const silverThreshold = maxScore * IOI_SILVER_THRESHOLD;
-  const bronzeThreshold = maxScore * IOI_BRONZE_THRESHOLD;
-  
+  // IOI 奖牌分配：不再使用固定的基础分数线（IOI_GOLD_THRESHOLD 等），
+  // 仅按当前参赛人数的排名百分比分配奖牌（默认 10%/30%/50%）。
+  const maxScore = 600; // IOI满分（仅用于检测满分情形）
+
   // 使用 contest-integration 保存的全部参赛选手成绩（包含国际选手）优先
   const allResults = (game.lastIOIAllResults && Array.isArray(game.lastIOIAllResults) && game.lastIOIAllResults.length > 0)
     ? game.lastIOIAllResults.slice()
@@ -2065,38 +2064,31 @@ function calculateIOIResults() {
   allResults.sort((a,b) => b.score - a.score);
 
   const n = allResults.length;
-  const goldMax = Math.floor(n * 0.10); // 最多 10%
-  const silverMax = Math.floor(n * 0.30); // 最多 30%
-  const bronzeMax = Math.floor(n * 0.50); // 最多 50%
+  const goldMax = Math.floor(n * 0.10);   // 顶部 X% 为金牌（按当前人数计算）
+  const silverMax = Math.floor(n * 0.30); // 接下来 Y% 为银牌
+  const bronzeMax = Math.floor(n * 0.50); // 接下来 Z% 为铜牌
 
-  // 计算前10%分数阈值（用于更严格的金牌线）
-  const top10Index = Math.max(0, Math.floor(n * 0.1) - 1);
-  const top10Score = (allResults[top10Index] && typeof allResults[top10Index].score !== 'undefined') ? allResults[top10Index].score : 0;
-
-  const goldThresholdStrict = Math.max(goldThreshold, top10Score);
-
-  // 初始按阈值分配
+  // 按排名直接分配：前 goldMax 名为金牌，接下来 silverMax 名为银牌，接下来 bronzeMax 名为铜牌
   const medals = { gold: [], silver: [], bronze: [], none: [] };
-  let hasFullScore = false;
-  let chineseHasFullScore = false; // 专门记录中国队是否满分
-  
-  for(const r of allResults){
-    const isChinese = !r.isInternational; // 中国队选手标识
-    const isFullScore = r.score >= maxScore;
-    
-    if(r.score >= goldThresholdStrict){ 
-      medals.gold.push(r); 
-      if(isFullScore){
-        hasFullScore = true;
-        if(isChinese) chineseHasFullScore = true;
-      }
-    }
-    else if(r.score >= silverThreshold){ medals.silver.push(r); }
-    else if(r.score >= bronzeThreshold){ medals.bronze.push(r); }
-    else { medals.none.push(r); }
+  for(let i = 0; i < allResults.length; i++){
+    const r = allResults[i];
+    if(i < goldMax) medals.gold.push(r);
+    else if(i < goldMax + silverMax) medals.silver.push(r);
+    else if(i < goldMax + silverMax + bronzeMax) medals.bronze.push(r);
+    else medals.none.push(r);
   }
 
-  // 强制上限（如果超出则从该级别最低分逐步下调）
+  // 检测是否有满分（用于特定结局显示）
+  let hasFullScore = false;
+  let chineseHasFullScore = false; // 专门记录中国队是否满分
+  for(const g of [].concat(medals.gold, medals.silver, medals.bronze)){
+    if(g.score >= maxScore){
+      hasFullScore = true;
+      if(!g.isInternational) chineseHasFullScore = true;
+    }
+  }
+
+  // 强制上限检查（保留以兼容极端情况/平分边界处理）
   function enforceLimit(groupArray, limit, demoteTo){
     if(groupArray.length <= limit) return;
     // 按分数升序排序，先降分低者
@@ -2107,7 +2099,7 @@ function calculateIOIResults() {
     }
   }
 
-  // 注意：执行顺序从金牌向下，这样被降级的会进入下一个级别并可能再次受限
+  // 执行上限约束（通常不会改变已按排名分配的结果，但在极端平分场景下可保证上限）
   enforceLimit(medals.gold, goldMax, medals.silver);
   enforceLimit(medals.silver, silverMax, medals.bronze);
   enforceLimit(medals.bronze, bronzeMax, medals.none);
@@ -2148,7 +2140,7 @@ function calculateIOIResults() {
   
   html += `</tbody></table>`;
   html += `<div style="margin-top:8px;font-size:13px;color:#666;">`;
-  html += `金牌线：${goldThreshold.toFixed(0)} | 银牌线：${silverThreshold.toFixed(0)} | 铜牌线：${bronzeThreshold.toFixed(0)}`;
+  html += `奖牌分配规则：前 ${Math.round(100*0.10)}% (金) / ${Math.round(100*0.30)}% (银) / ${Math.round(100*0.50)}% (铜)，按当前参赛人数计算`;
   html += `</div>`;
   html += `</div>`;
   
