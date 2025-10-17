@@ -178,8 +178,12 @@
         },
         run: c => {
             for(const s of c.game.students){ if(!s || s.active === false) continue;
-            s.thinking = (s.thinking||0) + c.utils.uniformInt(4,10);
-            s.coding   = (s.coding  ||0) + c.utils.uniformInt(4,10);
+            const incT = c.utils.uniformInt(4,10);
+            const incC = c.utils.uniformInt(4,10);
+            if(typeof s.addThinking === 'function') s.addThinking(incT);
+            else s.thinking = (s.thinking||0) + incT;
+            if(typeof s.addCoding === 'function') s.addCoding(incC);
+            else s.coding = (s.coding  ||0) + incC;
             const oldP = Number(s.pressure || 0);
             s.pressure = Math.max(0,   oldP - c.utils.uniformInt(20,50));
             try{ if(typeof s.triggerTalents === 'function'){ s.triggerTalents('pressure_change', { source: 'coach_visit', amount: s.pressure - oldP }); } }catch(e){ console.error('triggerTalents pressure_change', e); }
