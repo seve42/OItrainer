@@ -1795,10 +1795,9 @@ function showNationalTeamChoice(noiResults, noiMaxScore) {
   html += `<div style="background:#e3f2fd;padding:12px;border-radius:5px;margin-bottom:12px;">`;
   html += `<div style="font-size:14px;font-weight:bold;margin-bottom:8px;">📋 国家集训队说明</div>`;
   html += `<div style="font-size:13px;line-height:1.6;">`;
-  html += `<p>• 进入国家集训队后，将进行CTT（4周后）、CTS（5周后）比赛</p>`;
+  html += `<p>• 进入国家集训队后，将进行CTT、CTS比赛</p>`;
   html += `<p>• 没有金牌的学生将自动退队（不减少声誉）</p>`;
-  html += `<p>• 根据CTT+CTS总分排名，前2名晋级IOI国家队</p>`;
-  html += `<p>• IOI获得奖牌将获得"顶尖结局"，满分则为"AKIOI"结局</p>`;
+  html += `<p>• 根据CTT+CTS总分排名，入选国家队，参加IOI</p>`;
   html += `</div>`;
   html += `</div>`;
   
@@ -2149,7 +2148,7 @@ function calculateIOIResults() {
   } else {
     html += `<div style="background:#ffebee;padding:12px;border-radius:5px;margin-bottom:12px;">`;
     html += `<div style="font-size:16px;font-weight:bold;margin-bottom:8px;color:#c62828;">未获得奖牌</div>`;
-    html += `<div>虽然中国队未获得奖牌，但参加IOI本身就是了不起的成就！</div>`;
+    html += `<div>虽然中国队未获得奖牌，但选手参加IOI本身就是了不起的成就！</div>`;
     html += `</div>`;
   }
   
@@ -3690,7 +3689,7 @@ function mapEndingToDescription(endingTitle){
     '🌟 顶尖结局': '学生在IOI国际赛场上获得奖牌，为国争光！这是信息学竞赛的最高荣誉，你培养出了世界级选手，成为传奇教练。',
     '👑 AKIOI': '不可思议！学生在IOI上取得满分，这是人类智慧的巅峰表现！你的名字将永远铭刻在信息学竞赛的历史上，成为最伟大的教练之一。',
     '😵 崩溃结局': '管理失误，团队陷入混乱，学生因为高压管理训练接连AFO，与赛事缺乏支撑，最终不得不终止项目。',
-    '💼 普通结局': '项目平稳结束，虽无惊艳成就但积累了经验，信息学团队平庸地继续发展。',
+    '💼 普通结局': '项目平稳结束，虽无惊艳成就但积累了经验，信息学团队平稳地继续发展。',
     '❓ 未知结局': '结局信息不完整或读取异常，无法判定具体结果。请检查存档或重放以获得正确结算。'
   };
   return map[endingTitle] || '这是一个结局的简短描述，概述项目在赛季结束时的主要走向与影响。';
