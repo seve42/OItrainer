@@ -654,7 +654,7 @@ body.comp-week .action-cards .action-card:not(#comp-only-action) {
   font-weight: 400;
   border-radius: 6px;
   white-space: nowrap;
-  z-index: 100;
+  z-index: 1000;
   pointer-events: none;
   transition: opacity 0.2s ease, visibility 0.2s ease, transform 0.2s ease;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
