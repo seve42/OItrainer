@@ -410,7 +410,15 @@ function renderAll(){
   if(!document.getElementById('header-week')) return;
   $('header-week').innerText = `第 ${currWeek()} 周`;
   $('header-province').innerText = `省份: ${game.province_name} (${game.province_type})`;
-  $('header-budget').innerText = `经费: ¥${game.budget}`;
+  const headerBudgetEl = $('header-budget');
+  if(headerBudgetEl) headerBudgetEl.innerText = `经费: ¥${game.budget}`;
+  // 当经费低于 20000 时添加警示类以高亮显示（红色），否则移除
+  try{
+    if(headerBudgetEl){
+      if(Number(game.budget) < 20000){ headerBudgetEl.classList.add('low-funds'); }
+      else { headerBudgetEl.classList.remove('low-funds'); }
+    }
+  }catch(e){ /* ignore */ }
   $('header-reputation').innerText = `声誉: ${game.reputation}`;
   $('info-week').innerText = currWeek();
     // week info
