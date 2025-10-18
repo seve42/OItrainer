@@ -997,6 +997,31 @@ body.comp-week .action-cards .action-card:not(#comp-only-action) {
   .topline { gap: 8px !important; }
 }
 
+/* 训话输入框样式 */
+#coach-speech-input {
+  transition: all 0.2s ease;
+  background: #fafafa;
+}
+
+#coach-speech-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(43, 108, 176, 0.1);
+}
+
+#coach-speech-input::placeholder {
+  color: #999;
+  font-style: italic;
+}
+/* 保证输入框在各种容器和视口下不出界 */
+#coach-speech-input {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+}
+
+
 
 
 
