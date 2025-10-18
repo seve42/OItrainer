@@ -22,6 +22,7 @@
 
     <div class="row">
       <button id="btn-trigger-all" class="btn">触发所有事件</button>
+      <button id="btn-force-webproject" class="btn">强制触发：课余项目</button>
       <button id="btn-trigger-poaching" class="btn">测试：触发跨省挖人事件</button>
       <button id="btn-trigger-random" class="btn">运行 EventManager.checkRandomEvents()</button>
       <button id="btn-clear-events" class="btn">清空事件卡片</button>
@@ -105,16 +106,37 @@
         const ctx = { game: g, PROVINCES: window.PROVINCES, constants: window, utils: window, log: console.log };
         if(!window.EventManager || !window.EventManager._events) return appendOut('EventManager 或事件列表未加载');
 
-        // Run each event.run with ctx. This is only for testing — some events may mutate game heavily.
+        // For events that cache per-student rolls in check(), we must call check(ctx) first
         window.EventManager._events.forEach(evt => {
           try{
-            appendOut(`触发事件: ${evt.id} (${evt.name || ''})`);
-            const res = evt.run && evt.run(ctx);
+            appendOut(`检查事件: ${evt.id} (${evt.name || ''})`);
+            const shouldRun = (typeof evt.check === 'function') ? !!evt.check(ctx) : false;
+            appendOut(`  check => ${shouldRun}`);
+            const res = shouldRun && typeof evt.run === 'function' ? evt.run(ctx) : null;
             appendOut(`  run 返回: ${String(res)}`);
           }catch(e){ appendOut(`  执行失败: ${e.message}`); }
         });
-        renderAll();
-        renderEventCards();
+        try{ renderAll(); }catch(e){}
+        try{ renderEventCards(); }catch(e){}
+      });
+
+      // Force-trigger helper: trigger web_game_project for first active student
+      document.getElementById('btn-force-webproject').addEventListener('click', ()=>{
+        const g = ensureGame();
+        const ctx = { game: g, PROVINCES: window.PROVINCES, constants: window, utils: window, log: console.log };
+        if(!window.EventManager || !window.EventManager._events) return appendOut('EventManager 未加载');
+        const evt = window.EventManager._events.find(e=>e.id === 'web_game_project');
+        if(!evt) return appendOut('未找到 web_game_project 事件');
+        // force a single student as triggered
+        const active = (g.students || []).filter(s=>s && s.active !== false);
+        if(active.length === 0) return appendOut('没有可用学生');
+        evt._pendingTriggered = [ active[0] ];
+        appendOut('已设置 pendingTriggered，调用 run');
+        try{
+          const res = evt.run && evt.run(ctx);
+          appendOut('run 返回: ' + String(res));
+          try{ renderAll(); }catch(e){}
+        }catch(e){ appendOut('执行失败: ' + e.message); }
       });
 
       // Expose convenience

@@ -683,6 +683,302 @@
           return null; // 不产生全局弹窗，由 talent.js 自己处理
         }
       });
+
+      // -- 学生日常活动事件（每学生1%概率）--
+      // 工具：helper for per-student 1% rolls
+      function perStudentRolls(game){
+        return (game.students || []).filter(s => s && s.active !== false);
+      }
+
+      // 项目：学生写网页游戏
+      this.register({
+        id: 'web_game_project',
+        name: '课余项目',
+        description: '学生在课余时间写了一个网页游戏',
+        check: function(c) {
+          const active = perStudentRolls(c.game);
+          this._pendingTriggered = active.filter(() => getRandom() < 0.003);
+          return this._pendingTriggered.length > 0;
+        },
+        run: function(c) {
+          const triggered = this._pendingTriggered || [];
+          this._pendingTriggered = null;
+          if (!triggered.length) return null;
+          for (const s of triggered) {
+            if (typeof s.addCoding === 'function') s.addCoding(10);
+            else s.coding = (s.coding || 0) + 10;
+          }
+          const names = triggered.map(s => s.name).join('、');
+          const msg = `${names} 写了一个网页游戏，代码能力 +10`;
+          c.log && c.log(`[课余项目] ${msg}`);
+          window.pushEvent && window.pushEvent({ name: '课余项目', description: msg, week: c.game.week });
+          return null;
+        }
+      });
+
+      // 扑克牌：学生做扑克牌
+      this.register({
+        id: 'poker_cards',
+        name: '扑克牌',
+        description: '学生用草稿纸做了一副扑克牌',
+        check: function(c){
+          const active = perStudentRolls(c.game);
+          this._pendingTriggered = active.filter(() => getRandom() < 0.003);
+          return this._pendingTriggered.length > 0;
+        },
+        run: function(c){
+          const triggered = this._pendingTriggered || [];
+          this._pendingTriggered = null;
+          if (!triggered.length) return null;
+          for (const s of triggered){
+            const oldP = Number(s.pressure || 0);
+            s.pressure = Math.max(0, oldP - 5);
+            try{ if(typeof s.triggerTalents === 'function'){ s.triggerTalents('pressure_change', { source: 'poker_cards', amount: s.pressure - oldP }); } }catch(e){}
+          }
+          const names = triggered.map(s => s.name).join('、');
+          const msg = `${names} 用草稿纸做了一副扑克牌，压力 -5`;
+          c.log && c.log(`[扑克牌] ${msg}`);
+          window.pushEvent && window.pushEvent({ name: '扑克牌', description: msg, week: c.game.week });
+          return null;
+        }
+      });
+
+      // 三国杀：学生做三国杀
+      this.register({
+        id: 'sanguosha',
+        name: '三国杀',
+        description: '学生做了猪国杀后用草稿纸做了一整套三国杀',
+        check: function(c){
+          const active = perStudentRolls(c.game);
+          this._pendingTriggered = active.filter(() => getRandom() < 0.003);
+          return this._pendingTriggered.length > 0;
+        },
+        run: function(c){
+          const triggered = this._pendingTriggered || [];
+          this._pendingTriggered = null;
+          if (!triggered.length) return null;
+          for (const s of triggered){
+            const oldP = Number(s.pressure || 0);
+            s.pressure = Math.max(0, oldP - 5);
+            try{ if(typeof s.triggerTalents === 'function'){ s.triggerTalents('pressure_change', { source: 'sanguosha', amount: s.pressure - oldP }); } }catch(e){}
+          }
+          const names = triggered.map(s => s.name).join('、');
+          const msg = `${names} 做了猪国杀后用草稿纸做了一整套三国杀，压力 -5`;
+          c.log && c.log(`[三国杀] ${msg}`);
+          window.pushEvent && window.pushEvent({ name: '三国杀', description: msg, week: c.game.week });
+          return null;
+        }
+      });
+
+      // 臭水：学生养的臭水炸了
+      this.register({
+        id: 'stinky_water',
+        name: '臭水',
+        description: '学生在机房养的臭水炸了',
+        check: function(c){
+          const active = perStudentRolls(c.game);
+          this._pendingTriggered = active.filter(() => getRandom() < 0.003);
+          return this._pendingTriggered.length > 0;
+        },
+        run: function(c){
+          const triggered = this._pendingTriggered || [];
+          this._pendingTriggered = null;
+          if (!triggered.length) return null;
+          for (const s of triggered){
+            const oldP = Number(s.pressure || 0);
+            s.pressure = Math.max(0, oldP - 10);
+            s.comfort = Math.max(0, s.comfort - 5);
+            try{ if(typeof s.triggerTalents === 'function'){ s.triggerTalents('pressure_change', { source: 'stinky_water', amount: s.pressure - oldP }); } }catch(e){}
+          }
+          const names = triggered.map(s => s.name).join('、');
+          const msg = `${names} 在机房养的臭水炸了，压力 -10，舒适度 -5`;
+          c.log && c.log(`[臭水] ${msg}`);
+          window.pushEvent && window.pushEvent({ name: '臭水', description: msg, week: c.game.week });
+          return null;
+        }
+      });
+
+      // WMC：学生用希沃白板打舞梦DX
+      this.register({
+        id: 'wmc_game',
+        name: 'WMC',
+        description: '学生用希沃白板打舞梦DX',
+        check: function(c){
+          const active = perStudentRolls(c.game);
+          this._pendingTriggered = active.filter(() => getRandom() < 0.003);
+          return this._pendingTriggered.length > 0;
+        },
+        run: function(c){
+          const triggered = this._pendingTriggered || [];
+          this._pendingTriggered = null;
+          if (!triggered.length) return null;
+          for (const s of triggered){
+            const oldP = Number(s.pressure || 0);
+            s.pressure = Math.max(0, oldP - 5);
+            try{ if(typeof s.triggerTalents === 'function'){ s.triggerTalents('pressure_change', { source: 'wmc_game', amount: s.pressure - oldP }); } }catch(e){}
+          }
+          const names = triggered.map(s => s.name).join('、');
+          const msg = `${names} 用希沃白板打舞梦DX，压力 -5`;
+          c.log && c.log(`[WMC] ${msg}`);
+          window.pushEvent && window.pushEvent({ name: 'WMC', description: msg, week: c.game.week });
+          return null;
+        }
+      });
+
+      // 蟋蟀：学生宿舍进了蛐蛐
+      this.register({
+        id: 'cricket',
+        name: '蟋蟀',
+        description: '学生的宿舍进了蛐蛐，叫了一晚上',
+        check: function(c){
+          const active = perStudentRolls(c.game);
+          this._pendingTriggered = active.filter(() => getRandom() < 0.003);
+          return this._pendingTriggered.length > 0;
+        },
+        run: function(c){
+          const triggered = this._pendingTriggered || [];
+          this._pendingTriggered = null;
+          if (!triggered.length) return null;
+          for (const s of triggered){ s.comfort = Math.max(0, s.comfort - 3); }
+          const names = triggered.map(s => s.name).join('、');
+          const msg = `${names} 的宿舍进了蛐蛐，叫了一晚上，舒适度 -3`;
+          c.log && c.log(`[蟋蟀] ${msg}`);
+          window.pushEvent && window.pushEvent({ name: '蟋蟀', description: msg, week: c.game.week });
+          return null;
+        }
+      });
+
+      // florr：学生发现florr.io
+      this.register({
+        id: 'florr_game',
+        name: 'florr',
+        description: '学生发现了一款名为florr.io的游戏',
+        check: function(c){
+          const active = perStudentRolls(c.game);
+          this._pendingTriggered = active.filter(() => getRandom() < 0.003);
+          return this._pendingTriggered.length > 0;
+        },
+        run: function(c){
+          const triggered = this._pendingTriggered || [];
+          this._pendingTriggered = null;
+          if (!triggered.length) return null;
+          for (const s of triggered){
+            const oldP = Number(s.pressure || 0);
+            s.pressure = Math.max(0, oldP - 5);
+            try{ if(typeof s.triggerTalents === 'function'){ s.triggerTalents('pressure_change', { source: 'florr_game', amount: s.pressure - oldP }); } }catch(e){}
+          }
+          const names = triggered.map(s => s.name).join('、');
+          const msg = `${names} 发现了一款名为florr.io的游戏，压力 -5`;
+          c.log && c.log(`[florr] ${msg}`);
+          window.pushEvent && window.pushEvent({ name: 'florr', description: msg, week: c.game.week });
+          return null;
+        }
+      });
+
+      // 冰与火之舞：学生玩冰与火之舞
+      this.register({
+        id: 'ice_fire_dance',
+        name: '冰与火之舞',
+        description: '学生使用机械键盘大力游玩冰与火之舞',
+        check: function(c){
+          const active = perStudentRolls(c.game);
+          this._pendingTriggered = active.filter(() => getRandom() < 0.003);
+          return this._pendingTriggered.length > 0;
+        },
+        run: function(c){
+          const triggered = this._pendingTriggered || [];
+          this._pendingTriggered = null;
+          if (!triggered.length) return null;
+          for (const s of triggered){
+            const oldP = Number(s.pressure || 0);
+            s.pressure = Math.max(0, oldP - 5);
+            s.comfort = Math.max(0, s.comfort - 3);
+            try{ if(typeof s.triggerTalents === 'function'){ s.triggerTalents('pressure_change', { source: 'ice_fire_dance', amount: s.pressure - oldP }); } }catch(e){}
+          }
+          const names = triggered.map(s => s.name).join('、');
+          const msg = `${names} 使用机械键盘大力游玩冰与火之舞，压力 -5，舒适度 -3`;
+          c.log && c.log(`[冰与火之舞] ${msg}`);
+          window.pushEvent && window.pushEvent({ name: '冰与火之舞', description: msg, week: c.game.week });
+          return null;
+        }
+      });
+
+      // 约跑：学生晚上去操场跑步
+      this.register({
+        id: 'evening_run',
+        name: '约跑',
+        description: '学生晚上去操场跑步',
+        check: function(c){
+          const active = perStudentRolls(c.game);
+          this._pendingTriggered = active.filter(() => getRandom() < 0.003);
+          return this._pendingTriggered.length > 0;
+        },
+        run: function(c){
+          const triggered = this._pendingTriggered || [];
+          this._pendingTriggered = null;
+          if (!triggered.length) return null;
+          for (const s of triggered){
+            const oldP = Number(s.pressure || 0);
+            s.pressure = Math.max(0, oldP - 5);
+            try{ if(typeof s.triggerTalents === 'function'){ s.triggerTalents('pressure_change', { source: 'evening_run', amount: s.pressure - oldP }); } }catch(e){}
+          }
+          const names = triggered.map(s => s.name).join('、');
+          const msg = `${names} 晚上去操场跑步，压力 -5`;
+          c.log && c.log(`[约跑] ${msg}`);
+          window.pushEvent && window.pushEvent({ name: '约跑', description: msg, week: c.game.week });
+          return null;
+        }
+      });
+
+      // 蓝色P站：学生访问洛谷
+      this.register({
+        id: 'blue_p_site',
+        name: '蓝色P站',
+        description: '发现学生的流量中有指向蓝色p站的',
+        check: function(c){
+          const active = perStudentRolls(c.game);
+          this._pendingTriggered = active.filter(() => getRandom() < 0.003);
+          return this._pendingTriggered.length > 0;
+        },
+        run: function(c){
+          const triggered = this._pendingTriggered || [];
+          this._pendingTriggered = null;
+          if (!triggered.length) return null;
+          const names = triggered.map(s => s.name).join('、');
+          const msg = `你发现 ${names} 的流量中有指向蓝色p站的`;
+          c.log && c.log(`[蓝色P站] ${msg}`);
+          window.pushEvent && window.pushEvent({ name: '蓝色P站', description: msg, week: c.game.week });
+          return null;
+        }
+      });
+
+      // 橙色P站：学生访问...
+      this.register({
+        id: 'orange_p_site',
+        name: '橙色P站',
+        description: '发现学生访问了橙色p站',
+        check: function(c){
+          const active = perStudentRolls(c.game);
+          this._pendingTriggered = active.filter(() => getRandom() < 0.003);
+          return this._pendingTriggered.length > 0;
+        },
+        run: function(c){
+          const triggered = this._pendingTriggered || [];
+          this._pendingTriggered = null;
+          if (!triggered.length) return null;
+          for (const s of triggered){
+            const oldP = Number(s.pressure || 0);
+            s.pressure = Math.max(0, oldP - 10);
+            s.mental = Math.max(0, (s.mental || 100) - 5);
+            try{ if(typeof s.triggerTalents === 'function'){ s.triggerTalents('pressure_change', { source: 'orange_p_site', amount: s.pressure - oldP }); } }catch(e){}
+          }
+          const names = triggered.map(s => s.name).join('、');
+          const msg = `你发现 ${names} 的流量指向......（压力 -10，心理素质 -5）`;
+          c.log && c.log(`[橙色P站] ${msg}`);
+          window.pushEvent && window.pushEvent({ name: '橙色P站', description: msg, week: c.game.week });
+          return null;
+        }
+      });
       
     },
 
