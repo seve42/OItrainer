@@ -16,7 +16,7 @@
 
 ## 游玩
 
-直接访问 [oi.seveoi.icu](oi.seveoi.icu) 即可。
+直接访问 [oi.seveoi.icu](https://oi.seveoi.icu) 即可。
 
 ## 开发
 
@@ -28,6 +28,7 @@
   - 其他脚本`tutorial.js` 等
 
 如果要修改并本地调试，建议使用带开发者工具的浏览器（Chrome/Edge/Firefox）。
+(主要由AI完成，代码可能并不可读)
 
 ## 贡献
 
@@ -36,11 +37,15 @@
 ## 许可
 
   Apache License
+
     Version 2.0, January 2004
+
   欢迎对该项目进行魔改/微调，但请保留原作者信息与许可声明。
 
 ## 致谢与联系方式
 
 作者：seve42
+
 luogu: seve_
+
 邮箱: dreamer-seve@outlook.com 或 dreamersseve@gmail.com
