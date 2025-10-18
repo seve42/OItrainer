@@ -465,6 +465,8 @@ body.comp-week .action-cards .action-card:not(#comp-only-action) {
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: 12px;
   margin: 16px 0;
+  /* 保证在大量面板重排时容器不会瞬间折叠为0高度导致空白 */
+  min-height: 80px;
 }
 
 .student-panel {
@@ -476,6 +478,7 @@ body.comp-week .action-cards .action-card:not(#comp-only-action) {
   position: relative;
   /* transform动画由JS控制 */
   will-change: transform;
+  backface-visibility: hidden; /* 提升渲染稳定性 */
 }
 
 .student-name {
