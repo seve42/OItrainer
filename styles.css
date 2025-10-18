@@ -830,6 +830,74 @@ body.comp-week .action-cards .action-card:not(#comp-only-action) {
 
 /* 小屏幕优化 */
 @media (max-width: 767px) {
+  /* 容器和边距优化 */
+  .container {
+    padding: 8px;
+    margin: 10px auto;
+  }
+  
+  /* 头部优化 */
+  header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    padding: 12px;
+  }
+  
+  header h1 {
+    font-size: 16px;
+    text-align: center;
+  }
+  
+  .topline {
+    flex-direction: column;
+    gap: 6px;
+    align-items: stretch;
+  }
+  
+  .topline .small {
+    white-space: normal;
+    font-size: 12px;
+    padding: 4px 0;
+  }
+  
+  .topline > div {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  
+  /* 移除帮助按钮的左边距 */
+  .topline > div[style*="margin-left"] {
+    margin-left: 0 !important;
+  }
+  
+  /* 主布局优化 - 垂直堆叠 */
+  .row {
+    flex-direction: column;
+    gap: 12px;
+  }
+  
+  .col {
+    min-width: 100%;
+  }
+  
+  /* 强制覆盖内联样式 - 学生面板 */
+  .col.panel[style*="flex: 1 1 600px"] {
+    flex: 1 1 100% !important;
+  }
+  
+  /* 强制覆盖内联样式 - 操作面板 */
+  .col.panel[style*="flex: 0 0 360px"] {
+    flex: 1 1 100% !important;
+  }
+  
+  /* 面板优化 */
+  .panel {
+    padding: 10px;
+  }
+  
+  /* 学生列表卡片优化 */
   .student-box {
     padding: 8px 10px;
   }
@@ -840,6 +908,18 @@ body.comp-week .action-cards .action-card:not(#comp-only-action) {
     gap: 8px !important;
   }
   
+  .student-box .student-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+    padding-right: 50px;
+  }
+  
+  .student-box .student-status {
+    flex-wrap: wrap;
+  }
+  
+  /* 知识点徽章优化 */
   .knowledge-badges {
     gap: 3px;
   }
@@ -847,6 +927,254 @@ body.comp-week .action-cards .action-card:not(#comp-only-action) {
   .knowledge-badges .kb {
     padding: 2px 5px;
     font-size: 10px;
+  }
+  
+  /* 能力指标分组优化 */
+  .ability-group {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  
+  .ability-item {
+    font-size: 11px;
+  }
+  
+  /* 设施网格优化 - 改为2列 */
+  .facility-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 6px;
+  }
+  
+  .facility {
+    padding: 6px;
+  }
+  
+  .fac-label {
+    font-size: 12px;
+  }
+  
+  .facility .small {
+    font-size: 11px;
+  }
+  
+  .btn.upgrade {
+    padding: 5px 6px;
+    font-size: 12px;
+  }
+  
+  /* 行动卡片优化 */
+  .action-cards {
+    gap: 6px;
+  }
+  
+  .action-card {
+    padding: 8px;
+  }
+  
+  .action-card .card-title {
+    font-size: 14px;
+  }
+  
+  .action-card .card-desc {
+    font-size: 12px;
+  }
+  
+  /* 事件卡片优化 */
+  .event-card {
+    padding: 8px;
+    margin-top: 8px;
+  }
+  
+  .event-options {
+    flex-direction: column;
+    gap: 6px;
+  }
+  
+  .event-choice-btn {
+    width: 100%;
+    text-align: center;
+  }
+  
+  /* 周信息面板优化 */
+  .next-panel {
+    padding: 6px;
+  }
+  
+  /* 日志区域优化 */
+  #log {
+    height: 60px;
+    font-size: 12px;
+  }
+  
+  /* 按钮优化 */
+  .btn {
+    padding: 6px 10px;
+    font-size: 13px;
+  }
+  
+  .btn-ghost {
+    padding: 5px 8px;
+    font-size: 12px;
+  }
+  
+  /* 帮助按钮优化 */
+  #help-btn {
+    width: 100%;
+    text-align: center;
+  }
+  
+  /* 舒适度显示优化 */
+  .flex-between {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+  
+  .flex-between h3 {
+    font-size: 16px;
+  }
+  
+  /* 标题和间距优化 */
+  h3 {
+    font-size: 15px;
+  }
+  
+  h4 {
+    font-size: 14px;
+  }
+  
+  /* 底部面板优化 */
+  #footer-panel .row {
+    flex-direction: column;
+  }
+  
+  #footer-panel .col {
+    width: 100%;
+  }
+  
+  #footer-panel .small {
+    font-size: 12px;
+  }
+  
+  /* Footer 优化 */
+  footer {
+    font-size: 11px !important;
+    padding: 8px 4px !important;
+    margin-top: 12px !important;
+  }
+  
+  footer a {
+    display: inline-block;
+    word-break: break-all;
+  }
+  
+  /* 对话框优化 */
+  .dialog {
+    width: 95%;
+    padding: 12px;
+    max-height: 90vh;
+  }
+  
+  .dialog h3 {
+    font-size: 16px;
+  }
+  
+  /* 表格优化 */
+  table {
+    font-size: 12px;
+  }
+  
+  th, td {
+    padding: 4px;
+    font-size: 11px;
+  }
+  
+  /* 省份选择网格优化 */
+  .prov-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 4px;
+  }
+  
+  .prov-btn {
+    padding: 6px 4px;
+    font-size: 12px;
+  }
+  
+  /* 比赛系统响应式优化 */
+  .contest-live-container {
+    padding: 0 4px;
+  }
+  
+  .contest-header {
+    padding: 8px;
+  }
+  
+  /* 状态行优化 */
+  .status-row {
+    gap: 6px;
+  }
+}
+
+/* 超小屏幕优化 (< 480px) */
+@media (max-width: 479px) {
+  .container {
+    padding: 4px;
+  }
+  
+  header {
+    padding: 8px;
+  }
+  
+  header h1 {
+    font-size: 14px;
+  }
+  
+  .panel {
+    padding: 8px;
+  }
+  
+  /* 设施网格改为单列 */
+  .facility-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  /* 字体大小进一步缩小 */
+  .small, .muted {
+    font-size: 11px;
+  }
+  
+  .topline .small {
+    font-size: 11px;
+  }
+  
+  /* 学生卡片进一步优化 */
+  .student-box .student-name {
+    font-size: 14px;
+  }
+  
+  .evict-btn {
+    font-size: 9px;
+    padding: 2px 6px;
+  }
+  
+  /* 省份选择改为2列 */
+  .prov-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  /* 行动卡片标题进一步缩小 */
+  .action-card .card-title {
+    font-size: 13px;
+  }
+  
+  .action-card .card-desc {
+    font-size: 11px;
+  }
+  
+  /* Footer 进一步缩小 */
+  footer {
+    font-size: 10px !important;
+    padding: 6px 4px !important;
   }
 }
 
