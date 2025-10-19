@@ -4151,17 +4151,8 @@ window.onload = ()=>{
 
 /**
  * 调试函数：生成超强学生并跳转到第二年NOI
- * 使用方法：在浏览器控制台中输入
- *  debugJumpToNOI() 即可
- * 
- * 功能：
- * 1. 清空当前所有学生
- * 2. 创建一个所有属性为500的超强学生
- * 3. 自动跳转到第二年NOI前（第14周）
- * 4. 自动授予所有比赛的晋级资格
- * 5. 设置充足的经费
+ * 使用方法：在浏览器控制台中输入 debugzak() 即可
  */
-
 function debugzak() {
   if(typeof game === 'undefined' || !game) {
     console.error('游戏未初始化，请先开始游戏');

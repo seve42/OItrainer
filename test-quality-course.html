@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>优质网课事件测试</title>
+  <style>
+    body {
+      font-family: 'Microsoft YaHei', Arial, sans-serif;
+      max-width: 800px;
+      margin: 40px auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .test-section {
+      background: white;
+      padding: 20px;
+      margin: 20px 0;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    h1 { color: #333; }
+    h2 { color: #666; border-bottom: 2px solid #e0e0e0; padding-bottom: 10px; }
+    .result { padding: 10px; margin: 10px 0; border-radius: 4px; }
+    .success { background: #d4edda; color: #155724; }
+    .error { background: #f8d7da; color: #721c24; }
+    .info { background: #d1ecf1; color: #0c5460; }
+    pre { background: #f8f9fa; padding: 10px; border-radius: 4px; overflow-x: auto; }
+    button {
+      padding: 10px 20px;
+      margin: 5px;
+      cursor: pointer;
+      background: #007bff;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+    button:hover { background: #0056b3; }
+    .stat { display: inline-block; margin: 10px 20px 10px 0; }
+    .stat-label { font-weight: bold; color: #666; }
+    .stat-value { color: #007bff; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <h1>🎓 优质网课事件接口测试</h1>
+  
+  <div class="test-section">
+    <h2>测试说明</h2>
+    <p>本测试验证"优质网课"事件与 Student.addKnowledge() 接口的对接情况。</p>
+    <ul>
+      <li>测试不同资料库等级的收益计算</li>
+      <li>验证接口调用的正确性</li>
+      <li>检查向后兼容模式</li>
+      <li>确认事件推送功能</li>
+    </ul>
+  </div>
+
+  <div class="test-section">
+    <h2>测试控制</h2>
+    <button onclick="runBasicTest()">基础功能测试</button>
+    <button onclick="runLibraryLevelTest()">资料库等级测试</button>
+    <button onclick="runCompatibilityTest()">向后兼容测试</button>
+    <button onclick="runAllTests()">运行全部测试</button>
+    <button onclick="clearResults()">清除结果</button>
+  </div>
+
+  <div id="results"></div>
+
+  <!-- 加载依赖文件 -->
+  <script src="lib/constants.js"></script>
+  <script src="lib/utils.js"></script>
+  <script src="lib/models.js"></script>
+  <script src="events.js"></script>
+
+  <script>
+    // 测试结果容器
+    const resultsDiv = document.getElementById('results');
+    let testResults = [];
+
+    // 辅助函数
+    function log(message, type = 'info') {
+      const result = { message, type, time: new Date().toLocaleTimeString() };
+      testResults.push(result);
+      updateDisplay();
+    }
+
+    function updateDisplay() {
+      resultsDiv.innerHTML = testResults.map(r => 
+        `<div class="result ${r.type}">
+          <strong>[${r.time}]</strong> ${r.message}
+        </div>`
+      ).join('');
+      resultsDiv.scrollTop = resultsDiv.scrollHeight;
+    }
+
+    function clearResults() {
+      testResults = [];
+      updateDisplay();
+    }
+
+    // 模拟 pushEvent 和 log
+    let pushedEvents = [];
+    window.pushEvent = function(evt) {
+      pushedEvents.push(evt);
+      log(`📤 事件推送: ${evt.name} - ${evt.description}`, 'info');
+    };
+
+    window.log = function(msg) {
+      console.log(msg);
+    };
+
+    // 创建测试游戏状态
+    function createTestGame(libraryLevel = 1) {
+      const game = new GameState();
+      game.week = 10;
+      game.facilities.library = libraryLevel;
+      
+      // 创建测试学生
+      const student = new Student('测试学生', 50, 50, 60);
+      student.knowledge_ds = 10;
+      student.knowledge_graph = 10;
+      student.knowledge_string = 10;
+      student.knowledge_math = 10;
+      student.knowledge_dp = 10;
+      
+      game.students.push(student);
+      return game;
+    }
+
+    // 测试1: 基础功能测试
+    function runBasicTest() {
+      log('=== 开始基础功能测试 ===', 'info');
+      
+      try {
+        const game = createTestGame(2);
+        const student = game.students[0];
+        
+        // 记录初始值
+        const initialKnowledge = {
+          ds: student.knowledge_ds,
+          graph: student.knowledge_graph,
+          string: student.knowledge_string,
+          math: student.knowledge_math,
+          dp: student.knowledge_dp
+        };
+        
+        log(`初始知识点: ${JSON.stringify(initialKnowledge)}`, 'info');
+        
+        // 初始化事件管理器
+        EventManager.registerDefaultEvents({
+          game: game,
+          constants: window,
+          utils: window,
+          log: console.log
+        });
+        
+        // 手动触发优质网课事件
+        const event = EventManager._events.find(e => e.id === 'quality_course_found');
+        if (!event) {
+          log('❌ 未找到优质网课事件', 'error');
+          return;
+        }
+        
+        const ctx = {
+          game: game,
+          utils: window,
+          log: console.log
+        };
+        
+        const result = event.run(ctx);
+        
+        // 检查结果
+        const knowledgeChanged = 
+          student.knowledge_ds !== initialKnowledge.ds ||
+          student.knowledge_graph !== initialKnowledge.graph ||
+          student.knowledge_string !== initialKnowledge.string ||
+          student.knowledge_math !== initialKnowledge.math ||
+          student.knowledge_dp !== initialKnowledge.dp;
+        
+        if (knowledgeChanged) {
+          log('✅ 知识点已更新', 'success');
+          log(`新知识点: DS=${student.knowledge_ds}, 图=${student.knowledge_graph}, 串=${student.knowledge_string}, 数=${student.knowledge_math}, DP=${student.knowledge_dp}`, 'info');
+        } else {
+          log('❌ 知识点未变化', 'error');
+        }
+        
+        if (result) {
+          log(`✅ 事件返回: ${result}`, 'success');
+        }
+        
+        if (pushedEvents.length > 0) {
+          log(`✅ 成功推送 ${pushedEvents.length} 个事件`, 'success');
+        }
+        
+        log('=== 基础功能测试完成 ===', 'success');
+        
+      } catch (error) {
+        log(`❌ 测试失败: ${error.message}`, 'error');
+        console.error(error);
+      }
+      
+      pushedEvents = [];
+    }
+
+    // 测试2: 资料库等级测试
+    function runLibraryLevelTest() {
+      log('=== 开始资料库等级测试 ===', 'info');
+      
+      try {
+        const levels = [1, 2, 3, 4];
+        
+        for (const level of levels) {
+          const game = createTestGame(level);
+          const student = game.students[0];
+          const initialTotal = student.getKnowledgeTotal();
+          
+          EventManager.registerDefaultEvents({
+            game: game,
+            constants: window,
+            utils: window,
+            log: console.log
+          });
+          
+          const event = EventManager._events.find(e => e.id === 'quality_course_found');
+          const ctx = { game: game, utils: window, log: console.log };
+          
+          // 运行10次取平均值
+          let totalGain = 0;
+          for (let i = 0; i < 10; i++) {
+            const beforeTotal = student.getKnowledgeTotal();
+            event.run(ctx);
+            const afterTotal = student.getKnowledgeTotal();
+            totalGain += (afterTotal - beforeTotal);
+          }
+          const avgGain = totalGain / 10;
+          
+          log(`📊 资料库 Lv.${level}: 平均收益 = ${avgGain.toFixed(2)} 知识点`, 'info');
+          
+          // 验证收益范围
+          const expectedMin = 1 + Math.floor(level * 0.5);
+          const expectedMax = 3 + Math.floor(level * 0.5);
+          
+          if (avgGain >= expectedMin && avgGain <= expectedMax + 0.5) {
+            log(`✅ Lv.${level} 收益在合理范围内 (${expectedMin}-${expectedMax})`, 'success');
+          } else {
+            log(`⚠️ Lv.${level} 收益异常: 期望${expectedMin}-${expectedMax}, 实际${avgGain.toFixed(2)}`, 'error');
+          }
+        }
+        
+        log('=== 资料库等级测试完成 ===', 'success');
+        
+      } catch (error) {
+        log(`❌ 测试失败: ${error.message}`, 'error');
+        console.error(error);
+      }
+      
+      pushedEvents = [];
+    }
+
+    // 测试3: 向后兼容测试
+    function runCompatibilityTest() {
+      log('=== 开始向后兼容测试 ===', 'info');
+      
+      try {
+        const game = createTestGame(1);
+        const oldStudent = {
+          name: '旧版学生',
+          active: true,
+          knowledge_ds: 10,
+          knowledge_graph: 10,
+          knowledge_string: 10,
+          knowledge_math: 10,
+          knowledge_dp: 10
+        };
+        
+        game.students.push(oldStudent);
+        
+        EventManager.registerDefaultEvents({
+          game: game,
+          constants: window,
+          utils: window,
+          log: console.log
+        });
+        
+        const event = EventManager._events.find(e => e.id === 'quality_course_found');
+        const ctx = { game: game, utils: window, log: console.log };
+        
+        const initialTotal = oldStudent.knowledge_ds + oldStudent.knowledge_graph + 
+                            oldStudent.knowledge_string + oldStudent.knowledge_math + 
+                            oldStudent.knowledge_dp;
+        
+        // 捕获控制台警告
+        const originalWarn = console.warn;
+        let warnCalled = false;
+        console.warn = function(...args) {
+          if (args[0].includes('缺少 addKnowledge 方法')) {
+            warnCalled = true;
+          }
+          originalWarn.apply(console, args);
+        };
+        
+        event.run(ctx);
+        
+        console.warn = originalWarn;
+        
+        const finalTotal = oldStudent.knowledge_ds + oldStudent.knowledge_graph + 
+                          oldStudent.knowledge_string + oldStudent.knowledge_math + 
+                          oldStudent.knowledge_dp;
+        
+        if (warnCalled) {
+          log('✅ 正确检测到缺少 addKnowledge 方法并发出警告', 'success');
+        } else {
+          log('⚠️ 未发出兼容模式警告', 'error');
+        }
+        
+        if (finalTotal > initialTotal) {
+          log('✅ 向后兼容模式正常工作，知识点已增加', 'success');
+          log(`知识点变化: ${initialTotal} → ${finalTotal} (+${finalTotal - initialTotal})`, 'info');
+        } else {
+          log('❌ 向后兼容模式失败', 'error');
+        }
+        
+        log('=== 向后兼容测试完成 ===', 'success');
+        
+      } catch (error) {
+        log(`❌ 测试失败: ${error.message}`, 'error');
+        console.error(error);
+      }
+      
+      pushedEvents = [];
+    }
+
+    // 运行所有测试
+    function runAllTests() {
+      clearResults();
+      log('🚀 开始运行所有测试...', 'info');
+      runBasicTest();
+      setTimeout(() => {
+        runLibraryLevelTest();
+        setTimeout(() => {
+          runCompatibilityTest();
+          log('✅ 所有测试完成！', 'success');
+        }, 100);
+      }, 100);
+    }
+
+    // 页面加载时显示欢迎信息
+    window.addEventListener('load', () => {
+      log('✨ 测试环境已就绪，点击按钮开始测试', 'info');
+    });
+  </script>
+</body>
+</html>

@@ -201,14 +201,34 @@
         description: '资料库等级越高，越容易发现优质网课',
         check: c => getRandom() < 0.02 * (c.game.facilities.library || 1),
         run: c => {
-          // 使用游戏中实际的知识类型
+          // 使用游戏中实际的知识类型（与 Student.addKnowledge 接口对齐）
           const topics = ['数据结构','图论','字符串','数学','DP'];
           const topic = topics[c.utils.uniformInt(0, topics.length - 1)];
-          for(const s of c.game.students){ if(!s || s.active === false) continue;
-            s.knowledge = s.knowledge || {};
-            s.knowledge[topic] = (s.knowledge[topic] || 0) + c.utils.uniformInt(1,5);
+          
+          // 资料库等级影响收益：等级越高，收益越大
+          const libraryLevel = c.game.facilities.library || 1;
+          const baseGain = c.utils.uniformInt(5, 10);
+          const bonusGain = Math.floor(libraryLevel * 0.5); // 每级资料库额外+0.5倍基础收益
+          const totalGain = baseGain + bonusGain;
+          
+          for(const s of c.game.students){ 
+            if(!s || s.active === false) continue;
+            
+            // 直接调用 Student.addKnowledge 接口（已包含安全检查和fallback）
+            if(typeof s.addKnowledge === 'function'){
+              s.addKnowledge(topic, totalGain);
+            } else {
+              // 向后兼容：直接操作字段（仅在 addKnowledge 方法不存在时）
+              console.warn(`[优质网课] 学生 ${s.name} 缺少 addKnowledge 方法，使用兼容模式`);
+              if(topic === '数据结构') s.knowledge_ds = (s.knowledge_ds || 0) + totalGain;
+              else if(topic === '图论') s.knowledge_graph = (s.knowledge_graph || 0) + totalGain;
+              else if(topic === '字符串') s.knowledge_string = (s.knowledge_string || 0) + totalGain;
+              else if(topic === '数学') s.knowledge_math = (s.knowledge_math || 0) + totalGain;
+              else if(topic === 'DP') s.knowledge_dp = (s.knowledge_dp || 0) + totalGain;
+            }
           }
-          const msg = `在【${topic}】上获得少量提升`;
+          
+          const msg = `在【${topic}】上获得 +${totalGain} 知识点（资料库 Lv.${libraryLevel}）`;
           c.log && c.log(`[优质网课] ${msg}`);
           window.pushEvent && window.pushEvent({ name:'优质网课', description: msg, week: c.game.week });
           return msg;
