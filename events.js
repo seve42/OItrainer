@@ -1006,9 +1006,9 @@
 
   try{ if (log) log(`coach-speech received: text='${String(text).slice(0,200)}' hash='${String(hash)}'`); }catch(_){}
 
-        // 目标哈希（来自用户）
-        const RENLIANG1 = 'f86a5c0dbcc6d2cf0d0b162e6b84c5a54f1774e334128e8a3563bb6f3d3c695a'; // 下课必须放松吗？
-        const RENLIANG2 = '8d54515075dbd5891e00b96573b375f9e6cf8deee47e5c59fafeaa323903d66a'; // 竞赛生没有特权你明白吗？
+        // 目标哈希
+        const RENLIANG1 = 'f86a5c0dbcc6d2cf0d0b162e6b84c5a54f1774e334128e8a3563bb6f3d3c695a'; // 
+        const RENLIANG2 = '8d54515075dbd5891e00b96573b375f9e6cf8deee47e5c59fafeaa323903d66a'; //
 
         function fallbackPush(msg){
           try{ window.pushEvent && window.pushEvent({ name: '训话', description: msg, week: (game && game.week) || 0 }); }catch(e){}
