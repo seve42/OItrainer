@@ -5,46 +5,25 @@
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>OI 教练模拟器</title>
 <link rel="stylesheet" href="styles.css">
-<script type="text/javascript">
-  // 防止刷新导致游戏状态丢失，强制跳转回开始页面
-  // 只有通过 start.html 正常进入的页面才能继续
-  (function() {
-    const gameSessionKey = 'oi_game_active_session';
-    const hasValidSession = sessionStorage.getItem(gameSessionKey);
-    
-    // 如果没有有效的会话标记，立即跳转到开始页面
-    if (!hasValidSession) {
-      window.location.replace('start.html');
-      return;
+<script>
+  (function(){
+    function injectCF(){
+      var s = document.createElement('script');
+      s.defer = true;
+      s.src = 'https://static.cloudflareinsights.com/beacon.min.js';
+      s.setAttribute('data-cf-beacon', '{"token": "cd3db41765ea4c17be0930b3f94e3c3a"}');
+      document.head.appendChild(s);
     }
-    
-    // 页面卸载时清除会话标记（包括刷新、关闭、跳转）
-    window.addEventListener('beforeunload', function() {
-      sessionStorage.removeItem(gameSessionKey);
-    });
+    function shouldLoad(){
+      try{
+        var start = (performance.timing && performance.timing.navigationStart) || 0;
+        var elapsed = performance.now ? performance.now() : (Date.now() - start);
+        return elapsed <= 2000;
+      }catch(e){ return false; }
+    }
+    document.addEventListener('DOMContentLoaded', function(){ if(shouldLoad()) injectCF(); });
   })();
 </script>
-<!-- Clarity tracking removed -->
-  <!-- Cloudflare Web Analytics loader (conditional: only load if page load time <= 2s) -->
-  <script>
-    (function(){
-      function injectCF(){
-        var s = document.createElement('script');
-        s.defer = true;
-        s.src = 'https://static.cloudflareinsights.com/beacon.min.js';
-        s.setAttribute('data-cf-beacon', '{"token": "cd3db41765ea4c17be0930b3f94e3c3a"}');
-        document.head.appendChild(s);
-      }
-      function shouldLoad(){
-        try{
-          var start = (performance.timing && performance.timing.navigationStart) || 0;
-          var elapsed = performance.now ? performance.now() : (Date.now() - start);
-          return elapsed <= 2000;
-        }catch(e){ return false; }
-      }
-      document.addEventListener('DOMContentLoaded', function(){ if(shouldLoad()) injectCF(); });
-    })();
-  </script>
 </head>
 <body>
 <div class="container">
@@ -250,5 +229,46 @@
   <footer style="text-align:center;padding:12px 8px;color:#666;font-size:13px;border-top:1px solid #eee;margin-top:18px">
     作者 @Dreamers-seve · 洛谷: <a href="https://www.luogu.com.cn/user/668972" target="_blank" rel="noopener">https://www.luogu.com.cn/user/668972</a> · GitHub: <a href="https://github.com/seve42/OItrainer" target="_blank" rel="noopener">https://github.com/seve42/OItrainer</a>
   </footer>
+  <!-- winter plan link (shown until 2026-03-01) -->
+    <!-- winter plan injection: center link inside footer (or fixed bottom if no footer) -->
+    <script>
+      (function(){
+        try{
+          var cutoff = new Date('2026-03-01T00:00:00Z');
+          var now = new Date();
+          if(now >= cutoff) return;
+          var footer = document.querySelector('footer');
+          var linkHtml = '<a href="https://www.luogu.me/article/n4gmkam0" target="_blank" rel="noopener" style="color:#1976d2;text-decoration:none;font-weight:600;padding:6px 10px;border-radius:6px">冬日绘板计划</a>';
+          var container;
+          if(footer){
+            container = footer.querySelector('#winter-plan');
+            if(!container){
+              container = document.createElement('div');
+              container.id = 'winter-plan';
+              container.style.marginTop = '8px';
+              container.style.fontSize = '13px';
+              container.style.color = '#1976d2';
+              container.style.textAlign = 'center';
+              footer.appendChild(container);
+            }
+          } else {
+            container = document.getElementById('winter-plan');
+            if(!container){
+              container = document.createElement('div');
+              container.id = 'winter-plan';
+              container.style.position = 'fixed';
+              container.style.left = '0';
+              container.style.right = '0';
+              container.style.bottom = '8px';
+              container.style.textAlign = 'center';
+              container.style.fontSize = '13px';
+              container.style.zIndex = '9999';
+              document.body.appendChild(container);
+            }
+          }
+          container.innerHTML = linkHtml;
+        }catch(e){}
+      })();
+    </script>
 </body>
 </html>

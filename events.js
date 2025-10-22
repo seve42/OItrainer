@@ -1011,7 +1011,21 @@
         const RENLIANG2 = '8d54515075dbd5891e00b96573b375f9e6cf8deee47e5c59fafeaa323903d66a'; //
 
         function fallbackPush(msg){
-          try{ window.pushEvent && window.pushEvent({ name: '训话', description: msg, week: (game && game.week) || 0 }); }catch(e){}
+          try{
+            // 记录训话次数（保存在 game 上，若不存在则退回到 window）
+            try{
+              if (game) {
+                game._coach_speech_count = (game._coach_speech_count || 0) + 1;
+              } else {
+                window._coach_speech_count = (window._coach_speech_count || 0) + 1;
+              }
+            }catch(_){ /* ignore increment errors */ }
+
+            const count = (game && game._coach_speech_count) || window._coach_speech_count || 0;
+            const description = count > 5 ? '你发现训话一点用也没有，不如多放几天假。但是不是所有教练都是这样认为的。' : msg;
+
+            window.pushEvent && window.pushEvent({ name: '训话', description: description, week: (game && game.week) || 0 });
+          }catch(e){}
           try{ if (typeof window.renderAll === 'function') window.renderAll(); }catch(e){}
         }
 
@@ -1027,7 +1041,7 @@
             const html = `<div style="text-align:center"><img src="${imgPath}" alt="${altText}" style="max-width:100%;height:auto;border-radius:6px;" /></div>`;
             try{
               if (typeof window.showEventModal === 'function') {
-                window.showEventModal({ name: '彩蛋', description: html, week: (game && game.week) || 0 });
+                window.showEventModal({ name: '彩蛋', description: html });
                 // 一般 showEventModal 需要 renderAll 来保证 UI 更新
                 try{ if (typeof window.renderAll === 'function') window.renderAll(); }catch(e){}
               } else {

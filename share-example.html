@@ -138,5 +138,45 @@ if (data && data.gameState) {
       }
     }
   </script>
+  <!-- footer winter plan insertion (centered & styled) -->
+  <script>
+    (function(){
+      try{
+        var cutoff = new Date('2026-03-01T00:00:00Z');
+        var now = new Date();
+        if(now >= cutoff) return;
+        var footer = document.querySelector('footer');
+        var linkHtml = '<a href="https://www.luogu.me/article/n4gmkam0" target="_blank" rel="noopener" style="color:#1976d2;text-decoration:none;font-weight:600;padding:6px 10px;border-radius:6px">冬日绘板计划</a>';
+        var container;
+        if(footer){
+          container = footer.querySelector('#winter-plan');
+          if(!container){
+            container = document.createElement('div');
+            container.id = 'winter-plan';
+            container.style.marginTop = '8px';
+            container.style.fontSize = '13px';
+            container.style.color = '#1976d2';
+            container.style.textAlign = 'center';
+            footer.appendChild(container);
+          }
+        } else {
+          container = document.getElementById('winter-plan');
+          if(!container){
+            container = document.createElement('div');
+            container.id = 'winter-plan';
+            container.style.position = 'fixed';
+            container.style.left = '0';
+            container.style.right = '0';
+            container.style.bottom = '8px';
+            container.style.textAlign = 'center';
+            container.style.fontSize = '13px';
+            container.style.zIndex = '9999';
+            document.body.appendChild(container);
+          }
+        }
+        container.innerHTML = linkHtml;
+      }catch(e){}
+    })();
+  </script>
 </body>
 </html>

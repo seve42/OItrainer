@@ -39,6 +39,21 @@
     .oi-start-mask .btn{min-width:150px;padding:10px 16px;font-size:16px;border-radius:6px}
     .oi-start-mask .btn-start{background:#38a169;border:none;color:white}
     .oi-start-mask .btn-skip{background:transparent;border:1px solid rgba(255,255,255,0.2);color:white;margin-left:8px}
+    .disclaimer{
+      font-size:12px;
+      color: rgba(51,51,51,0.9);
+      margin-top:12px;
+      line-height:1.6;
+      text-align:left;
+      background: rgba(240,240,240,0.9);
+      padding:10px 12px;
+      border-radius:8px;
+      max-width:960px;
+      margin-left:auto;
+      margin-right:auto;
+      box-sizing:border-box;
+      opacity:0.98;
+    }
   </style>
 <!-- Clarity tracking removed -->
   <!-- Cloudflare Web Analytics loader (conditional: only load if page load time <= 2s) -->
@@ -72,8 +87,8 @@
         一觉醒来，你发现你坐在机房前，成为了你们学校信息学竞赛的总教练。<br><br>
         回想起之前构造题没checker，模拟赛没大样例，一个月没有半天假期的训练生活。<br><br>
         你决定要改变这一切。
-      </h3>
-      <p></p>
+  </h3>
+  <p></p>
       <div class="mask-actions">
        <button id="oiMaskSkipBtn" class="btn btn-skip">进入游戏</button>
       </div>
@@ -355,5 +370,48 @@
   <footer style="text-align:center;padding:12px 8px;color:#666;font-size:13px;border-top:1px solid #eee;margin-top:18px">
     作者 @Dreamers-seve · 洛谷: <a href="https://www.luogu.com.cn/user/668972" target="_blank" rel="noopener">https://www.luogu.com.cn/user/668972</a> · GitHub: <a href="https://github.com/seve42/OItrainer" target="_blank" rel="noopener">https://github.com/seve42/OItrainer</a>
   </footer>
+  <!-- winter plan injection: center link inside footer (or fixed bottom if no footer) -->
+  <script>
+    (function(){
+      try{
+        var cutoff = new Date('2026-03-01T00:00:00Z');
+        var now = new Date();
+        if(now >= cutoff) return;
+        var footer = document.querySelector('footer');
+        var linkHtml = '<a href="https://www.luogu.me/article/n4gmkam0" target="_blank" rel="noopener" style="color:#1976d2;text-decoration:none;font-weight:600;padding:6px 10px;border-radius:6px">冬日绘板计划</a>';
+        var container;
+        if(footer){
+          container = footer.querySelector('#winter-plan');
+          if(!container){
+            container = document.createElement('div');
+            container.id = 'winter-plan';
+            container.style.marginTop = '8px';
+            container.style.fontSize = '13px';
+            container.style.color = '#1976d2';
+            container.style.textAlign = 'center';
+            footer.appendChild(container);
+          }
+        } else {
+          container = document.getElementById('winter-plan');
+          if(!container){
+            container = document.createElement('div');
+            container.id = 'winter-plan';
+            container.style.position = 'fixed';
+            container.style.left = '0';
+            container.style.right = '0';
+            container.style.bottom = '8px';
+            container.style.textAlign = 'center';
+            container.style.fontSize = '13px';
+            container.style.zIndex = '9999';
+            document.body.appendChild(container);
+          }
+        }
+        container.innerHTML = linkHtml;
+      }catch(e){}
+    })();
+  </script>
+  <div class="disclaimer" role="note" aria-label="免责声明" style="margin-top:8px;margin-bottom:18px;font-size:13px;color:#444;">
+    免责声明：本游戏为虚构的教学与娱乐模拟游戏。游戏中所展示的训练方式、成绩、资源分配、时间安排均为玩法设定。所有人名均为随机生成，所有训练用题库均为AI生成，和现实中对应年份比赛题目完全不相关。省份强弱和各国选手水平均为虚构和游戏设定，台湾省、香港特别行政区和澳门特别行政区均为中国不可分割的一部分，IOI成员国/地区为截止2025年10月官网标准。
+  </div>
 </body>
 </html>
