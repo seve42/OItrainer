@@ -23,7 +23,7 @@
 - 项目类型：前端静态页面（HTML + JavaScript + CSS）
 - 主要目录：
   - `index.html`：主入口
-  - `script.js`,`lib/`：核心逻辑脚本（比赛模拟、天赋、事件、模型等）
+  - `game.js`, `render.js`, `debug.js`, `lib/`：核心逻辑脚本（比赛模拟、天赋、事件、模型等）
   - `assets/`：图片/资源
   - 其他脚本`tutorial.js` 等
 

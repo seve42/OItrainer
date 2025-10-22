@@ -138,7 +138,7 @@
             window.pushEvent && window.pushEvent({ name:'退队', description: msg, week: c.game.week });
             window.renderAll && window.renderAll();
             try{ if(typeof window.checkAllQuitAndTriggerBadEnding === 'function') window.checkAllQuitAndTriggerBadEnding(); }catch(e){}
-            return msg;
+            return null;
           }
           return null;
         }
@@ -158,7 +158,7 @@
           const msg = `获得企业赞助 ¥${gain}，声誉提升 +5`;
           c.log && c.log(`[企业赞助] ${msg}`);
           window.pushEvent && window.pushEvent({ name:'企业赞助', description: msg, week: c.game.week });
-          return msg;
+          return null;
         }
       });
 
@@ -191,7 +191,7 @@
           const msg = `金牌教练来访，学生能力微增，压力微降`;
           c.log && c.log(`[金牌教练] ${msg}`);
           window.pushEvent && window.pushEvent({ name:'金牌教练来访', description: msg, week: c.game.week });
-          return msg;
+          return null;
         }
       });
       // 发现优质网课
@@ -231,7 +231,7 @@
           const msg = `在【${topic}】上获得 +${totalGain} 知识点（资料库 Lv.${libraryLevel}）`;
           c.log && c.log(`[优质网课] ${msg}`);
           window.pushEvent && window.pushEvent({ name:'优质网课', description: msg, week: c.game.week });
-          return msg;
+          return null;
         }
       });
       // 构造题忘放checker
@@ -268,7 +268,7 @@
           window.pushEvent && window.pushEvent({ name:'构造题忘放checker', description: msg, week: c.game.week });
           // 清理训练结束标志，避免本事件在同一周再次触发
           try{ c.game.lastTrainingFinishedWeek = null; }catch(e){}
-          return msg;
+          return null;
         }
       });
       // 上级拨款
@@ -285,7 +285,7 @@
           c.log && c.log(`[上级拨款] ${msg}`);
           // 事件卡显示完整影响（金额 + 简短说明），以便玩家一目了然
           window.pushEvent && window.pushEvent({ name:'上级拨款', description: `${msg}`, week: c.game.week });
-          return msg;
+          return null;
         }
       });
       // 负面事件：机房设备故障
@@ -311,13 +311,13 @@
             const msg = `设备故障，花费 ¥${cost} 维修`;
             c.log && c.log(`[设备故障] ${msg}`);
             window.pushEvent && window.pushEvent({ name: '机房设备故障', description: msg, week: c.game.week });
-            return msg;
+            return null;
           } else {
             c.game.computer_repair_weeks = c.utils.uniformInt(1, 2);
             const msg = `设备故障，维修经费不足，影响训练 ${c.game.computer_repair_weeks} 周`;
             c.log && c.log(`[设备故障] ${msg}`);
             window.pushEvent && window.pushEvent({ name: '机房设备故障', description: msg, week: c.game.week });
-            return msg;
+            return null;
           }
         }
       });
@@ -351,7 +351,7 @@
           const msg = '团队内部矛盾爆发，舒适度和心理素质下降，压力上升';
           c.log && c.log(`[内部矛盾] ${msg}`);
           window.pushEvent && window.pushEvent({ name: '团队内部矛盾', description: msg, week: c.game.week });
-          return msg;
+          return null;
         }
       });
       // 负面事件：经费审计
@@ -376,7 +376,7 @@
           const msg = `经费审计暂停高消费活动 ${weeks} 周，损失经费 ¥${loss}`;
           c.log && c.log(`[经费审计] ${msg}`);
           window.pushEvent && window.pushEvent({ name: '经费审计', description: msg, week: c.game.week });
-          return msg;
+          return null;
         }
       });
       // 负面事件：食堂卫生问题
@@ -395,7 +395,7 @@
           const msg = `食堂卫生问题，接下来 ${weeks} 周学生生病概率上升，舒适度下降`;
           c.log && c.log(`[食堂卫生] ${msg}`);
           window.pushEvent && window.pushEvent({ name: '食堂卫生问题', description: msg, week: c.game.week });
-          return msg;
+          return null;
         }
       });
       // 选择导向事件：友校交流邀请

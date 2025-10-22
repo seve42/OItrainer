@@ -274,7 +274,7 @@
 - `getLetterGradeAbility(val)` - 获取能力字母等级
 - `generateName()` - 生成随机中文名字
 
-## 主脚本接口 (script.js)
+## 主脚本接口 (game.js, render.js)
 
 ### UI相关函数
 - `renderAll()` - 渲染主界面
@@ -338,7 +338,7 @@
 - `COMPETITION_SCHEDULE` - 比赛时间表
 - `competitions` - 完整比赛列表（包含两赛季）
 
-## 调试函数 (script.js)
+## 调试函数 (debug.js)
 
 - `debugzak()` - 调试：生成超强学生并跳转到第二年NOI前
 
