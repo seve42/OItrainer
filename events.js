@@ -1000,6 +1000,40 @@
         }
       });
       
+      // 训话事件
+      document.addEventListener('coach-speech', (e) => {
+        const { text, hash } = e.detail || {};
+
+        try{ log && log(`训话: ${text}`); }catch(_){}
+
+        // 目标哈希（来自用户）
+        const RENLIANG1 = 'f86a5c0dbcc6d2cf0d0b162e6b84c5a54f1774e334128e8a3563bb6f3d3c695a'; // 下课必须放松吗？
+        const RENLIANG2 = '8d54515075dbd5891e00b96573b375f9e6cf8deee47e5c59fafeaa323903d66a'; // 竞赛生没有特权你明白吗？
+
+        if (hash === RENLIANG1) {
+          const html = '<div style="text-align:center"><img src="assets/renliang1.png" alt="renliang1" style="max-width:100%;height:auto;border-radius:6px;" /></div>';
+          if (typeof window.showEventModal === 'function') {
+            try{ window.showEventModal({ name: '训话）', description: html, week: (game && game.week) || 0 }); }catch(e){ window.pushEvent && window.pushEvent({ name: '训话（', description: 'R:下课必须放松吗？', week: (game && game.week) || 0 }); }
+          } else {
+            window.pushEvent && window.pushEvent({ name: '训话', description: 'R:下课必须放松吗？', week: (game && game.week) || 0 });
+          }
+          return;
+        }
+
+        if (hash === RENLIANG2) {
+          const html = '<div style="text-align:center"><img src="assets/renliang2.png" alt="renliang2" style="max-width:100%;height:auto;border-radius:6px;" /></div>';
+          if (typeof window.showEventModal === 'function') {
+            try{ window.showEventModal({ name: '训话', description: html, week: (game && game.week) || 0 }); }catch(e){ window.pushEvent && window.pushEvent({ name: '训话', description: 'R:竞赛生没有特权你明白吗？', week: (game && game.week) || 0 }); }
+          } else {
+            window.pushEvent && window.pushEvent({ name: '训话', description: 'R:竞赛生没有特权你明白吗？', week: (game && game.week) || 0 });
+          }
+          return;
+        }
+
+        // 未匹配的情况：正常记录并展示训话事件卡片
+        try{ window.pushEvent && window.pushEvent({ name: '训话', description: text, week: (game && game.week) || 0 }); }catch(e){ console.error('pushEvent failed', e); }
+      });
+      
     },
 
     // 主调度：逐个事件执行 check/run

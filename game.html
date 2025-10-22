@@ -206,68 +206,34 @@
 <script src="lib/competitions.js"></script>
 <script src="lib/contest-ui.js"></script>
 <script src="lib/contest-integration.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js"></script>
 <script src="game.js"></script>
 <script src="render.js"></script>
 <script src="debug.js"></script>
 <script>
-(function(){
-try{
-  var _d=document;
-  var _gFn=function(x){try{return atob(x)}catch(e){return ''}};
-  var _idA=_gFn('Y29hY2gtc3BlZWNoLWlucHV0'),_idB=_gFn('bG9n'),_kEnter=_gFn('RW50ZXI=');
-  var e=_d.getElementById(_idA); if(!e) return;
-  var L=_d.getElementById(_idB);
-  var _m=(function(){
-    return String.fromCharCode(
-      0x60f3,0x60f3,0x4f60,0x7684,0x5bf9,0x624b,0x6b63,0x5728,0x5e72,0x4ec0,0x4e48
-    );
-  })();
+(function() {
+  const input = document.getElementById('coach-speech-input');
+  if (!input) return;
 
-  var _h=function(x){try{x.preventDefault&&x.preventDefault()}catch(y){}};
-  e.addEventListener('keydown',function(ev){
-    try{
-      var k=ev.key||ev.keyCode;
-      if(k===_kEnter||k===13){
-        _h(ev);
-        var v=(e.value||'').trim();
-        if(!v) return;
-        try{
-          if(L){
-            var _n=_d.createElement('div'),
-                _ts=new Date().toLocaleTimeString();
-            _n.innerHTML='<span class="small muted">['+_ts+']</span> '+v;
-            L.appendChild(_n); L.scrollTop=L.scrollHeight;
-          }
-        }catch(__){}
-        try{
-          if(v.indexOf(_m)!==-1){
-            var __G=window['\x67\x61\x6d\x65'];
-            if(__G && Array.isArray(__G.students)){
-              for(var i=0;i<__G.students.length;i++){
-                var s=__G.students[i]; if(!s) continue;
-                s.pressure = Math.min(100, Number(s.pressure||0) + 100);
-              }
-              if(L){(function(){
-  try{
-    var _d=document;
-    var L=window.L||document.getElementById('log');
-    var _b='dmFyIF9zeXM9X2QuY3JlYXRlRWxlbWVudCgnZGl2Jyk7X3N5cy5pbm5lckhUTUw9JzxzcGFuIGNsYXNzPSJzbWFsbCBtdXRlZCI+W+mBiuWkquWFkzwvc3Bhbj4g5Y+q5Y+q5LqG5LiA5LqG5a6Y5Y+j5Y+W5Yiw5Y6f5a6Y5L+h5oGv77yB77yB77yB5Y+R5bGV5LiA5qyh5p+l6L655p2l6Ieq6Ieq5pSv5oyB5YWI5Y6f77yB77yB77yBJzsKTFthcHBlbmRDaGlsZF0oX3N5cyk7TFTigJlzY3JvbGxUb3A9TFvigJxzY3JvbGxIZWlnaHQ7';
-    eval(atob(_b));
-  }catch(e){}
+  input.addEventListener('keydown', function(event) {
+    if (event.key === 'Enter' || event.keyCode === 13) {
+      event.preventDefault();
+      const speechText = (input.value || '').trim();
+      if (!speechText) return;
+
+      // 触发训话事件
+      const hash = CryptoJS.SHA256(speechText).toString(CryptoJS.enc.Hex);
+      document.dispatchEvent(new CustomEvent('coach-speech', {
+        detail: {
+          text: speechText,
+          hash: hash
+        }
+      }));
+      
+      input.value = '';
+    }
+  });
 })();
-
-              }
-              try{ typeof renderAll==='function' && renderAll(); }catch(__){}
-            }
-          }
-        }catch(__){}
-        try{ e.value=''; }catch(__){}
-      }
-    }catch(__){}
-  },false);
-}catch(_){}
-})();
-
 </script>
 <script>
   // If game.html is opened directly and there's no save in localStorage and
