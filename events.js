@@ -1000,38 +1000,64 @@
         }
       });
       
-      // 训话事件
+      // 训话事件（含彩蛋图片预加载与调试日志）
       document.addEventListener('coach-speech', (e) => {
         const { text, hash } = e.detail || {};
 
-        try{ log && log(`训话: ${text}`); }catch(_){}
+  try{ if (log) log(`coach-speech received: text='${String(text).slice(0,200)}' hash='${String(hash)}'`); }catch(_){}
 
         // 目标哈希（来自用户）
         const RENLIANG1 = 'f86a5c0dbcc6d2cf0d0b162e6b84c5a54f1774e334128e8a3563bb6f3d3c695a'; // 下课必须放松吗？
         const RENLIANG2 = '8d54515075dbd5891e00b96573b375f9e6cf8deee47e5c59fafeaa323903d66a'; // 竞赛生没有特权你明白吗？
 
+        function fallbackPush(msg){
+          try{ window.pushEvent && window.pushEvent({ name: '训话', description: msg, week: (game && game.week) || 0 }); }catch(e){}
+          try{ if (typeof window.renderAll === 'function') window.renderAll(); }catch(e){}
+        }
+
+        // 调试：打印选中的分支
+        if (!hash) {
+          fallbackPush(text || '(empty)');
+          return;
+        }
+
+        const tryShowImage = (imgPath, altText) => {
+          const img = new Image();
+          img.onload = function(){
+            const html = `<div style="text-align:center"><img src="${imgPath}" alt="${altText}" style="max-width:100%;height:auto;border-radius:6px;" /></div>`;
+            try{
+              if (typeof window.showEventModal === 'function') {
+                window.showEventModal({ name: '彩蛋', description: html, week: (game && game.week) || 0 });
+                // 一般 showEventModal 需要 renderAll 来保证 UI 更新
+                try{ if (typeof window.renderAll === 'function') window.renderAll(); }catch(e){}
+              } else {
+                fallbackPush(`(彩蛋) ${altText}`);
+              }
+            }catch(err){
+              fallbackPush(text || `(彩蛋) ${altText}`);
+            }
+          };
+          img.onerror = function(){
+            // 回退：推送文字事件
+            fallbackPush(text || `(图片加载失败) ${altText}`);
+          };
+          // 开始加载
+          img.src = imgPath;
+        };
+
         if (hash === RENLIANG1) {
-          const html = '<div style="text-align:center"><img src="assets/renliang1.png" alt="renliang1" style="max-width:100%;height:auto;border-radius:6px;" /></div>';
-          if (typeof window.showEventModal === 'function') {
-            try{ window.showEventModal({ name: '训话）', description: html, week: (game && game.week) || 0 }); }catch(e){ window.pushEvent && window.pushEvent({ name: '训话（', description: 'R:下课必须放松吗？', week: (game && game.week) || 0 }); }
-          } else {
-            window.pushEvent && window.pushEvent({ name: '训话', description: 'R:下课必须放松吗？', week: (game && game.week) || 0 });
-          }
+          tryShowImage('assets/renliang1.png', 'renliang1');
           return;
         }
 
         if (hash === RENLIANG2) {
-          const html = '<div style="text-align:center"><img src="assets/renliang2.png" alt="renliang2" style="max-width:100%;height:auto;border-radius:6px;" /></div>';
-          if (typeof window.showEventModal === 'function') {
-            try{ window.showEventModal({ name: '训话', description: html, week: (game && game.week) || 0 }); }catch(e){ window.pushEvent && window.pushEvent({ name: '训话', description: 'R:竞赛生没有特权你明白吗？', week: (game && game.week) || 0 }); }
-          } else {
-            window.pushEvent && window.pushEvent({ name: '训话', description: 'R:竞赛生没有特权你明白吗？', week: (game && game.week) || 0 });
-          }
+          tryShowImage('assets/renliang2.png', 'renliang2');
           return;
         }
 
-        // 未匹配的情况：正常记录并展示训话事件卡片
-        try{ window.pushEvent && window.pushEvent({ name: '训话', description: text, week: (game && game.week) || 0 }); }catch(e){ console.error('pushEvent failed', e); }
+        // 未匹配：正常记录并展示训话事件卡片
+        console.debug('[coach-speech] no match; pushing normal event');
+        fallbackPush(text || '(empty)');
       });
       
     },
