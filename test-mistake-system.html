@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>失误系统测试</title>
+  <style>
+    body {
+      font-family: 'Microsoft YaHei', sans-serif;
+      padding: 20px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    .test-section {
+      margin: 20px 0;
+      padding: 15px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+    }
+    .test-title {
+      font-size: 18px;
+      font-weight: bold;
+      margin-bottom: 10px;
+      color: #2563eb;
+    }
+    .test-result {
+      margin: 10px 0;
+      padding: 10px;
+      background: #f9f9f9;
+      border-radius: 3px;
+    }
+    .mistake-item {
+      margin: 5px 0;
+      padding: 8px;
+      background: #fff3cd;
+      border-left: 3px solid #ffc107;
+      color: #856404;
+    }
+    .normal-item {
+      margin: 5px 0;
+      padding: 8px;
+      background: #d1fae5;
+      border-left: 3px solid #10b981;
+      color: #065f46;
+    }
+    button {
+      padding: 10px 20px;
+      background: #2563eb;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      margin: 5px;
+    }
+    button:hover {
+      background: #1d4ed8;
+    }
+    .stats {
+      margin-top: 10px;
+      padding: 10px;
+      background: #eff6ff;
+      border-radius: 5px;
+    }
+  </style>
+</head>
+<body>
+  <h1>失误系统测试</h1>
+  
+  <div class="test-section">
+    <div class="test-title">测试1: 失误概率计算</div>
+    <button onclick="testMistakeProbability()">运行测试</button>
+    <div id="test1-result" class="test-result"></div>
+  </div>
+  
+  <div class="test-section">
+    <div class="test-title">测试2: 模拟比赛失误</div>
+    <button onclick="testContestMistake()">运行测试</button>
+    <div id="test2-result" class="test-result"></div>
+  </div>
+  
+  <div class="test-section">
+    <div class="test-title">测试3: 多场比赛统计</div>
+    <button onclick="testMultipleContests()">运行测试（10场比赛）</button>
+    <div id="test3-result" class="test-result"></div>
+  </div>
+
+  <script src="lib/utils.js"></script>
+  <script src="lib/constants.js"></script>
+  <script>
+    // 测试1: 失误概率计算
+    function testMistakeProbability() {
+      const result = document.getElementById('test1-result');
+      let html = '<h3>不同代码能力下的失误概率：</h3>';
+      
+      const codingLevels = [0, 20, 40, 60, 80, 100, 120, 150, 200];
+      
+      for (let coding of codingLevels) {
+        const mistakeProbability = Math.max(
+          MISTAKE_MIN_PROBABILITY,
+          MISTAKE_BASE_PROBABILITY - coding * MISTAKE_CODING_FACTOR
+        );
+        const percentage = (mistakeProbability * 100).toFixed(2);
+        html += `<div>代码能力: <strong>${coding}</strong> → 失误概率: <strong>${percentage}%</strong></div>`;
+      }
+      
+      result.innerHTML = html;
+    }
+    
+    // 测试2: 模拟比赛失误
+    function testContestMistake() {
+      const result = document.getElementById('test2-result');
+      
+      // 模拟学生
+      const student = {
+        name: '测试学生',
+        coding: 60
+      };
+      
+      // 模拟4道题的比赛成绩
+      const problems = [
+        { id: 0, maxScore: 100, name: 'T1' },
+        { id: 1, maxScore: 80, name: 'T2' },
+        { id: 2, maxScore: 60, name: 'T3' },
+        { id: 3, maxScore: 90, name: 'T4' }
+      ];
+      
+      // 计算失误概率
+      const mistakeProbability = Math.max(
+        MISTAKE_MIN_PROBABILITY,
+        MISTAKE_BASE_PROBABILITY - student.coding * MISTAKE_CODING_FACTOR
+      );
+      
+      let html = `<h3>学生: ${student.name} (代码能力: ${student.coding})</h3>`;
+      html += `<p>失误概率: <strong>${(mistakeProbability * 100).toFixed(2)}%</strong></p>`;
+      html += `<h4>各题失误判定：</h4>`;
+      
+      let totalOriginal = 0;
+      let totalFinal = 0;
+      let mistakeCount = 0;
+      
+      for (let prob of problems) {
+        totalOriginal += prob.maxScore;
+        
+        // 失误判定
+        const hasMistake = getRandom() < mistakeProbability;
+        
+        if (hasMistake) {
+          const penaltyRatio = MISTAKE_MIN_PENALTY + getRandom() * (MISTAKE_MAX_PENALTY - MISTAKE_MIN_PENALTY);
+          const penalty = Math.floor(prob.maxScore * penaltyRatio);
+          const finalScore = prob.maxScore - penalty;
+          const reason = MISTAKE_REASONS[Math.floor(getRandom() * MISTAKE_REASONS.length)];
+          
+          html += `<div class="mistake-item">
+            <strong>${prob.name}</strong>: 原始分数 <strong>${prob.maxScore}</strong> 
+            → 失误扣除 <strong>${penalty}</strong> 分 
+            → 最终分数 <strong>${finalScore}</strong><br>
+            失误原因: ${reason}
+          </div>`;
+          
+          totalFinal += finalScore;
+          mistakeCount++;
+        } else {
+          html += `<div class="normal-item">
+            <strong>${prob.name}</strong>: 分数 <strong>${prob.maxScore}</strong> (无失误)
+          </div>`;
+          totalFinal += prob.maxScore;
+        }
+      }
+      
+      html += `<div class="stats">
+        <strong>总计:</strong><br>
+        原始总分: ${totalOriginal}<br>
+        最终总分: ${totalFinal}<br>
+        失误题数: ${mistakeCount} / ${problems.length}<br>
+        扣分总计: ${totalOriginal - totalFinal}
+      </div>`;
+      
+      result.innerHTML = html;
+    }
+    
+    // 测试3: 多场比赛统计
+    function testMultipleContests() {
+      const result = document.getElementById('test3-result');
+      
+      const contestCount = 10;
+      const problemsPerContest = 4;
+      
+      const students = [
+        { name: '低水平学生', coding: 30 },
+        { name: '中等学生', coding: 60 },
+        { name: '高水平学生', coding: 100 }
+      ];
+      
+      let html = '<h3>10场比赛失误统计：</h3>';
+      
+      for (let student of students) {
+        const mistakeProbability = Math.max(
+          MISTAKE_MIN_PROBABILITY,
+          MISTAKE_BASE_PROBABILITY - student.coding * MISTAKE_CODING_FACTOR
+        );
+        
+        let totalMistakes = 0;
+        let totalProblems = 0;
+        let totalPenalty = 0;
+        let totalOriginalScore = 0;
+        
+        for (let contest = 0; contest < contestCount; contest++) {
+          for (let prob = 0; prob < problemsPerContest; prob++) {
+            totalProblems++;
+            const score = 100;
+            totalOriginalScore += score;
+            
+            if (getRandom() < mistakeProbability) {
+              totalMistakes++;
+              const penaltyRatio = MISTAKE_MIN_PENALTY + getRandom() * (MISTAKE_MAX_PENALTY - MISTAKE_MIN_PENALTY);
+              const penalty = Math.floor(score * penaltyRatio);
+              totalPenalty += penalty;
+            }
+          }
+        }
+        
+        const mistakeRate = (totalMistakes / totalProblems * 100).toFixed(2);
+        const avgPenaltyPerMistake = totalMistakes > 0 ? (totalPenalty / totalMistakes).toFixed(1) : 0;
+        
+        html += `
+          <div class="stats">
+            <strong>${student.name} (代码能力: ${student.coding})</strong><br>
+            理论失误概率: ${(mistakeProbability * 100).toFixed(2)}%<br>
+            实际失误率: ${mistakeRate}%<br>
+            失误题数: ${totalMistakes} / ${totalProblems}<br>
+            总扣分: ${totalPenalty} / ${totalOriginalScore}<br>
+            平均每题失误扣分: ${avgPenaltyPerMistake}
+          </div>
+        `;
+      }
+      
+      result.innerHTML = html;
+    }
+  </script>
+</body>
+</html>
