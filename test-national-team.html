@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>国家集训队功能测试</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    body { padding: 20px; }
+    .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+    .test-section h3 { margin-top: 0; }
+    .btn { margin: 5px; }
+    .log { 
+      background: #f5f5f5; 
+      padding: 10px; 
+      margin: 10px 0; 
+      border-radius: 5px; 
+      max-height: 300px; 
+      overflow-y: auto;
+      font-family: monospace;
+      font-size: 12px;
+    }
+    .log-entry { margin: 2px 0; }
+    .success { color: green; }
+    .error { color: red; }
+    .info { color: blue; }
+  </style>
+</head>
+<body>
+  <h1>🏆 国家集训队功能测试</h1>
+  
+  <div class="test-section">
+    <h3>测试说明</h3>
+    <p>本页面用于测试国家集训队相关功能是否正常工作</p>
+    <ul>
+      <li>测试1: 显示国家集训队选择弹窗</li>
+      <li>测试2: 进入国家集训队流程</li>
+      <li>测试3: IOI晋级计算</li>
+      <li>测试4: IOI结果计算</li>
+    </ul>
+  </div>
+  
+  <div class="test-section">
+    <h3>测试控制</h3>
+    <button class="btn" onclick="testShowNationalTeamChoice()">测试1: 显示国家集训队选择</button>
+    <button class="btn" onclick="testEnterNationalTeam()">测试2: 进入国家集训队</button>
+    <button class="btn" onclick="testCalculateIOIQualification()">测试3: 计算IOI晋级</button>
+    <button class="btn" onclick="testCalculateIOIResults()">测试4: 计算IOI结果</button>
+    <button class="btn" onclick="clearLog()">清除日志</button>
+  </div>
+  
+  <div class="test-section">
+    <h3>测试日志</h3>
+    <div id="log-area" class="log"></div>
+  </div>
+  
+  <!-- 模态区域 -->
+  <div id="modal-root"></div>
+  
+  <!-- 加载必要的脚本 -->
+  <script src="lib/constants.js"></script>
+  <script src="lib/utils.js"></script>
+  <script src="lib/models.js"></script>
+  <script src="render.js"></script>
+  
+  <script>
+    // 日志函数
+    function addLog(message, type = 'info') {
+      const logArea = document.getElementById('log-area');
+      const entry = document.createElement('div');
+      entry.className = 'log-entry ' + type;
+      entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+      logArea.appendChild(entry);
+      logArea.scrollTop = logArea.scrollHeight;
+    }
+    
+    function clearLog() {
+      document.getElementById('log-area').innerHTML = '';
+      addLog('日志已清除', 'info');
+    }
+    
+    // 初始化测试游戏数据
+    function initTestGame() {
+      if (!window.game) {
+        window.game = new GameState();
+        game.week = 20;
+        game.budget = 100000;
+        game.reputation = 80;
+        
+        // 添加几个测试学生
+        game.students = [
+          new Student('张三', 85, 88, 75),
+          new Student('李四', 82, 85, 70),
+          new Student('王五', 78, 80, 68),
+          new Student('赵六', 75, 77, 65)
+        ];
+        
+        addLog('测试游戏数据已初始化', 'success');
+      }
+      return game;
+    }
+    
+    // 测试1: 显示国家集训队选择弹窗
+    function testShowNationalTeamChoice() {
+      addLog('=== 测试1: 显示国家集训队选择弹窗 ===', 'info');
+      
+      const game = initTestGame();
+      
+      // 模拟NOI比赛结果（有金牌）
+      const noiResults = [
+        { name: '张三', total: 650, scores: [100, 100, 100, 100, 100, 100, 50], eligible: true },
+        { name: '李四', total: 620, scores: [100, 100, 100, 90, 100, 100, 30], eligible: true },
+        { name: '王五', total: 550, scores: [100, 80, 90, 80, 100, 100, 0], eligible: true },
+        { name: '赵六', total: 480, scores: [80, 70, 80, 70, 90, 90, 0], eligible: true }
+      ];
+      
+      const noiMaxScore = 700;
+      const passLine = 560; // 金牌线: 80%
+      
+      addLog('调用 showNationalTeamChoice', 'info');
+      addLog(`NOI结果: ${noiResults.length} 名学生`, 'info');
+      addLog(`晋级线: ${passLine}`, 'info');
+      
+      try {
+        if (typeof window.showNationalTeamChoice === 'function') {
+          window.showNationalTeamChoice(noiResults, noiMaxScore, passLine);
+          addLog('✓ showNationalTeamChoice 调用成功', 'success');
+        } else {
+          addLog('✗ showNationalTeamChoice 函数未定义', 'error');
+        }
+      } catch (e) {
+        addLog('✗ 调用失败: ' + e.message, 'error');
+        console.error(e);
+      }
+    }
+    
+    // 测试2: 进入国家集训队
+    function testEnterNationalTeam() {
+      addLog('=== 测试2: 进入国家集训队 ===', 'info');
+      
+      const game = initTestGame();
+      const goldStudentNames = ['张三', '李四'];
+      
+      addLog(`金牌学生: ${goldStudentNames.join('、')}`, 'info');
+      
+      try {
+        if (typeof window.enterNationalTeam === 'function') {
+          window.enterNationalTeam(goldStudentNames);
+          addLog('✓ enterNationalTeam 调用成功', 'success');
+          addLog(`游戏状态: inNationalTeam=${game.inNationalTeam}`, 'info');
+        } else {
+          addLog('✗ enterNationalTeam 函数未定义', 'error');
+        }
+      } catch (e) {
+        addLog('✗ 调用失败: ' + e.message, 'error');
+        console.error(e);
+      }
+    }
+    
+    // 测试3: 计算IOI晋级
+    function testCalculateIOIQualification() {
+      addLog('=== 测试3: 计算IOI晋级 ===', 'info');
+      
+      const game = initTestGame();
+      
+      // 模拟国家集训队成绩
+      game.nationalTeamResults = {
+        cttScores: [
+          { studentName: '张三', score: 250, day: 'CTT-day1-2' },
+          { studentName: '张三', score: 260, day: 'CTT-day3-4' },
+          { studentName: '李四', score: 240, day: 'CTT-day1-2' },
+          { studentName: '李四', score: 245, day: 'CTT-day3-4' },
+          { studentName: '王五', score: 230, day: 'CTT-day1-2' },
+          { studentName: '王五', score: 235, day: 'CTT-day3-4' },
+          { studentName: '赵六', score: 220, day: 'CTT-day1-2' },
+          { studentName: '赵六', score: 225, day: 'CTT-day3-4' }
+        ],
+        ctsScores: [
+          { studentName: '张三', score: 290 },
+          { studentName: '李四', score: 280 },
+          { studentName: '王五', score: 270 },
+          { studentName: '赵六', score: 260 }
+        ],
+        ioiQualified: []
+      };
+      
+      addLog('CTT成绩已设置', 'info');
+      addLog('CTS成绩已设置', 'info');
+      
+      try {
+        if (typeof window.calculateNationalTeamQualification === 'function') {
+          window.calculateNationalTeamQualification();
+          addLog('✓ calculateNationalTeamQualification 调用成功', 'success');
+          addLog(`IOI晋级名单: ${game.nationalTeamResults.ioiQualified.join('、')}`, 'success');
+        } else {
+          addLog('✗ calculateNationalTeamQualification 函数未定义', 'error');
+        }
+      } catch (e) {
+        addLog('✗ 调用失败: ' + e.message, 'error');
+        console.error(e);
+      }
+    }
+    
+    // 测试4: 计算IOI结果
+    function testCalculateIOIResults() {
+      addLog('=== 测试4: 计算IOI结果 ===', 'info');
+      
+      const game = initTestGame();
+      
+      // 初始化生涯比赛记录
+      if (!game.careerCompetitions) game.careerCompetitions = [];
+      
+      // 添加IOI比赛记录（包含奖牌信息）
+      game.careerCompetitions.push({
+        week: 25,
+        name: 'IOI',
+        passedCount: 4,
+        totalStudents: 4,
+        entries: [
+          { name: '张三', rank: 1, score: 580, passed: true, medal: 'gold' },
+          { name: '李四', rank: 2, score: 550, passed: true, medal: 'gold' },
+          { name: '王五', rank: 3, score: 520, passed: true, medal: 'silver' },
+          { name: '赵六', rank: 4, score: 490, passed: true, medal: 'bronze' }
+        ]
+      });
+      
+      // 模拟 IOI 全部结果（包含国际选手）
+      game.lastIOIAllResults = [
+        { name: '张三', score: 580, rank: 15, isInternational: false, nationality: '中国' },
+        { name: '李四', score: 550, rank: 28, isInternational: false, nationality: '中国' },
+        { name: '王五', score: 520, rank: 45, isInternational: false, nationality: '中国' },
+        { name: '赵六', score: 490, rank: 68, isInternational: false, nationality: '中国' }
+      ];
+      
+      addLog('IOI比赛记录已设置', 'info');
+      addLog('全部参赛选手成绩已设置', 'info');
+      
+      try {
+        if (typeof window.calculateIOIResults === 'function') {
+          window.calculateIOIResults();
+          addLog('✓ calculateIOIResults 调用成功', 'success');
+        } else {
+          addLog('✗ calculateIOIResults 函数未定义', 'error');
+        }
+      } catch (e) {
+        addLog('✗ 调用失败: ' + e.message, 'error');
+        console.error(e);
+      }
+    }
+    
+    // 页面加载完成后初始化
+    window.onload = function() {
+      addLog('页面加载完成', 'success');
+      addLog('开始检查函数是否已定义...', 'info');
+      
+      const functions = [
+        'showNationalTeamChoice',
+        'enterNationalTeam',
+        'calculateNationalTeamQualification',
+        'calculateIOIResults'
+      ];
+      
+      let allDefined = true;
+      for (let fname of functions) {
+        if (typeof window[fname] === 'function') {
+          addLog(`✓ ${fname} 已定义`, 'success');
+        } else {
+          addLog(`✗ ${fname} 未定义`, 'error');
+          allDefined = false;
+        }
+      }
+      
+      if (allDefined) {
+        addLog('所有国家集训队函数均已正确定义！', 'success');
+      } else {
+        addLog('部分函数未定义，请检查 render.js', 'error');
+      }
+    };
+  </script>
+</body>
+</html>
