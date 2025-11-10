@@ -1116,44 +1116,56 @@ function renderEndSummary(){
         const isActive = (s && s.active !== false);
         const pressureLevel = (s && typeof s.pressure === 'number') ? (s.pressure < 35 ? '低' : s.pressure < 65 ? '中' : '高') : '—';
         const pressureClass = (s && typeof s.pressure === 'number') ? (s.pressure < 35 ? 'pressure-low' : s.pressure < 65 ? 'pressure-mid' : 'pressure-high') : '';
-        const thinkingVal = Number(s.thinking || 0);
-        const codingVal = Number(s.coding || 0);
-        const mentalVal = Number(s.mental || 0);
-        const thinkGrade = getLetterGradeAbility(Math.floor(thinkingVal));
-        const codeGrade = getLetterGradeAbility(Math.floor(codingVal));
-        const mentalRounded = Math.round(mentalVal || 0);
-        const k_ds = getLetterGrade(Math.floor(Number(s.knowledge_ds || 0)));
-        const k_graph = getLetterGrade(Math.floor(Number(s.knowledge_graph || 0)));
-        const k_str = getLetterGrade(Math.floor(Number(s.knowledge_string || 0)));
-        const k_math = getLetterGrade(Math.floor(Number(s.knowledge_math || 0)));
-        const k_dp = getLetterGrade(Math.floor(Number(s.knowledge_dp || 0)));
+        
         let talentsHtml = '';
         try{
           if(s.talents && (s.talents instanceof Array || s.talents instanceof Set)){
             const talentArray = Array.from(s.talents);
             talentsHtml = talentArray.map(tn => {
               const info = (window.TalentManager && typeof window.TalentManager.getTalentInfo === 'function') ? window.TalentManager.getTalentInfo(tn) : { name: tn, description: '', color: '#2b6cb0' };
-              return `<span class="talent-tag" data-talent="${tn}" style="background-color:${info.color}20;color:${info.color};border-color:${info.color}40;margin-right:6px;">${tn}<span class="talent-tooltip">${info.description||''}</span></span>`;
+              return `<span class="talent-tag" data-talent="${tn}" style="background-color:${info.color}20;color:${info.color};border-color:${info.color}40;">${tn}<span class="talent-tooltip">${info.description||''}</span></span>`;
             }).join('');
           }
         }catch(e){ talentsHtml = '';} 
 
         studentsHtml += `<div class="student-box" style="margin-bottom:8px;padding:8px;background:white;border-radius:6px;border:1px solid #eee">
-          <div style="display:flex;justify-content:space-between;align-items:center">
-            <div><strong>${s.name}</strong> ${isActive? '': '<span class="warn">[退队]</span>'} <span class="label-pill ${pressureClass}" style="margin-left:8px">压力:${pressureLevel}</span></div>
-            <div style="font-size:12px;color:#666">心理:${mentalRounded}</div>
+          <div class="student-header">
+            <div class="student-name">
+              ${s.name}
+              ${s.sick_weeks > 0 ? '<span class="warn">[生病]</span>' : ''}
+              ${!isActive ? '<span class="warn">[退队]</span>' : ''}
+            </div>
+            <div class="student-status">
+              <span class="label-pill ${pressureClass}">压力: ${pressureLevel}</span>
+            </div>
           </div>
-          <div class="compact small" style="margin-top:6px">
-            能力: 思维:${thinkGrade} 编码:${codeGrade}
-            <div style="margin-top:6px">知识: <span class="knowledge-badges">
-              <span class="kb" title="数据结构: ${Math.floor(Number(s.knowledge_ds||0))}">数据结构${k_ds}</span>
-              <span class="kb" title="图论: ${Math.floor(Number(s.knowledge_graph||0))}">图论${k_graph}</span>
-              <span class="kb" title="字符串: ${Math.floor(Number(s.knowledge_string||0))}">字符串${k_str}</span>
-              <span class="kb" title="数学: ${Math.floor(Number(s.knowledge_math||0))}">数学${k_math}</span>
-              <span class="kb" title="动态规划: ${Math.floor(Number(s.knowledge_dp||0))}">动态规划${k_dp}</span>
-            </span></div>
+          
+          <div class="student-details" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+            <div style="display:flex;align-items:center;gap:6px;">
+              <span style="font-size:12px;color:#718096;font-weight:600;">知识</span>
+              <div class="knowledge-badges">
+                <span class="kb" title="数据结构: ${Math.floor(Number(s.knowledge_ds||0))}" data-grade="${getLetterGradeAbility(Math.floor(Number(s.knowledge_ds||0)))}">
+                  DS ${getLetterGradeAbility(Math.floor(Number(s.knowledge_ds||0)))}
+                </span>
+                <span class="kb" title="图论: ${Math.floor(Number(s.knowledge_graph||0))}" data-grade="${getLetterGradeAbility(Math.floor(Number(s.knowledge_graph||0)))}">
+                  图论 ${getLetterGradeAbility(Math.floor(Number(s.knowledge_graph||0)))}
+                </span>
+                <span class="kb" title="字符串: ${Math.floor(Number(s.knowledge_string||0))}" data-grade="${getLetterGradeAbility(Math.floor(Number(s.knowledge_string||0)))}">
+                  字符串${getLetterGradeAbility(Math.floor(Number(s.knowledge_string||0)))}
+                </span>
+                <span class="kb" title="数学: ${Math.floor(Number(s.knowledge_math||0))}" data-grade="${getLetterGradeAbility(Math.floor(Number(s.knowledge_math||0)))}">
+                  数学 ${getLetterGradeAbility(Math.floor(Number(s.knowledge_math||0)))}
+                </span>
+                <span class="kb" title="动态规划: ${Math.floor(Number(s.knowledge_dp||0))}" data-grade="${getLetterGradeAbility(Math.floor(Number(s.knowledge_dp||0)))}">
+                  DP ${getLetterGradeAbility(Math.floor(Number(s.knowledge_dp||0)))}
+                </span>
+                <span class="kb ability" title="思维: ${Math.floor(Number(s.thinking||0))}" data-grade="${getLetterGradeAbility(Math.floor(Number(s.thinking||0)))}">思维${getLetterGradeAbility(Math.floor(Number(s.thinking||0)))}</span>
+                <span class="kb ability" title="代码: ${Math.floor(Number(s.coding||0))}" data-grade="${getLetterGradeAbility(Math.floor(Number(s.coding||0)))}">代码${getLetterGradeAbility(Math.floor(Number(s.coding||0)))}</span>
+              </div>
+            </div>
+            
+            ${talentsHtml ? `<div style="display:flex;align-items:center;gap:6px;"><span style="font-size:12px;color:#718096;font-weight:600;">天赋</span><div class="student-talents">${talentsHtml}</div></div>` : ''}
           </div>
-          ${talentsHtml ? `<div class="student-talents" style="margin-top:8px">${talentsHtml}</div>` : ''}
         </div>`;
       }
       studentsHtml += `</div>`;

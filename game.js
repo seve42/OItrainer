@@ -852,13 +852,50 @@ function normalizeEndingReason(raw) {
     if(low.includes('无学生') || low.includes('all quit') || low.includes('所有学生') || low.includes('退队') || low.includes('崩溃')) return '无学生';
     if(low.includes('晋级链') || low.includes('晋级链断裂') || low.includes('chain') || low.includes('qualification')) return '晋级链断裂';
     if(low.includes('赛季') || low.includes('season')) return '赛季结束';
+    if(low.includes('辞职') || low.includes('resign')) return '辞职';
     
     if(s === '无学生') return '无学生';
     if(s === '经费不足' || s === '经费耗尽') return '经费不足';
     if(s === '晋级链断裂') return '晋级链断裂';
+    if(s === '辞职') return '辞职';
     
     return s;
   }catch(e){ return '赛季结束'; }
+}
+
+function resignUI(){
+  const modalHtml = `
+    <h3>确认辞职</h3>
+    <div class="small" style="margin-top:12px; line-height:1.6;">
+      你确定要辞职吗？<br/>
+      辞职将立即结束本赛季并进行结算。<br/>
+      此操作无法撤销。
+    </div>
+    <div class="modal-actions" style="margin-top:16px">
+      <button class="btn btn-ghost" id="resign-cancel">取消</button>
+      <button class="btn" id="resign-confirm" style="background: #ef4444; border-color: #dc2626;">确认辞职</button>
+    </div>`;
+
+  showModal(modalHtml);
+
+  const cancelBtn = document.getElementById('resign-cancel');
+  const confirmBtn = document.getElementById('resign-confirm');
+  
+  if(cancelBtn) cancelBtn.onclick = () => { 
+    try{ closeModal(); }catch(e){} 
+  };
+  
+  if(confirmBtn) confirmBtn.onclick = () => {
+    try{
+      closeModal();
+      log("教练选择辞职，赛季提前结束");
+      setTimeout(() => {
+        triggerGameEnding('辞职');
+      }, 100);
+    }catch(e){ 
+      console.error('resign confirm handler error', e); 
+    }
+  };
 }
 
 function triggerGameEnding(reason) {
@@ -1256,6 +1293,7 @@ window.onload = ()=>{
     document.getElementById('action-entertain').onclick = ()=>{ entertainmentUI(); };
     document.getElementById('action-mock').onclick = ()=>{ holdMockContestUI(); };
     document.getElementById('action-outing').onclick = ()=>{ outingTrainingUI(); };
+    document.getElementById('action-resign').onclick = ()=>{ resignUI(); };
     
     document.querySelectorAll('.btn.upgrade').forEach(b => {
       b.onclick = (e) => {
