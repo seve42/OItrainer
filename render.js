@@ -87,13 +87,23 @@ function renderEventCards(){
             `${(ev.options && ev.options.length > 0) ? '<span class="required-tag">未选择</span>' : ''}` +
             `</div>`;
     const descText = ev.description || '';
+    // 基本 HTML 转义（并移除换行/br），确保事件描述为单行显示，避免占位符泄露
     const esc = (s) => String(s||'').replace(/[&<>"']/g, function(ch){return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"})[ch];});
-    const shortDesc = (descText.length > 120) ? descText.slice(0, 118) + '…' : descText;
+    const escNoBr = (s) => {
+      if(typeof s !== 'string') s = String(s||'');
+      // 将 <br> 和换行符替换为空格，再做 HTML 转义
+      const normalized = s.replace(/<br\s*\/?/gi, ' ').replace(/\r?\n/g, ' ');
+      return normalized.replace(/[&<>"']/g, function(ch){return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"})[ch];});
+    };
+    // 先把描述标准化为无换行形式，再基于该结果生成 shortDesc（避免截断标签或占位符）
+    const normalizedDesc = (typeof descText === 'string') ? descText.replace(/<br\s*\/?/gi, ' ').replace(/\r?\n/g, ' ') : String(descText || '');
+    const shortDesc = (normalizedDesc.length > 120) ? normalizedDesc.slice(0, 118) + '…' : normalizedDesc;
 
     let cardHTML = '';
     cardHTML += titleHtml;
-    cardHTML += `<div class="card-desc clamp" data-uid="${ev._uid}">${esc(shortDesc)}</div>`;
-    cardHTML += `<div class="event-detail" data-uid="${ev._uid}" style="display:none">${esc(descText)}</div>`;
+  // 使用 escNoBr，所有换行/BR 将被转为空格，事件描述呈单行显示
+  cardHTML += `<div class="card-desc clamp" data-uid="${ev._uid}">${escNoBr(shortDesc)}</div>`;
+  cardHTML += `<div class="event-detail" data-uid="${ev._uid}" style="display:none">${escNoBr(descText)}</div>`;
     if(descText && descText.length > 60){
       cardHTML += `<button class="more-btn" data-action="toggle-detail" data-uid="${ev._uid}">更多</button>`;
     }
@@ -265,6 +275,20 @@ function renderAll(){
   $('fac-dorm').innerText = game.facilities.dorm;
   $('fac-canteen').innerText = game.facilities.canteen;
   $('fac-maint').innerText = game.facilities.getMaintenanceCost();
+  
+  // 同步更新设施状态显示区域（只读）
+  const displayEls = {
+    'fac-computer-display': game.facilities.computer,
+    'fac-library-display': game.facilities.library,
+    'fac-ac-display': game.facilities.ac,
+    'fac-dorm-display': game.facilities.dorm,
+    'fac-canteen-display': game.facilities.canteen,
+    'fac-maint-display': game.facilities.getMaintenanceCost()
+  };
+  for(let id in displayEls) {
+    const el = $(id);
+    if(el) el.innerText = displayEls[id];
+  }
   let out = '';
   for(let s of game.students){
     if(s && s.active === false) continue;
@@ -505,12 +529,17 @@ function trainStudentsUI(){
   }).join('');
 
   const intensityHtml = `
-    <div id="train-int-grid" style="display:flex;gap:8px;margin-top:6px">
-      <button class="prov-btn option-btn" data-val="1">轻度</button>
-      <button class="prov-btn option-btn" data-val="2">中度</button>
-      <button class="prov-btn option-btn" data-val="3">重度</button>
+    <div style="margin-top:8px;padding:0 4px;text-align:center;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;max-width:220px;margin-left:auto;margin-right:auto;">
+        <span class="small" style="color:#666;">轻度</span>
+        <span id="intensity-value" style="font-weight:700;font-size:16px;color:var(--accent);">中度</span>
+        <span class="small" style="color:#666;">重度</span>
+      </div>
+      <input type="range" id="intensity-slider" min="1" max="3" value="2" step="1"
+        style="width:220px;display:block;margin:0 auto;height:8px;border-radius:4px;outline:none;-webkit-appearance:none;appearance:none;background:linear-gradient(to right, #48bb78 0%, #ecc94b 50%, #f56565 100%);">
     </div>
-    <div class="small muted" style="margin-top:6px">强度影响压力和训练时长</div>
+    <div id="intensity-warning" style="margin-top:12px;font-weight:700;text-align:center;display:none;"></div>
+    <div class="small muted" style="margin-top:6px;text-align:center;">强度影响压力和训练效果</div>
   `;
 
   showModal(`<h3>选择训练题目</h3>
@@ -520,12 +549,12 @@ function trainStudentsUI(){
     <div id="train-task-helper" class="small muted" style="margin-top:6px;display:none;color:#c53030;font-weight:700"></div>
     <label class="block" style="margin-top:14px">训练强度</label>
     ${intensityHtml}
-    <div id="train-int-helper" class="small muted" style="margin-top:6px;display:none;color:#c53030;font-weight:700"></div>
     <div class="modal-actions" style="margin-top:16px">
       <button class="btn btn-ghost" onclick="closeModal()">取消</button>
       <button class="btn" id="train-confirm">开始训练（1周）</button>
     </div>`);
 
+  // 题目选择逻辑
   const tCards = Array.from(document.querySelectorAll('#train-task-grid .task-card'));
   if(tCards.length > 0) tCards[0].classList.add('selected');
   tCards.forEach(c => {
@@ -534,23 +563,81 @@ function trainStudentsUI(){
       c.classList.add('selected');
       const helper = $('train-task-helper'); if(helper){ helper.style.display='none'; helper.innerText=''; }
       const grid = $('train-task-grid'); if(grid) grid.classList.remove('highlight-required');
+      updateIntensityWarning();
     };
   });
 
-  const intBtns = document.querySelectorAll('#train-int-grid .option-btn');
-  intBtns.forEach((b, i) => {
-    if(i === 1) b.classList.add('selected');
-    b.onclick = () => {
-      intBtns.forEach(x => { x.classList.remove('selected'); x.classList.remove('shake'); });
-      b.classList.add('selected');
-      const helper = $('train-int-helper'); if(helper){ helper.style.display='none'; helper.innerText=''; }
-      const grid = $('train-int-grid'); if(grid) grid.classList.remove('highlight-required');
-    };
-  });
+  // 滑块控制逻辑
+  const slider = document.getElementById('intensity-slider');
+  const valueDisplay = document.getElementById('intensity-value');
+  
+  // 自定义滑块样式（适配不同浏览器）
+  const style = document.createElement('style');
+  style.textContent = `
+    #intensity-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: white;
+      cursor: pointer;
+      border: 2px solid var(--accent);
+      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+    #intensity-slider::-moz-range-thumb {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: white;
+      cursor: pointer;
+      border: 2px solid var(--accent);
+      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+    #intensity-slider::-webkit-slider-track {
+      height: 8px;
+      border-radius: 4px;
+    }
+    #intensity-slider::-moz-range-track {
+      height: 8px;
+      border-radius: 4px;
+    }
+  `;
+  document.head.appendChild(style);
+
+  function updateIntensityWarning() {
+    const intensity = parseInt(slider.value);
+    const intensityNames = ['', '轻度', '中度', '重度'];
+    valueDisplay.textContent = intensityNames[intensity];
+    
+    const taskBtn = document.querySelector('#train-task-grid .task-card.selected');
+    if(!taskBtn) return;
+    
+    const taskIdx = parseInt(taskBtn.dataset.idx);
+    const selectedTask = tasks[taskIdx];
+    
+    // 预计算压力变化
+    const warningDiv = document.getElementById('intensity-warning');
+    const result = calculateTrainingPressure(selectedTask, intensity);
+    warningDiv.style.display = 'block';
+    // 仅使用彩色文本展示简单状态（不显示背景或额外描述）
+    if(result.hasQuitRisk) {
+      warningDiv.style.color = '#c53030';
+      warningDiv.innerText = '强度过大';
+    } else if(result.hasHighPressure) {
+      warningDiv.style.color = '#d97706';
+      warningDiv.innerText = '强度略大';
+    } else {
+      warningDiv.style.color = '#2f855a';
+      warningDiv.innerText = '强度尚可';
+    }
+  }
+
+  slider.addEventListener('input', updateIntensityWarning);
+  updateIntensityWarning();
 
   $('train-confirm').onclick = () => {
     let taskBtn = document.querySelector('#train-task-grid .task-card.selected');
-    let intBtn = document.querySelector('#train-int-grid .option-btn.selected');
 
     if(!taskBtn) {
       const helper = $('train-task-helper'); if(helper){ helper.style.display='block'; helper.innerText='请先选择一道训练题目以开始训练'; }
@@ -560,17 +647,9 @@ function trainStudentsUI(){
       return;
     }
 
-    if(!intBtn) {
-      const helper = $('train-int-helper'); if(helper){ helper.style.display='block'; helper.innerText='请选择训练强度（轻/中/重）'; }
-      const grid = $('train-int-grid'); if(grid) grid.classList.add('highlight-required');
-      const first = document.querySelector('#train-int-grid .option-btn');
-      if(first){ first.classList.add('shake'); setTimeout(()=>first.classList.remove('shake'), 900); try{ first.scrollIntoView({ behavior: 'smooth', block: 'center' }); }catch(e){} }
-      return;
-    }
-
     let taskIdx = parseInt(taskBtn.dataset.idx);
     let selectedTask = tasks[taskIdx];
-    let intensity = intBtn ? parseInt(intBtn.dataset.val) : 2;
+    let intensity = parseInt(slider.value);
     
     closeModal();
     

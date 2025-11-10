@@ -316,8 +316,37 @@
           c.game.reputation = Math.min(100, c.game.reputation + 3);
           const msg = `收到上级拨款 ¥${gain}，声誉提升 +3`;
           c.log && c.log(`[上级拨款] ${msg}`);
-          // 事件卡显示完整影响（金额 + 简短说明），以便玩家一目了然
-          window.pushEvent && window.pushEvent({ name:'上级拨款', description: `${msg}`, week: c.game.week });
+          
+          // 创建选择选项
+          const options = [
+            { 
+              label: '升级设施', 
+              effect: () => {
+                // 延迟打开设施升级界面，确保选择对话框先关闭
+                setTimeout(() => {
+                  if(typeof window.showFacilityUpgradeModal === 'function'){
+                    window.showFacilityUpgradeModal();
+                  }
+                }, 300);
+                window.pushEvent && window.pushEvent({ name: '上级拨款', description: `${msg}`, week: c.game.week });
+              }
+            },
+            { 
+              label: '暂不升级', 
+              effect: () => {
+                window.pushEvent && window.pushEvent({ name: '上级拨款', description: `${msg}`, week: c.game.week });
+              }
+            }
+          ];
+          
+          // 显示选择对话框
+          window.showChoiceModal && window.showChoiceModal({ 
+            name: '上级拨款', 
+            description: `${msg}  是否立即升级设施？`, 
+            week: c.game.week, 
+            options 
+          });
+          
           return null;
         }
       });

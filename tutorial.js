@@ -47,9 +47,10 @@ const TUTORIAL_STEPS = [
   },
   {
     id: 'facilities',
-    target: '.facility-grid',
-    title: '设施升级',
-    content: '升级<strong>计算机</strong>和<strong>资料库</strong>可以提升训练效率。<br>升级<strong>空调、宿舍、食堂</strong>可以改善舒适度，降低压力。',
+    // 目标改为整个设施状态模块，使遮罩高亮覆盖完整区域
+    target: '#facilities-panel',
+    title: '设施状态',
+    content: '这里显示当前的设施等级。升级<strong>计算机</strong>和<strong>资料库</strong>可以提升训练效率。<br>升级<strong>空调、宿舍、食堂</strong>可以改善舒适度，降低压力。<br>设施可以通过特定事件（如上级拨款）进行升级。',
     position: 'right',
     highlight: true
   },
@@ -71,7 +72,7 @@ const TUTORIAL_STEPS = [
   },
   {
     id: 'competition',
-    target: '#next-competition-panel',
+    target: '#next-comp',
     title: '比赛日程',
     content: '关注下场比赛的时间！比赛前建议安排模拟赛或集训来提升实力。<br>比赛成绩决定能否晋级下一场。',
     position: 'top',
@@ -478,11 +479,15 @@ style.textContent = `
     }
   }
 
+  /* 移除蓝色边框，仅保留遮罩/挖空高亮效果
+     遮罩的挖空由 updateOverlayMask() 处理；
+     这里保持最小样式以避免在目标元素上额外绘制蓝色外框或背景 */
   .tutorial-highlight {
-    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.8), 0 0 20px rgba(59, 130, 246, 0.6) !important;
     border-radius: 8px !important;
     transition: all 0.3s ease !important;
-    background: white !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    outline: none !important;
     /* 不设置position和z-index，由JS动态控制 */
   }
 

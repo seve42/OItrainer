@@ -174,6 +174,110 @@ function handleEventChoice(event) {
   safeRenderAll();
 }
 
+// 压力预计算函数：用于在训练前预测压力变化
+function calculateTrainingPressure(task, intensity) {
+  try {
+    let weather_factor = game.getWeatherFactor();
+    let comfort = game.getComfort();
+    let comfort_factor = 1.0 + Math.max(0.0, (50 - comfort) / 100.0);
+    
+    let hasQuitRisk = false;
+    let hasHighPressure = false;
+    
+    for(let s of game.students) {
+      if(!s || s.active === false) continue;
+      
+      let personalComfort = comfort;
+      
+      if(s.talents && s.talents.has('天气敏感')){
+        const baseComfort = game.base_comfort;
+        const weatherEffect = comfort - baseComfort;
+        personalComfort = baseComfort + weatherEffect * 2;
+        personalComfort = Math.max(0, Math.min(100, personalComfort));
+      }
+      
+      if(s.talents && s.talents.has('美食家')){
+        const canteenBonus = 3 * (game.facilities.canteen - 1);
+        personalComfort += canteenBonus;
+        personalComfort = Math.max(0, Math.min(100, personalComfort));
+      }
+      
+      const studentAbility = (s.thinking + s.coding) / 2.0;
+      let base_pressure = (intensity===1) ? 15 : (intensity===2) ? 25 : 40;
+      
+      const difficultyPressure = Math.max(0, (task.difficulty - studentAbility) * 0.2);
+      base_pressure += difficultyPressure;
+      
+      if(intensity===3) base_pressure *= TRAINING_PRESSURE_MULTIPLIER_HEAVY;
+      else if(intensity===2) base_pressure *= TRAINING_PRESSURE_MULTIPLIER_MEDIUM;
+      
+      let canteen_reduction = game.facilities.getCanteenPressureReduction();
+      let pressure_increase = base_pressure * weather_factor * canteen_reduction * comfort_factor;
+      if(s.sick_weeks > 0) pressure_increase += 10;
+      
+      pressure_increase *= (typeof PRESSURE_INCREASE_MULTIPLIER !== 'undefined' ? PRESSURE_INCREASE_MULTIPLIER : 1.0);
+      
+      // 考虑天赋的压力修正
+      let finalPressureIncrease = pressure_increase;
+      try{
+        if(typeof s.triggerTalents === 'function'){
+          const talentResults = s.triggerTalents('pressure_change', { 
+            source: 'task_training', 
+            amount: pressure_increase, 
+            task: task, 
+            intensity: intensity,
+            preview: true  // 标记为预览模式
+          }) || [];
+          
+          for(const r of talentResults){
+            if(!r || !r.result) continue;
+            const out = r.result;
+            if(typeof out === 'object'){
+              const act = out.action;
+              if(act === 'moyu_cancel_pressure'){
+                finalPressureIncrease = 0;
+              } else if(act === 'halve_pressure'){
+                finalPressureIncrease = finalPressureIncrease * 0.5;
+              } else if(act === 'double_pressure'){
+                finalPressureIncrease = finalPressureIncrease * 2.0;
+              }
+            }
+          }
+        }
+      }catch(e){ /* ignore */ }
+      
+      const predictedPressure = s.pressure + finalPressureIncrease;
+      
+      // 检查退队风险：
+      // 1. 如果预测压力>=90，且学生已有退队倾向（quit_tendency_weeks >= 1），下周将退队
+      // 2. 如果预测压力>=90，即使没有退队倾向，也是高风险（会获得退队倾向）
+      const currentQuitWeeks = s.quit_tendency_weeks || 0;
+      
+      if(predictedPressure >= 90) {
+        // 压力将达到90+，这是退队风险
+        if(currentQuitWeeks >= 1) {
+          // 已有退队倾向，下周将退队
+          hasQuitRisk = true;
+        } else {
+          // 会新获得退队倾向，也标记为退队风险
+          hasQuitRisk = true;
+        }
+      } else if(predictedPressure >= 70) {
+        // 高压力但未达退队阈值
+        hasHighPressure = true;
+      }
+    }
+    
+    return {
+      hasQuitRisk: hasQuitRisk,
+      hasHighPressure: hasHighPressure
+    };
+  } catch(e) {
+    console.error('calculateTrainingPressure error', e);
+    return { hasQuitRisk: false, hasHighPressure: false };
+  }
+}
+
 function trainStudentsWithTask(task, intensity) {
   log(`开始做题训练：${task.name}（难度${task.difficulty}，强度${intensity===1?'轻':intensity===2?'中':'重'}）`);
   const __before = typeof __createSnapshot === 'function' ? __createSnapshot() : null;
@@ -864,6 +968,85 @@ function upgradeFacility(f){
   };
 }
 
+function showFacilityUpgradeModal(){
+  const facilities = ['computer', 'library', 'ac', 'dorm', 'canteen'];
+  const facilityNames = {
+    'computer': '计算机',
+    'library': '资料库',
+    'ac': '空调',
+    'dorm': '宿舍',
+    'canteen': '食堂'
+  };
+  const facilityDescs = {
+    'computer': '提升综合训练效率',
+    'library': '提升知识训练效率',
+    'ac': '提升舒适度，缓解极端天气影响',
+    'dorm': '提升舒适度',
+    'canteen': '减少训练压力'
+  };
+
+  let facilityCardsHtml = '';
+  for(let fac of facilities){
+    const name = facilityNames[fac];
+    const desc = facilityDescs[fac];
+    const current = game.facilities.getCurrentLevel(fac);
+    const max = game.facilities.getMaxLevel(fac);
+    const cost = game.facilities.getUpgradeCost(fac);
+    const mult = (game.getExpenseMultiplier ? game.getExpenseMultiplier() : 1);
+    const costAdj = Math.round(cost * mult);
+    const canUpgrade = current < max && game.budget >= costAdj;
+
+    // Use flex column layout so buttons stay aligned at the bottom even when descriptions wrap
+    facilityCardsHtml += `
+      <div class="facility" style="display:flex; flex-direction:column; min-height:150px;">
+        <div>
+          <div class="fac-label">${name}</div>
+          <div class="stat">Lv.${current}</div>
+          <div class="small muted" style="margin-top:6px">${desc}</div>
+        </div>
+        <div class="fac-action" style="margin-top:auto; display:flex; flex-direction:column; align-items:center; gap:6px;">
+          ${current < max ? 
+            `<button class="btn upgrade" data-fac="${fac}">升级到 Lv.${current+1}</button>
+             <div class="small muted" style="margin-top:0; text-align:center">¥${costAdj}</div>` : 
+            `<button class="btn upgrade ghost" disabled>已满级</button>`
+          }
+        </div>
+      </div>
+    `;
+  }
+
+  const maintCost = game.facilities.getMaintenanceCost();
+
+  const modalHtml = `
+    <h3 style="margin:0 0 12px 0; font-size:20px; color:#1f2937;">设施升级</h3>
+    <div class="small" style="margin-bottom:16px; padding:10px; background:#f0f9ff; border-radius:6px; border:1px solid #bfdbfe;">
+      <span style="color:#1e40af;">当前经费: <strong>¥${game.budget}</strong></span>
+      <span style="margin-left:16px; color:#1e40af;">每周维护费: <strong>¥${maintCost}</strong></span>
+    </div>
+    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(170px, 1fr)); gap:14px; margin-bottom:20px;">
+      ${facilityCardsHtml}
+    </div>
+    <div class="modal-actions">
+      <button class="btn" id="facility-modal-close" style="padding:8px 20px;">关闭</button>
+    </div>
+  `;
+
+  showModal(modalHtml);
+
+  // 绑定关闭按钮
+  const closeBtn = document.getElementById('facility-modal-close');
+  if(closeBtn) closeBtn.onclick = () => { closeModal(); };
+
+  // 绑定升级按钮
+  document.querySelectorAll('.btn.upgrade[data-fac]').forEach(btn => {
+    const fac = btn.dataset.fac;
+    btn.onclick = () => {
+      closeModal();
+      setTimeout(() => upgradeFacility(fac), 100);
+    };
+  });
+}
+
 function rest1Week(){
   log("休息1周...");
   for(let s of game.students) if(s.active){ s.pressure = Math.max(0, s.pressure - uniform(16,36)); s.mental = Math.min(100, s.mental + uniform(0.4,1.6)); }
@@ -1082,6 +1265,11 @@ window.onload = ()=>{
     });
     const actionEvictBtn = document.getElementById('action-evict');
     if(actionEvictBtn) actionEvictBtn.onclick = ()=>{ evictStudentUI(); };
+    
+    // 暴露设施升级界面函数到全局作用域
+    window.showFacilityUpgradeModal = showFacilityUpgradeModal;
+    // 暴露压力预计算函数到全局作用域
+    window.calculateTrainingPressure = calculateTrainingPressure;
     
     renderAll();
     
