@@ -839,7 +839,7 @@ function entertainmentUI(){
     {id:1,label:'放假',desc:'减小少许压力',cost:0},
     {id:2,label:`请学生吃饭 (¥${ENTERTAINMENT_COST_MEAL})`,desc:'补充能量,减小一定压力',cost:ENTERTAINMENT_COST_MEAL},
     {id:3,label:'体育运动',desc:`减小一定压力,注意天气影响，当前是${game.getWeatherDescription()}天`,cost:0},
-    {id:5,label:`邀请学生打CS`,desc:'适度减压,有可能提升学生能力',cost:ENTERTAINMENT_COST_CS}
+    {id:5,label:`邀请学生打游戲`,desc:'适度减压,有可能提升学生能力',cost:ENTERTAINMENT_COST_CS}
   ];
   let cardsHtml = opts.map(o=>`
     <div class="prov-card option-card" data-id="${o.id}" style="min-width:120px;border:1px solid #ddd;padding:8px;border-radius:6px;cursor:pointer;">
