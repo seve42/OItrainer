@@ -103,16 +103,30 @@
         id: 'burnout',
         name: '退队/倦怠',
         description: '压力累计导致学生退队',
-        check: c => c.game.students.some(s => s.active && s.pressure >= 95),
+        check: c => c.game.students.some(s => s.active && (s.pressure >= 90 || (s.quit_tendency_weeks && s.quit_tendency_weeks > 0))),
         run: c => {
           const {QUIT_PROB_BASE, QUIT_PROB_PER_EXTRA_PRESSURE} = c.constants;
           const quitList = [];
+          const tendencyList = [];
+          
           for(let i = c.game.students.length - 1; i >= 0; i--){
             const s = c.game.students[i];
             if(!s || s.active === false) continue;
+            
+            // 压力>=90时获得或持续退队倾向
             if(s.pressure >= 90){
-              s.burnout_weeks = (s.burnout_weeks || 0) + 1;
-              if(s.burnout_weeks >= 3){
+              // 初始化退队倾向周数
+              if(!s.quit_tendency_weeks) s.quit_tendency_weeks = 0;
+              
+              s.quit_tendency_weeks = (s.quit_tendency_weeks || 0) + 1;
+              
+              // 调试日志
+              if(typeof console !== 'undefined' && console.log){
+                console.log(`[退队检查] ${s.name}: 压力=${s.pressure}, quit_tendency_weeks=${s.quit_tendency_weeks}`);
+              }
+              
+              // 如果退队倾向持续1周以上，则执行退队
+              if(s.quit_tendency_weeks > 1){
                 let prob = QUIT_PROB_BASE + QUIT_PROB_PER_EXTRA_PRESSURE * (s.pressure - 90);
                 
                 // 检测乐天派天赋：燃尽概率降低50%
@@ -127,11 +141,30 @@
                   c.game.reputation = Math.max(0, c.game.reputation - 10);
                   try{ if(typeof s.triggerTalents === 'function'){ s.triggerTalents('quit', { reason: 'burnout' }); } }catch(e){ console.error('triggerTalents quit', e); }
                 }
+              } else if(s.quit_tendency_weeks === 1) {
+                // 刚刚获得退队倾向
+                tendencyList.push(s.name);
               }
             } else {
-              s.burnout_weeks = 0;
+              // 压力降到90以下，清除退队倾向
+              if(s.quit_tendency_weeks && s.quit_tendency_weeks > 0){
+                // 调试日志
+                if(typeof console !== 'undefined' && console.log){
+                  console.log(`[退队清除] ${s.name}: 压力=${s.pressure}, 清除退队倾向`);
+                }
+                s.quit_tendency_weeks = 0;
+              }
             }
           }
+          
+          // 显示退队倾向提示
+          if(tendencyList.length){
+            const msg = `${tendencyList.join('、')} 因压力过大产生退队倾向，如不缓解将在下周退队`;
+            log && log(`[警告] ${msg}`);
+            window.pushEvent && window.pushEvent({ name:'退队倾向', description: msg, week: c.game.week });
+          }
+          
+          // 显示实际退队
           if(quitList.length){
             const msg = `${quitList.join('、')} 因压力过大退队，声誉-10`;
             log && log(`[事件] ${msg}`);

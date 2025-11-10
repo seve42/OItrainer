@@ -53,14 +53,23 @@ function safeRenderAll(){
 function renderEventCards(){
   const container = $('event-cards-container');
   if(!container) return;
+  
+  // 清空并重建结构
   container.innerHTML = '';
   
   if(recentEvents.length === 0){
+    container.classList.remove('has-overflow');
     return;
   }
 
+  // 创建滚动包装器
+  let wrapper = document.createElement('div');
+  wrapper.id = 'event-cards-wrapper';
+  container.appendChild(wrapper);
+
   const nowWeek = currWeek();
   let shown = 0;
+  
   for(let i = 0; i < recentEvents.length; i++){
     const ev = recentEvents[i];
     if(ev.week && (nowWeek - ev.week) > 2) continue;
@@ -74,7 +83,7 @@ function renderEventCards(){
     }
     card.className = cardClass;
 
-  const titleHtml = `<div class="card-title">${ev.name || '突发事件'}` +
+    const titleHtml = `<div class="card-title">${ev.name || '突发事件'}` +
             `${(ev.options && ev.options.length > 0) ? '<span class="required-tag">未选择</span>' : ''}` +
             `</div>`;
     const descText = ev.description || '';
@@ -98,9 +107,39 @@ function renderEventCards(){
     }
 
     card.innerHTML = cardHTML;
-    container.appendChild(card);
+    wrapper.appendChild(card);
     
     if(++shown >= 6) break;
+  }
+  
+  // 检查是否有溢出内容
+  setTimeout(() => {
+    checkEventCardsOverflow();
+  }, 100);
+}
+
+// 检查事件卡片是否溢出并添加相应的视觉提示
+function checkEventCardsOverflow() {
+  const container = $('event-cards-container');
+  const wrapper = $('event-cards-wrapper');
+  if(!container || !wrapper) return;
+  
+  const hasOverflow = wrapper.scrollHeight > wrapper.clientHeight;
+  
+  if(hasOverflow) {
+    container.classList.add('has-overflow');
+    // 仅添加类并监听滚动以控制渐变显示（不创建任何提示 DOM）
+    wrapper.addEventListener('scroll', function() {
+      const isAtBottom = wrapper.scrollHeight - wrapper.scrollTop <= wrapper.clientHeight + 10;
+      if(isAtBottom) {
+        container.classList.add('scrolled-to-bottom');
+      } else {
+        container.classList.remove('scrolled-to-bottom');
+      }
+    });
+  } else {
+    container.classList.remove('has-overflow');
+    container.classList.remove('scrolled-to-bottom');
   }
 }
 
@@ -232,6 +271,9 @@ function renderAll(){
     let pressureLevel = s.pressure < 35 ? "低" : s.pressure < 65 ? "中" : "高";
     let pressureClass = s.pressure < 35 ? "pressure-low" : s.pressure < 65 ? "pressure-mid" : "pressure-high";
     
+    // 检查是否有退队倾向
+    let hasTendency = (s.quit_tendency_weeks && s.quit_tendency_weeks > 0);
+    
     let talentsHtml = '';
     if(s.talents && s.talents.size > 0){
       const talentArray = Array.from(s.talents);
@@ -251,6 +293,7 @@ function renderAll(){
         <div class="student-name">
           ${s.name}
           ${s.sick_weeks > 0 ? '<span class="warn">[生病]</span>' : ''}
+          ${hasTendency ? '<span class="warn">[退队倾向]</span>' : ''}
         </div>
         <div class="student-status">
           <span class="label-pill ${pressureClass}">压力: ${pressureLevel}</span>

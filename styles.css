@@ -199,6 +199,14 @@ footer{margin-top:16px;text-align:center;color:var(--muted)}
   padding: 0 4px !important;
 }
 
+.label-pill.pressure-tendency {
+  background: #fff5f5 !important;
+  border-color: #feb2b2 !important;
+  color: #e53e3e !important; /* 深红色文字 */
+  padding: 2px 6px !important;
+  font-weight: 700 !important;
+}
+
 /* 生病状态警告 */
 .warn {
   color: #e53e3e;
@@ -342,8 +350,72 @@ th,td{padding:6px;border:1px solid #eee;text-align:center}
 /* Make sure smaller save button aligns */
 .action-cards > div > .btn-ghost{margin-left:0}
 
-/* 突发事件卡片 */
-.event-card{border:2px solid var(--accent);border-radius:8px;padding:10px;background:var(--card);box-shadow:0 2px 6px rgba(43,108,176,0.06);margin-top:12px}
+/* 突发事件卡片容器 - iOS风格滚动（去除提示文案与预览，只保留渐变） */
+#event-cards-container {
+  position: relative;
+  max-height: 420px; /* 固定最大高度，约3-3.5个卡片 */
+  overflow: hidden;
+  margin-top: 12px;
+  transition: max-height 0.3s ease;
+}
+
+/* 内部滚动包装器：滚动可用但滚动条彻底隐藏（仍支持鼠标/触摸滚动） */
+#event-cards-wrapper {
+  position: relative;
+  overflow-y: auto;
+  overflow-x: hidden;
+  max-height: 420px;
+  padding-bottom: 8px; /* 少量空间避免最后一项被遮挡 */
+  scroll-behavior: smooth;
+  -ms-overflow-style: none; /* IE/Edge */
+  scrollbar-width: none; /* Firefox */
+}
+
+/* 完全隐藏 WebKit 浏览器的滚动条视觉 */
+#event-cards-wrapper::-webkit-scrollbar { display: none; }
+
+/* 事件卡片基础样式 */
+.event-card {
+  border: 2px solid var(--accent);
+  border-radius: 8px;
+  padding: 10px;
+  background: var(--card);
+  box-shadow: 0 2px 6px rgba(43,108,176,0.06);
+  margin-bottom: 8px;
+  position: relative;
+  transition: all 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* 底部折叠渐变遮罩 - 当有内容溢出时显示（保留），使用纯白色基底以保证与白色背景一致 */
+#event-cards-container::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 80px;
+  /* 由透明白到纯白的渐变，确保与页面白色背景 (#ffffff) 完全一致 */
+  background: linear-gradient(to bottom,
+    rgba(255,255,255,0) 0%,
+    rgba(255,255,255,0.5) 30%,
+    rgba(255,255,255,0.9) 70%,
+    rgba(255,255,255,1) 100%);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  z-index: 5;
+}
+
+/* 当容器可滚动时显示渐变 */
+#event-cards-container.has-overflow::after {
+  opacity: 1;
+}
+
+/* 当滚动到底部时隐藏渐变 */
+#event-cards-container.scrolled-to-bottom::after {
+  opacity: 0 !important;
+}
+
 .event-card h4{margin:0 0 6px 0}
 .event-list{max-height:140px;overflow:auto;padding:6px;border-radius:6px;background:linear-gradient(180deg, rgba(0,0,0,0.01), transparent)}
 .event-item{padding:6px;border-bottom:1px dashed #eee;font-size:13px}
