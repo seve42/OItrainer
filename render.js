@@ -1292,7 +1292,23 @@ function renderEndSummary(){
         careerHtml += `<div style="font-weight:bold">第 ${rec.week} 周 - ${rec.name}</div>`;
         careerHtml += `<div style="font-size:12px;color:#1976d2;font-weight:600">表现分: ${contestPerformance.toFixed(2)}</div>`;
         careerHtml += `</div>`;
-        careerHtml += `<div style="font-size:13px;color:#666;margin-bottom:6px">晋级：${passedCount}/${totalStudents} 人 (${passRate}%)</div>`;
+        // IOI 为国际赛，不存在“晋级”概念；避免将其他国家/队伍的晋级数据计入本队统计
+        if (/IOI/i.test(rec.name)) {
+          // 统计奖牌数（如果有）并显示参赛人数及奖牌信息
+          let gold = 0, silver = 0, bronze = 0;
+          if (rec.entries && Array.isArray(rec.entries)) {
+            for (let e of rec.entries) {
+              if (e && e.medal) {
+                if (e.medal === 'gold') gold++;
+                else if (e.medal === 'silver') silver++;
+                else if (e.medal === 'bronze') bronze++;
+              }
+            }
+          }
+          careerHtml += `<div style="font-size:13px;color:#666;margin-bottom:6px">国际赛（无晋级制） · 参赛人数: ${totalStudents} 人 · 奖牌：金${gold} 银${silver} 铜${bronze}</div>`;
+        } else {
+          careerHtml += `<div style="font-size:13px;color:#666;margin-bottom:6px">晋级：${passedCount}/${totalStudents} 人 (${passRate}%)</div>`;
+        }
         
         if(rec.entries && rec.entries.length > 0){
           careerHtml += `<table style="width:100%;font-size:12px;border-collapse:collapse">`;
