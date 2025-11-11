@@ -1281,8 +1281,14 @@ function renderEndSummary(){
         const totalStudents = rec.totalStudents || 0;
         const passRate = totalStudents > 0 ? ((passedCount / totalStudents) * 100).toFixed(0) : '0';
         
+        // 计算本场比赛的表现分
+        const contestPerformance = calculateContestPerformanceScore(rec);
+        
         careerHtml += `<div style="margin-bottom:12px;padding:8px;background:white;border-radius:4px;border-left:3px solid #4a90e2">`;
-        careerHtml += `<div style="font-weight:bold;margin-bottom:4px">第 ${rec.week} 周 - ${rec.name}</div>`;
+        careerHtml += `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">`;
+        careerHtml += `<div style="font-weight:bold">第 ${rec.week} 周 - ${rec.name}</div>`;
+        careerHtml += `<div style="font-size:12px;color:#1976d2;font-weight:600">表现分: ${contestPerformance.toFixed(2)}</div>`;
+        careerHtml += `</div>`;
         careerHtml += `<div style="font-size:13px;color:#666;margin-bottom:6px">晋级：${passedCount}/${totalStudents} 人 (${passRate}%)</div>`;
         
         if(rec.entries && rec.entries.length > 0){
@@ -1291,6 +1297,7 @@ function renderEndSummary(){
             <th style="padding:4px;text-align:left">学生</th>
             <th style="padding:4px;text-align:center">排名</th>
             <th style="padding:4px;text-align:center">分数</th>
+            <th style="padding:4px;text-align:center">贡献值</th>
             <th style="padding:4px;text-align:left">结果</th>
           </tr></thead><tbody>`;
           
@@ -1307,10 +1314,14 @@ function renderEndSummary(){
               else if(e.medal) remarkText = e.medal === 'gold' ? '金牌' : e.medal === 'silver' ? '银牌' : e.medal === 'bronze' ? '铜牌' : '';
             }
             
+            // 计算该学生在本场的贡献值
+            const contribution = calculateStudentContribution(e, rec.name);
+            
             careerHtml += `<tr style="border-bottom:1px solid #eee">`;
             careerHtml += `<td style="padding:4px">${e.name}</td>`;
             careerHtml += `<td style="padding:4px;text-align:center">${rankText}</td>`;
             careerHtml += `<td style="padding:4px;text-align:center">${scoreText}</td>`;
+            careerHtml += `<td style="padding:4px;text-align:center;color:#1976d2">${contribution.toFixed(2)}</td>`;
             careerHtml += `<td style="padding:4px;${passedStyle}">${passedIcon} ${remarkText}</td>`;
             careerHtml += `</tr>`;
           }
@@ -1375,12 +1386,15 @@ function renderEndSummary(){
       timelineHtml += `</div>`;
     }
     
+    // 计算表现分
+    const performanceScoreData = calculatePerformanceScore(o);
+    
     el.innerHTML = `
       ${o.isDailyChallenge ? `<div style="background:linear-gradient(135deg, #667eea 0%, #764ba2 100%);color:white;padding:12px 16px;border-radius:8px;margin-bottom:16px;text-align:center;box-shadow:0 4px 6px rgba(0,0,0,0.1)">
         <div style="font-size:16px;font-weight:bold;margin-bottom:4px">📅 今日挑战</div>
         <div style="font-size:13px;opacity:0.9">${o.dailyChallengeDate || '日期未知'} · 种子: ${o.dailyChallengeSeed || 'N/A'}</div>
       </div>` : ''}
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:16px">
         <div>
           <h4>📈 基本信息</h4>
           <div style="background:#f9f9f9;padding:12px;border-radius:8px">
@@ -1397,6 +1411,13 @@ function renderEndSummary(){
             <div>当前金额: <strong>¥${budget.toLocaleString()}</strong></div>
             <div>累计消费: <strong>¥${totalExpenses.toLocaleString()}</strong></div>
             <div>结束原因: <strong>${endingReason}</strong></div>
+          </div>
+        </div>
+        <div>
+          <h4> 表现分</h4>
+          <div style="background:#f9f9f9;padding:12px;border-radius:8px">
+            <div style="font-size:20px;font-weight:bold;color:#1976d2;margin-bottom:8px">${performanceScoreData.totalScore.toFixed(2)}</div>
+            <div style="font-size:12px;color:#666">基于比赛成绩计算</div>
           </div>
         </div>
       </div>
@@ -1441,6 +1462,100 @@ function renderEndSummary(){
     el.innerText = '读取结算数据失败：' + e.message; 
     console.error('renderEndSummary error:', e);
   }
+}
+
+/* =========== 表现分计算函数 =========== */
+/**
+ * 比赛含金量配置
+ */
+const CONTEST_VALUE_MAP = {
+  'CSP-S1': 1,
+  'CSP-S2': 1.5,
+  'NOIP': 4,
+  '省选': 0,
+  'NOI': 8,
+  'CTS': 0,
+  'CTT': 0,
+  'IOI': 16
+};
+
+/**
+ * 计算单个学生在某场比赛的贡献值
+ * @param {Object} entry - 学生比赛记录
+ * @param {string} contestName - 比赛名称
+ * @returns {number} - 贡献值
+ */
+function calculateStudentContribution(entry, contestName) {
+  // 如果学生未参加比赛，贡献为0
+  if (entry.eligible === false || !entry.score && entry.score !== 0) {
+    return 0;
+  }
+  
+  // 获取比赛含金量
+  const contestValue = CONTEST_VALUE_MAP[contestName] || 0;
+  if (contestValue === 0) {
+    return 0; // 省选、CTS、CTT等比赛不计分
+  }
+  
+  // 获取分数（优先使用total，其次score）
+  let score = entry.total != null ? entry.total : (entry.score != null ? entry.score : 0);
+  score = Number(score);
+  
+  // 对分数进行对数缩放（避免多个低分大于单个高分）
+  // 使用 log(score + 1) 避免log(0)的问题
+  // 为了让分数更有区分度，使用 log10(score + 10)
+  const logScore = Math.log10(Math.max(1, score + 10));
+  
+  // 计算贡献值 = 对数分数 × 比赛含金量
+  const contribution = logScore * contestValue;
+  
+  return contribution;
+}
+
+/**
+ * 计算某场比赛的总表现分
+ * @param {Object} contestRecord - 比赛记录
+ * @returns {number} - 该场比赛的表现分
+ */
+function calculateContestPerformanceScore(contestRecord) {
+  if (!contestRecord || !contestRecord.entries || !Array.isArray(contestRecord.entries)) {
+    return 0;
+  }
+  
+  let totalScore = 0;
+  for (let entry of contestRecord.entries) {
+    totalScore += calculateStudentContribution(entry, contestRecord.name);
+  }
+  
+  return totalScore;
+}
+
+/**
+ * 计算整个生涯的表现分
+ * @param {Object} gameData - 游戏数据
+ * @returns {Object} - { totalScore: number, byContest: Array }
+ */
+function calculatePerformanceScore(gameData) {
+  const result = {
+    totalScore: 0,
+    byContest: []
+  };
+  
+  if (!gameData || !gameData.careerCompetitions || !Array.isArray(gameData.careerCompetitions)) {
+    return result;
+  }
+  
+  for (let contestRecord of gameData.careerCompetitions) {
+    const contestScore = calculateContestPerformanceScore(contestRecord);
+    result.totalScore += contestScore;
+    result.byContest.push({
+      name: contestRecord.name,
+      week: contestRecord.week,
+      score: contestScore
+    });
+  }
+  
+  return result;
 }
 
 function calculateFinalEnding(gameData, endingReason) {
