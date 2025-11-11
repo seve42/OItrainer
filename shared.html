@@ -113,6 +113,7 @@
 <script src="lib/models.js"></script>
 <script src="lib/talent.js"></script>
 <script src="lib/share.js"></script>
+<script src="lib/devtools-detector.js"></script>
 <script src="game.js"></script>
 <script src="render.js"></script>
 <script src="debug.js"></script>
@@ -335,6 +336,35 @@
         timelineHtml += `</div></div>`;
       }
       
+      // 获取开发者工具检测结果（只在有问题时显示）
+      let devToolsHtml = '';
+      try {
+        const devToolsResult = o.devTools || null;
+        
+        // 只在检测到问题时才显示警告
+        if (devToolsResult && (devToolsResult.detected || devToolsResult.tampered)) {
+          const bgColor = devToolsResult.tampered ? '#f8d7da' : '#fff3cd';
+          const textColor = devToolsResult.tampered ? '#721c24' : '#856404';
+          const borderColor = devToolsResult.tampered ? '#dc3545' : '#ffc107';
+          const icon = devToolsResult.tampered ? '⛔' : '⚠️';
+          const title = devToolsResult.tampered ? '存档数据异常' : '存档完整性提示';
+          const trustText = devToolsResult.tampered ? '(数据异常)' : `(可信度: ${devToolsResult.trustLevel}%)`;
+          
+          devToolsHtml = `
+            <div style="background:${bgColor};color:${textColor};padding:12px;border-radius:8px;margin-top:16px;border:1px solid ${borderColor}">
+              <div style="display:flex;align-items:center;justify-content:space-between">
+                <div style="font-weight:bold;font-size:14px">${icon} ${title}</div>
+                <div style="font-size:12px;opacity:0.8">${trustText}</div>
+              </div>
+              <div style="font-size:13px;margin-top:6px">${devToolsResult.message || ''}</div>
+              ${devToolsResult.detected && devToolsResult.detectionCount > 0 ? `<div style="font-size:12px;margin-top:4px;opacity:0.9">检测次数: ${devToolsResult.detectionCount}</div>` : ''}
+            </div>
+          `;
+        }
+      } catch (e) {
+        console.error('获取开发者工具检测结果失败:', e);
+      }
+      
       // 渲染完整信息
       el.innerHTML = `
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
@@ -359,6 +389,7 @@
           </div>
         </div>
         ${timelineHtml}
+        ${devToolsHtml}
         ${studentsHtml}
         ${careerHtml}
         <div id="ending-result" style="margin-top:16px;padding:16px;background:#e3f2fd;border-radius:8px;text-align:center">
