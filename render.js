@@ -708,13 +708,13 @@ function trainStudentsUI(){
     // 仅使用彩色文本展示简单状态（不显示背景或额外描述）
     if(result.hasQuitRisk) {
       warningDiv.style.color = '#c53030';
-      warningDiv.innerText = '强度过大';
+      warningDiv.innerText = '压力过大';
     } else if(result.hasHighPressure) {
       warningDiv.style.color = '#d97706';
-      warningDiv.innerText = '强度略大';
+      warningDiv.innerText = '压力略大';
     } else {
       warningDiv.style.color = '#2f855a';
-      warningDiv.innerText = '强度尚可';
+      warningDiv.innerText = '压力尚可';
     }
   }
 
