@@ -8,7 +8,10 @@
  * 使用方法：在浏览器控制台中输入 debugzak() 即可
  */
 function debugzak() {
-  if(typeof game === 'undefined' || !game) {
+  alert("别敲这唐函数了");
+}
+/*
+if(typeof game === 'undefined' || !game) {
     console.error('游戏未初始化，请先开始游戏');
     alert('请先开始游戏再使用调试功能');
     return;
@@ -84,4 +87,4 @@ function debugzak() {
   console.log('💡 提示：现在可以参加NOI比赛了！');
   
   alert(`🔧 调试模式已激活！\n\n✅ 已创建"${superStudent.name}"\n✅ 已跳转到第${game.week}周\n✅ 已授予所有晋级资格\n✅ 经费：¥${game.budget.toLocaleString()}\n\n下场比赛：${game.getNextCompetition()}\n\n提示：点击"参加比赛"按钮即可开始NOI比赛`);
-}
+*/
