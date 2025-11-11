@@ -339,10 +339,13 @@
       // 获取开发者工具检测结果（只在有问题时显示）
       let devToolsHtml = '';
       try {
+        console.log('[shared.html] o.devTools:', o.devTools);
         const devToolsResult = o.devTools || null;
+        console.log('[shared.html] devToolsResult:', devToolsResult);
         
         // 只在检测到问题时才显示警告
         if (devToolsResult && (devToolsResult.detected || devToolsResult.tampered)) {
+          console.log('[shared.html] 应该显示警告: detected=' + devToolsResult.detected + ', tampered=' + devToolsResult.tampered);
           const bgColor = devToolsResult.tampered ? '#f8d7da' : '#fff3cd';
           const textColor = devToolsResult.tampered ? '#721c24' : '#856404';
           const borderColor = devToolsResult.tampered ? '#dc3545' : '#ffc107';
@@ -360,9 +363,12 @@
               ${devToolsResult.detected && devToolsResult.detectionCount > 0 ? `<div style="font-size:12px;margin-top:4px;opacity:0.9">检测次数: ${devToolsResult.detectionCount}</div>` : ''}
             </div>
           `;
+          console.log('[shared.html] devToolsHtml 已构建');
+        } else {
+          console.log('[shared.html] 不显示警告: devToolsResult=', devToolsResult);
         }
       } catch (e) {
-        console.error('获取开发者工具检测结果失败:', e);
+        console.error('[shared.html] 获取开发者工具检测结果失败:', e);
       }
       
       // 渲染完整信息

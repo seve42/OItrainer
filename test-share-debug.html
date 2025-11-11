@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>分享功能调试</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      max-width: 900px;
+      margin: 40px auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .container {
+      background: white;
+      border-radius: 12px;
+      padding: 24px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      margin-bottom: 20px;
+    }
+    h1 { color: #333; margin-top: 0; }
+    h3 { color: #495057; border-bottom: 2px solid #007bff; padding-bottom: 8px; }
+    button {
+      background: #007bff;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      margin: 4px;
+    }
+    button:hover { background: #0056b3; }
+    button.success { background: #28a745; }
+    button.success:hover { background: #218838; }
+    pre {
+      background: #f1f3f5;
+      padding: 12px;
+      border-radius: 6px;
+      overflow-x: auto;
+      font-size: 12px;
+      max-height: 400px;
+      overflow-y: auto;
+    }
+    .status {
+      padding: 12px;
+      border-radius: 6px;
+      margin: 12px 0;
+      font-size: 14px;
+    }
+    .status.success {
+      background: #d4edda;
+      color: #155724;
+      border-left: 4px solid #28a745;
+    }
+    .status.error {
+      background: #f8d7da;
+      color: #721c24;
+      border-left: 4px solid #dc3545;
+    }
+    .status.warning {
+      background: #fff3cd;
+      color: #856404;
+      border-left: 4px solid #ffc107;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔍 分享功能调试工具</h1>
+    
+    <div class="status warning">
+      <strong>调试目标：</strong>检查 ShareManager 是否正确地将 devToolsDetection 数据编码到分享链接中
+    </div>
+  </div>
+
+  <div class="container">
+    <h3>步骤 1：创建测试存档</h3>
+    <button onclick="createTestSave()">创建测试存档（包含检测数据）</button>
+    <div id="save-result"></div>
+  </div>
+
+  <div class="container">
+    <h3>步骤 2：生成分享链接</h3>
+    <button onclick="generateShare()">生成分享链接</button>
+    <div id="share-result"></div>
+  </div>
+
+  <div class="container">
+    <h3>步骤 3：解析分享链接</h3>
+    <button onclick="parseShare()">解析并验证数据</button>
+    <div id="parse-result"></div>
+  </div>
+
+  <div class="container">
+    <h3>步骤 4：测试 shared.html 渲染</h3>
+    <button onclick="testSharedRender()">模拟 shared.html 渲染</button>
+    <button class="success" id="goto-shared" disabled>跳转到 shared.html</button>
+    <div id="render-result"></div>
+  </div>
+
+  <script src="lib/constants.js"></script>
+  <script src="lib/utils.js"></script>
+  <script src="lib/models.js"></script>
+  <script src="lib/talent.js"></script>
+  <script src="lib/share.js"></script>
+  <script src="lib/devtools-detector.js"></script>
+  <script src="game.js"></script>
+  
+  <script>
+    let generatedShareUrl = null;
+
+    function log(containerId, html, type = 'success') {
+      const container = document.getElementById(containerId);
+      if (container) {
+        container.innerHTML = `<div class="status ${type}">${html}</div>`;
+      }
+    }
+
+    function createTestSave() {
+      try {
+        console.log('[Debug] 创建测试存档...');
+        
+        const testSave = {
+          week: 14,
+          budget: 80000,
+          reputation: 70,
+          totalExpenses: 120000,
+          initial_students: 8,
+          difficulty: 2,
+          endingReason: '赛季结束',
+          students: [
+            { 
+              name: '测试学生1', 
+              ability: 75, 
+              active: true, 
+              pressure: 45, 
+              thinking: 80, 
+              coding: 75, 
+              mental: 70,
+              knowledge_ds: 80,
+              knowledge_graph: 70,
+              knowledge_string: 60,
+              knowledge_math: 75,
+              knowledge_dp: 65,
+              talents: []
+            }
+          ],
+          facilities: { pc: 2, ac: 2, dorm: 1, canteen: 1 },
+          careerCompetitions: [],
+          // 关键：添加检测数据
+          devToolsDetection: {
+            detected: true,
+            detectedBackup1: true,
+            detectedBackup2: true,
+            firstDetectedTime: Date.now() - 600000,
+            firstDetectedTimeBackup: Date.now() - 600000,
+            detectionCount: 8,
+            detectionCountBackup: 8,
+            checksum: 'test_checksum_123',
+            checksumBackup: 'test_checksum_123',
+            lastUpdateTime: Date.now(),
+            lastUpdateTimeBackup: Date.now()
+          }
+        };
+
+        const saveStr = JSON.stringify(testSave);
+        localStorage.setItem('oi_coach_save', saveStr);
+        
+        console.log('[Debug] 存档已保存');
+        console.log('[Debug] devToolsDetection:', testSave.devToolsDetection);
+        
+        log('save-result', `
+          <strong>✓ 测试存档创建成功</strong><br><br>
+          存档大小: ${saveStr.length} 字节<br>
+          devToolsDetection.detected: <span style="color:#dc3545;font-weight:bold">true</span><br>
+          detectionCount: <strong>8</strong><br><br>
+          <details>
+            <summary>查看完整 devToolsDetection</summary>
+            <pre>${JSON.stringify(testSave.devToolsDetection, null, 2)}</pre>
+          </details>
+        `, 'success');
+      } catch (e) {
+        console.error('[Debug] 创建存档失败:', e);
+        log('save-result', `<strong>✗ 失败:</strong> ${e.message}`, 'error');
+      }
+    }
+
+    function generateShare() {
+      try {
+        console.log('[Debug] 开始生成分享链接...');
+        
+        const saveStr = localStorage.getItem('oi_coach_save');
+        if (!saveStr) {
+          log('share-result', '<strong>✗ 无存档数据</strong>，请先创建测试存档', 'error');
+          return;
+        }
+
+        const saveData = JSON.parse(saveStr);
+        console.log('[Debug] 存档数据加载完成');
+        console.log('[Debug] saveData.devToolsDetection:', saveData.devToolsDetection);
+        
+        // 设置 window.game
+        window.game = saveData;
+        
+        if (typeof ShareManager === 'undefined') {
+          log('share-result', '<strong>✗ ShareManager 未加载</strong>', 'error');
+          return;
+        }
+
+        console.log('[Debug] 调用 ShareManager.generateShareLink()...');
+        const shareUrl = ShareManager.generateShareLink();
+        
+        if (!shareUrl) {
+          log('share-result', '<strong>✗ 生成分享链接失败</strong>', 'error');
+          return;
+        }
+
+        generatedShareUrl = shareUrl;
+        console.log('[Debug] 分享链接生成成功');
+        console.log('[Debug] URL:', shareUrl);
+        
+        log('share-result', `
+          <strong>✓ 分享链接生成成功</strong><br><br>
+          <textarea readonly style="width:100%;height:100px;font-size:11px;font-family:monospace">${shareUrl}</textarea><br><br>
+          <button onclick="copyUrl()">📋 复制链接</button>
+        `, 'success');
+      } catch (e) {
+        console.error('[Debug] 生成分享链接失败:', e);
+        log('share-result', `<strong>✗ 失败:</strong> ${e.message}<br><pre>${e.stack}</pre>`, 'error');
+      }
+    }
+
+    function copyUrl() {
+      if (generatedShareUrl) {
+        navigator.clipboard.writeText(generatedShareUrl).then(() => {
+          alert('链接已复制！');
+        }).catch(() => {
+          prompt('请手动复制:', generatedShareUrl);
+        });
+      }
+    }
+
+    function parseShare() {
+      try {
+        if (!generatedShareUrl) {
+          log('parse-result', '<strong>⚠️ 请先生成分享链接</strong>', 'warning');
+          return;
+        }
+
+        console.log('[Debug] 开始解析分享链接...');
+        const sharedData = ShareManager.parseSharedData(generatedShareUrl);
+        
+        if (!sharedData) {
+          log('parse-result', '<strong>✗ 解析失败</strong>', 'error');
+          return;
+        }
+
+        console.log('[Debug] 分享数据解析成功');
+        console.log('[Debug] sharedData:', sharedData);
+        console.log('[Debug] sharedData.gameState:', sharedData.gameState);
+        console.log('[Debug] sharedData.gameState.devTools:', sharedData.gameState.devTools);
+
+        const devTools = sharedData.gameState.devTools;
+        
+        let html = '<strong>✓ 分享数据解析成功</strong><br><br>';
+        
+        if (devTools) {
+          html += `<strong style="color:#28a745">✓ 包含 devTools 字段</strong><br><br>`;
+          html += `detected: <span style="color:${devTools.detected ? '#dc3545' : '#28a745'};font-weight:bold">${devTools.detected}</span><br>`;
+          html += `tampered: ${devTools.tampered}<br>`;
+          html += `detectionCount: ${devTools.detectionCount || 0}<br>`;
+          html += `trustLevel: ${devTools.trustLevel}%<br>`;
+          html += `message: ${devTools.message || '无'}<br><br>`;
+          html += `<details><summary>完整 devTools 数据</summary><pre>${JSON.stringify(devTools, null, 2)}</pre></details>`;
+          
+          // 启用跳转按钮
+          document.getElementById('goto-shared').disabled = false;
+          document.getElementById('goto-shared').onclick = () => {
+            window.location.href = generatedShareUrl;
+          };
+        } else {
+          html += `<strong style="color:#dc3545">✗ 缺少 devTools 字段！</strong><br><br>`;
+          html += `这是问题的根源。ShareManager 没有正确编码 devToolsDetection 数据。`;
+        }
+        
+        html += `<br><br><details><summary>完整 gameState 数据</summary><pre>${JSON.stringify(sharedData.gameState, null, 2)}</pre></details>`;
+        
+        log('parse-result', html, devTools ? 'success' : 'error');
+      } catch (e) {
+        console.error('[Debug] 解析失败:', e);
+        log('parse-result', `<strong>✗ 解析失败:</strong> ${e.message}<br><pre>${e.stack}</pre>`, 'error');
+      }
+    }
+
+    function testSharedRender() {
+      try {
+        if (!generatedShareUrl) {
+          log('render-result', '<strong>⚠️ 请先生成分享链接</strong>', 'warning');
+          return;
+        }
+
+        console.log('[Debug] 测试 shared.html 渲染逻辑...');
+        
+        const sharedData = ShareManager.parseSharedData(generatedShareUrl);
+        if (!sharedData || !sharedData.gameState) {
+          log('render-result', '<strong>✗ 无法解析分享数据</strong>', 'error');
+          return;
+        }
+
+        const o = sharedData.gameState;
+        console.log('[Debug] o.devTools:', o.devTools);
+        
+        // 模拟 shared.html 的渲染逻辑
+        let devToolsHtml = '';
+        try {
+          const devToolsResult = o.devTools || null;
+          console.log('[Debug] devToolsResult:', devToolsResult);
+          
+          if (devToolsResult && (devToolsResult.detected || devToolsResult.tampered)) {
+            console.log('[Debug] 应该显示警告');
+            const bgColor = devToolsResult.tampered ? '#f8d7da' : '#fff3cd';
+            const textColor = devToolsResult.tampered ? '#721c24' : '#856404';
+            const borderColor = devToolsResult.tampered ? '#dc3545' : '#ffc107';
+            const icon = devToolsResult.tampered ? '⛔' : '⚠️';
+            const title = devToolsResult.tampered ? '存档数据异常' : '存档完整性提示';
+            const trustText = devToolsResult.tampered ? '(数据异常)' : `(可信度: ${devToolsResult.trustLevel}%)`;
+            
+            devToolsHtml = `
+              <div style="background:${bgColor};color:${textColor};padding:12px;border-radius:8px;margin:16px 0;border:1px solid ${borderColor}">
+                <div style="display:flex;align-items:center;justify-content:space-between">
+                  <div style="font-weight:bold;font-size:14px">${icon} ${title}</div>
+                  <div style="font-size:12px;opacity:0.8">${trustText}</div>
+                </div>
+                <div style="font-size:13px;margin-top:6px">${devToolsResult.message || ''}</div>
+                ${devToolsResult.detected && devToolsResult.detectionCount > 0 ? `<div style="font-size:12px;margin-top:4px;opacity:0.9">检测次数: ${devToolsResult.detectionCount}</div>` : ''}
+              </div>
+            `;
+          } else {
+            console.log('[Debug] 不显示警告（未检测到或无数据）');
+          }
+        } catch (e) {
+          console.error('[Debug] 获取开发者工具检测结果失败:', e);
+        }
+        
+        let html = '<strong>shared.html 渲染测试结果：</strong><br><br>';
+        
+        if (devToolsHtml) {
+          html += '<strong style="color:#28a745">✓ 警告框应该显示：</strong><br>' + devToolsHtml;
+        } else {
+          html += '<strong style="color:#ffc107">⚠️ 不会显示警告框</strong><br><br>';
+          if (!o.devTools) {
+            html += '原因：<strong>o.devTools 为 null 或 undefined</strong><br>';
+            html += '这意味着 ShareManager 没有正确地将 devToolsDetection 编码到分享数据中。';
+          } else if (!o.devTools.detected && !o.devTools.tampered) {
+            html += '原因：devTools.detected = false 且 devTools.tampered = false';
+          }
+        }
+        
+        log('render-result', html, devToolsHtml ? 'success' : 'warning');
+      } catch (e) {
+        console.error('[Debug] 测试失败:', e);
+        log('render-result', `<strong>✗ 测试失败:</strong> ${e.message}<br><pre>${e.stack}</pre>`, 'error');
+      }
+    }
+
+    // 页面加载时的提示
+    window.addEventListener('load', () => {
+      console.log('[Debug] 调试页面已加载');
+      console.log('[Debug] ShareManager 可用:', typeof ShareManager !== 'undefined');
+    });
+  </script>
+</body>
+</html>
