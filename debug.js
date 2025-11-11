@@ -7,9 +7,7 @@
  * 调试函数：生成超强学生并跳转到第二年NOI
  * 使用方法：在浏览器控制台中输入 debugzak() 即可
  */
-function debugzak() {
-  alert("别敲这唐函数了");
-}
+
 /*
 if(typeof game === 'undefined' || !game) {
     console.error('游戏未初始化，请先开始游戏');
