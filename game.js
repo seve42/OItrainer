@@ -736,6 +736,59 @@ function weeklyUpdate(weeks=1){
     game.week++;
     game.updateWeather();
   }
+  
+  // 检查高二晋级链断裂自动退队（在周数推进后执行）
+  try{
+    const currentHalf = (game.week > WEEKS_PER_HALF) ? 1 : 0;
+    // 只在第二年（高二）执行
+    if(currentHalf === 1){
+      // 检查当前是否在比赛周
+      const isCompetitionWeek = Array.isArray(competitions) && competitions.some(c => c.week === game.week);
+      
+      if(!isCompetitionWeek){
+        // 找到所有晋级链断裂的学生
+        const qualificationLostStudents = [];
+        
+        for(let i = game.students.length - 1; i >= 0; i--){
+          const s = game.students[i];
+          if(!s || s.active === false) continue;
+          
+          // 获取学生的晋级状态
+          let hasQualification = false;
+          try{
+            if(typeof getStudentQualificationStatus === 'function'){
+              const qualInfo = getStudentQualificationStatus(s);
+              hasQualification = qualInfo.hasQualification;
+              
+              // 特殊处理：如果已经没有下一场比赛了（所有比赛都完成），则认为有晋级资格
+              if(!qualInfo.nextContest || qualInfo.nextContest === ''){
+                hasQualification = true;
+              }
+            }
+          }catch(e){ 
+            console.error('检查晋级资格失败:', e); 
+            hasQualification = true; // 出错时保守处理，不退队
+          }
+          
+          // 如果学生没有晋级资格，自动退队
+          if(!hasQualification){
+            qualificationLostStudents.push(s.name);
+            game.students.splice(i, 1);
+            try{ if(typeof s.triggerTalents === 'function'){ s.triggerTalents('quit', { reason: 'qualification_lost' }); } }catch(e){}
+          }
+        }
+        
+        // 如果有学生因晋级链断裂退队，显示提示
+        if(qualificationLostStudents.length > 0){
+          const msg = `${qualificationLostStudents.join('、')} 未能晋级，退队(不消耗声誉)`;
+          log(`[晋级链断裂] ${msg}`);
+          pushEvent({ name:'退队', description: msg, week: game.week });
+          renderAll();
+        }
+      }
+    }
+  }catch(e){ console.error('高二晋级链断裂检查失败:', e); }
+  
   game.weeks_since_good_result += weeks;
   if(game.weeks_since_good_result > 12) game.had_good_result_recently = false;
   try{

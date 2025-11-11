@@ -84,6 +84,9 @@ function getStudentQualificationStatus(student) {
   return result;
 }
 
+// 暴露到全局作用域，供其他模块使用
+window.getStudentQualificationStatus = getStudentQualificationStatus;
+
 /* 每日/每次渲染随机一言 */
 const QUOTES = [
   "想想你的对手正在干什么",
