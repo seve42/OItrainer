@@ -476,7 +476,8 @@ function computeOutingCostQuadratic(difficulty_choice, province_choice, particip
     
   const maxDiscount = (typeof OUTFIT_REPUTATION_DISCOUNT !== 'undefined') ? OUTFIT_REPUTATION_DISCOUNT : 0.30;
   const multiplier = (typeof OUTFIT_REPUTATION_DISCOUNT_MULTIPLIER !== 'undefined') ? OUTFIT_REPUTATION_DISCOUNT_MULTIPLIER : 1.0;
-  const discount = (rep / 100.0) * maxDiscount * multiplier;
+  // 限制折扣最多为 50%，防止声誉过高导致免费
+  const discount = Math.min(0.50, (rep / 100.0) * maxDiscount * multiplier);
   const finalCost = Math.max(0, Math.floor(raw * (1.0 - discount)));
     return finalCost;
   } catch (e) {
