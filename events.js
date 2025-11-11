@@ -698,6 +698,11 @@
         check: c => {
           try{
             if(!c.game || !Array.isArray(c.game.careerCompetitions) || !Array.isArray(c.game.students)) return false;
+            
+            // 只在高一（第一年）触发，高二不触发
+            const weeksPerHalf = (typeof WEEKS_PER_HALF !== 'undefined') ? WEEKS_PER_HALF : 16;
+            if(c.game.week > weeksPerHalf) return false;
+            
             const recentWindow = Math.max(1, (c.game.week || 0) - 2); // 近期两周内的比赛成绩触发概率
             // find relevant competition records in recent weeks
             const relevant = c.game.careerCompetitions.filter(r => (r.name === 'NOIP' || r.name === '省选') && (typeof r.week === 'number' ? r.week >= recentWindow : true));
