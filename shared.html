@@ -150,10 +150,7 @@
       // 显示横幅
       if (banner) banner.style.display = 'block';
 
-  const o = sharedData.gameState;
-  // 兼容性：保证难度字段存在
-  const diffVal = (typeof o.difficulty !== 'undefined') ? Number(o.difficulty) : (o.difficultyLabel ? (o.difficultyLabel === '简单' ? 1 : o.difficultyLabel === '困难' ? 3 : 2) : 2);
-  const diffLabel = o.difficultyLabel || (diffVal === 1 ? '简单' : (diffVal === 3 ? '困难' : '普通'));
+      const o = sharedData.gameState;
       
       // 基本信息
       const active = (o.students || []).filter(s => s && s.active !== false).length;
@@ -162,6 +159,15 @@
       const budget = o.budget || 0;
       const totalExpenses = o.totalExpenses || 0;
       const week = o.week || 0;
+      const difficulty = o.difficulty || 2; // 默认为普通难度
+      
+      // 难度文本和颜色映射
+      const difficultyMap = {
+        1: { text: '简单', color: '#4caf50', emoji: '1' },
+        2: { text: '普通', color: '#2196f3', emoji: '2' },
+        3: { text: '专家', color: '#f44336', emoji: '3' }
+      };
+      const diffInfo = difficultyMap[difficulty] || difficultyMap[2];
       
       // 计算平均压力
       let avgP = 0;
@@ -335,8 +341,8 @@
           <div>
             <h4>📈 基本信息</h4>
             <div style="background:#f9f9f9;padding:12px;border-radius:8px">
+              <div>游戏难度: <strong style="color:${diffInfo.color}">${diffInfo.emoji} ${diffInfo.text}</strong></div>
               <div>初始人数: <strong>${initial}</strong></div>
-              <div>难度: <strong>${diffLabel} (${diffVal})</strong></div>
               <div>当前在队: <strong>${active}</strong></div>
               <div>平均压力: <strong>${avgP}</strong></div>
               <div>声誉: <strong>${rep}</strong></div>
