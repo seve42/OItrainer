@@ -3,6 +3,87 @@
     包含所有与 DOM 操作相关的函数，如 `renderAll`、模态框显示、UI 交互等。
 */
 
+/* =========== 晋级状态检查函数 =========== */
+/**
+ * 获取学生的晋级状态信息
+ * @param {Student} student - 学生对象
+ * @returns {Object} - { hasQualification: boolean, nextContest: string, html: string }
+ */
+function getStudentQualificationStatus(student) {
+  const result = {
+    hasQualification: false,
+    nextContest: '',
+    html: ''
+  };
+  
+  if (!student || !game || !game.qualification) {
+    return result;
+  }
+  
+  try {
+    // 确定当前是第几个赛季（上半年还是下半年）
+    const currentHalf = (game.week > (typeof WEEKS_PER_HALF !== 'undefined' ? WEEKS_PER_HALF : 16)) ? 1 : 0;
+    
+    // 获取所有比赛，按周数排序
+    const sortedComps = (typeof competitions !== 'undefined' && Array.isArray(competitions)) 
+      ? competitions.slice().sort((a, b) => a.week - b.week) 
+      : [];
+    
+    // 找到下一场未进行的比赛
+    let nextComp = null;
+    for (let comp of sortedComps) {
+      if (comp.week > game.week) {
+        // 检查这场比赛是否已经完成
+        const key = `${currentHalf}_${comp.name}_${comp.week}`;
+        if (!game.completedCompetitions || !game.completedCompetitions.has(key)) {
+          nextComp = comp;
+          break;
+        }
+      }
+    }
+    
+    if (!nextComp) {
+      return result; // 没有下一场比赛
+    }
+    
+    result.nextContest = nextComp.name;
+    
+    // 检查学生是否已经晋级下一场比赛
+    // CSP-S1 不需要晋级资格，所有人都可以参加
+    if (nextComp.name === 'CSP-S1') {
+      result.hasQualification = true;
+      result.html = '<span class="qualification-badge qualified" title="所有学生均可参加CSP-S1">✓</span>';
+      return result;
+    }
+    
+    // 检查晋级链：CSP-S1 -> CSP-S2 -> NOIP -> 省选 -> NOI
+    const qualChain = {
+      'CSP-S2': 'CSP-S1',
+      'NOIP': 'CSP-S2',
+      '省选': 'NOIP',
+      'NOI': '省选'
+    };
+    
+    const requiredComp = qualChain[nextComp.name];
+    if (requiredComp) {
+      // 检查学生是否在qualification集合中
+      const qualSet = game.qualification[currentHalf][requiredComp];
+      if (qualSet && (qualSet.has(student.name) || qualSet.has(student))) {
+        result.hasQualification = true;
+        result.html = `<span class="qualification-badge qualified" title="已晋级${nextComp.name}">✓ ${nextComp.name}</span>`;
+      } else {
+        result.hasQualification = false;
+        result.html = `<span class="qualification-badge not-qualified" title="未晋级${nextComp.name}，需要先通过${requiredComp}">✗ ${nextComp.name}</span>`;
+      }
+    }
+    
+  } catch (e) {
+    console.error('获取学生晋级状态失败:', e);
+  }
+  
+  return result;
+}
+
 /* 每日/每次渲染随机一言 */
 const QUOTES = [
   "想想你的对手正在干什么",
@@ -298,6 +379,9 @@ function renderAll(){
     // 检查是否有退队倾向
     let hasTendency = (s.quit_tendency_weeks && s.quit_tendency_weeks > 0);
     
+    // 获取下一场比赛的晋级状态
+    let qualificationInfo = getStudentQualificationStatus(s);
+    
     let talentsHtml = '';
     if(s.talents && s.talents.size > 0){
       const talentArray = Array.from(s.talents);
@@ -318,6 +402,7 @@ function renderAll(){
           ${s.name}
           ${s.sick_weeks > 0 ? '<span class="warn">[生病]</span>' : ''}
           ${hasTendency ? '<span class="warn">[退队倾向]</span>' : ''}
+          ${qualificationInfo.html}
         </div>
         <div class="student-status">
           <span class="label-pill ${pressureClass}">压力: ${pressureLevel}</span>
@@ -1532,6 +1617,9 @@ function outingTrainingUI() {
     const outStudentGrid = document.getElementById('out-student-grid');
     const activeStudents = game.students.filter(s=>s && s.active);
     activeStudents.forEach(s => {
+      // 获取学生的晋级状态
+      const qualificationInfo = getStudentQualificationStatus(s);
+      
       const card = document.createElement('div');
       card.className = 'student-card';
       card.style.cssText = 'display:inline-block;padding:6px;margin:4px;border:1px solid #ddd;border-radius:6px;cursor:pointer;min-width:120px;text-align:left;font-size:13px;opacity:0.45';
@@ -1548,7 +1636,7 @@ function outingTrainingUI() {
         </span>`;
         }).join('');
       }
-      card.innerHTML = `<strong style="display:block">${s.name}</strong>
+      card.innerHTML = `<strong style="display:block">${s.name} ${qualificationInfo.html}</strong>
         <div style="color:#666;margin-top:4px">
           <span style="font-size:12px;color:#718096;font-weight:600;">知识</span>
           <div class="knowledge-badges">

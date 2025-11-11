@@ -1093,6 +1093,55 @@ body.comp-week .action-cards .action-card:not(#comp-only-action) {
   max-width: 100%;
 }
 
+/* =========== 晋级状态标识样式 =========== */
+.qualification-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  margin-left: 6px;
+  vertical-align: middle;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+  opacity: 0.75;
+}
+
+.qualification-badge.qualified {
+  background: #f0f9f4;
+  color: #4a7c59;
+  border: 1px solid #d4e8dd;
+}
+
+.qualification-badge.qualified:hover {
+  opacity: 1;
+  background: #e6f4ea;
+  border-color: #b8dcc5;
+}
+
+.qualification-badge.not-qualified {
+  background: #fef5f5;
+  color: #9a5858;
+  border: 1px solid #f0d4d4;
+}
+
+.qualification-badge.not-qualified:hover {
+  opacity: 1;
+  background: #fdeaea;
+  border-color: #e8c1c1;
+}
+
+/* 外出集训学生卡片中的晋级标识（稍微小一点） */
+.student-card .qualification-badge {
+  font-size: 9px;
+  padding: 1px 5px;
+  margin-left: 4px;
+}
+
+
+
+
 
 
 

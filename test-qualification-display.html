@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>晋级状态显示测试</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    body {
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .test-section {
+      background: white;
+      padding: 20px;
+      margin-bottom: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    .test-section h2 {
+      margin-top: 0;
+      color: #2d3748;
+    }
+  </style>
+</head>
+<body>
+  <div class="test-section">
+    <h2>1. 学生卡片中的晋级状态显示</h2>
+    <div id="student-list-test"></div>
+  </div>
+
+  <div class="test-section">
+    <h2>2. 外出集训选择界面中的晋级状态显示</h2>
+    <div id="outing-test"></div>
+  </div>
+
+  <div class="test-section">
+    <h2>3. 晋级状态标识样式测试</h2>
+    <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+      <div>
+        <span class="qualification-badge qualified">✓ NOIP</span>
+        <p style="margin: 4px 0; color: #666; font-size: 12px;">已晋级状态</p>
+      </div>
+      <div>
+        <span class="qualification-badge not-qualified">✗ NOIP</span>
+        <p style="margin: 4px 0; color: #666; font-size: 12px;">未晋级状态</p>
+      </div>
+      <div>
+        <span class="qualification-badge qualified">✓</span>
+        <p style="margin: 4px 0; color: #666; font-size: 12px;">简化标识（所有人可参加）</p>
+      </div>
+    </div>
+  </div>
+
+  <script src="lib/constants.js"></script>
+  <script src="lib/utils.js"></script>
+  <script src="lib/models.js"></script>
+  <script src="render.js"></script>
+  
+  <script>
+    // 初始化测试游戏环境
+    const game = new GameState();
+    game.week = 8; // 设置为CSP-S1之前
+    game.province_name = "北京";
+    game.province_type = "强省";
+    game.is_north = true;
+    game.difficulty = 2;
+    
+    // 创建测试学生
+    const students = [
+      new Student('张三', 60, 55, 70),
+      new Student('李四', 50, 48, 65),
+      new Student('王五', 45, 42, 60)
+    ];
+    
+    // 设置不同的晋级状态
+    // 假设当前是第一个赛季（currentHalf = 0）
+    game.qualification = [{}, {}];
+    for(let name of COMPETITION_ORDER) {
+      game.qualification[0][name] = new Set();
+      game.qualification[1][name] = new Set();
+    }
+    
+    // 张三晋级了CSP-S1（可以参加CSP-S2）
+    game.qualification[0]['CSP-S1'].add('张三');
+    
+    // 李四没有晋级任何比赛
+    // （不添加到qualification集合）
+    
+    // 王五晋级了CSP-S1和CSP-S2（可以参加NOIP）
+    game.qualification[0]['CSP-S1'].add('王五');
+    game.qualification[0]['CSP-S2'].add('王五');
+    
+    game.students = students;
+    
+    // 测试1：渲染学生卡片
+    function renderStudentListTest() {
+      let html = '';
+      for(let s of game.students) {
+        const qualInfo = getStudentQualificationStatus(s);
+        html += `
+          <div class="student-box" style="margin-bottom: 12px;">
+            <div class="student-header">
+              <div class="student-name">
+                ${s.name}
+                ${qualInfo.html}
+              </div>
+              <div class="student-status">
+                <span class="label-pill">综合: ${Math.floor(s.getComprehensiveAbility())}</span>
+              </div>
+            </div>
+            <div style="margin-top: 8px; padding: 8px; background: #f9f9f9; border-radius: 6px; font-size: 12px;">
+              <strong>晋级信息：</strong><br>
+              ${qualInfo.hasQualification 
+                ? `✓ 已晋级 ${qualInfo.nextContest || '下场比赛'}` 
+                : `✗ 未晋级 ${qualInfo.nextContest || '下场比赛'}`}
+            </div>
+          </div>
+        `;
+      }
+      document.getElementById('student-list-test').innerHTML = html;
+    }
+    
+    // 测试2：渲染外出集训卡片
+    function renderOutingTest() {
+      let html = '<div style="display: flex; gap: 12px; flex-wrap: wrap;">';
+      for(let s of game.students) {
+        const qualInfo = getStudentQualificationStatus(s);
+        html += `
+          <div class="student-card" style="display: inline-block; padding: 10px; border: 1px solid #ddd; border-radius: 6px; min-width: 160px;">
+            <strong>${s.name} ${qualInfo.html}</strong>
+            <div style="margin-top: 6px; font-size: 12px; color: #666;">
+              思维: ${Math.floor(s.thinking)} / 代码: ${Math.floor(s.coding)}
+            </div>
+          </div>
+        `;
+      }
+      html += '</div>';
+      document.getElementById('outing-test').innerHTML = html;
+    }
+    
+    // 执行测试
+    renderStudentListTest();
+    renderOutingTest();
+    
+    // 添加一些说明
+    document.body.insertAdjacentHTML('beforeend', `
+      <div class="test-section">
+        <h2>测试说明</h2>
+        <ul style="line-height: 1.8;">
+          <li><strong>张三</strong>：已晋级CSP-S1，可以参加下场比赛CSP-S2</li>
+          <li><strong>李四</strong>：未晋级任何比赛，无法参加CSP-S2</li>
+          <li><strong>王五</strong>：已晋级CSP-S1和CSP-S2，可以参加NOIP</li>
+          <li>当前周数：第${game.week}周（CSP-S1之前）</li>
+          <li>下场比赛：${competitions.find(c => c.week > game.week)?.name || '无'}</li>
+        </ul>
+      </div>
+    `);
+  </script>
+</body>
+</html>
