@@ -691,19 +691,6 @@ function weeklyUpdate(weeks=1){
   
   for(let s of game.students){
   if(!s || s.active === false) continue;
-    function applyForgetting(knowledge){
-      if(knowledge <=0) return 0;
-      let original = knowledge;
-      let forget_rate = KNOWLEDGE_FORGET_RATE;
-      if(knowledge > 50) forget_rate = 1.0 - (1.0 - forget_rate) * 0.5;
-      let new_val = Math.floor(knowledge * Math.pow(forget_rate, weeks));
-      return Math.max(new_val, Math.floor(original * 0.8));
-    }
-    s.knowledge_ds = applyForgetting(s.knowledge_ds);
-    s.knowledge_graph = applyForgetting(s.knowledge_graph);
-    s.knowledge_string = applyForgetting(s.knowledge_string);
-    s.knowledge_math = applyForgetting(s.knowledge_math);
-    s.knowledge_dp = applyForgetting(s.knowledge_dp);
     
     let personalComfort = comfort;
     

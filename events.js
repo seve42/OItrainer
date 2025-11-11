@@ -673,9 +673,8 @@
                 c.game.budget += gain;
                 for (const s of c.game.students) if (s.active) {
                   s.pressure = Math.min(100, s.pressure + 10);
-                  s.forget = (s.forget || 0) + 1;
                 }
-                const desc = `参加商业活动：经费 +¥${gain}，学生压力 +10，遗忘 +1`;
+                const desc = `参加商业活动：经费 +¥${gain}，学生压力 +10`;
                 window.pushEvent && window.pushEvent({ name: '选择结果', description: desc, week: c.game.week });
               }
             },
