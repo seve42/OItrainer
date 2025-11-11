@@ -150,7 +150,10 @@
       // 显示横幅
       if (banner) banner.style.display = 'block';
 
-      const o = sharedData.gameState;
+  const o = sharedData.gameState;
+  // 兼容性：保证难度字段存在
+  const diffVal = (typeof o.difficulty !== 'undefined') ? Number(o.difficulty) : (o.difficultyLabel ? (o.difficultyLabel === '简单' ? 1 : o.difficultyLabel === '困难' ? 3 : 2) : 2);
+  const diffLabel = o.difficultyLabel || (diffVal === 1 ? '简单' : (diffVal === 3 ? '困难' : '普通'));
       
       // 基本信息
       const active = (o.students || []).filter(s => s && s.active !== false).length;
@@ -333,6 +336,7 @@
             <h4>📈 基本信息</h4>
             <div style="background:#f9f9f9;padding:12px;border-radius:8px">
               <div>初始人数: <strong>${initial}</strong></div>
+              <div>难度: <strong>${diffLabel} (${diffVal})</strong></div>
               <div>当前在队: <strong>${active}</strong></div>
               <div>平均压力: <strong>${avgP}</strong></div>
               <div>声誉: <strong>${rep}</strong></div>
