@@ -501,7 +501,7 @@
         description: '外省空降学生申请加入',
         check: c => {
           if(c.game.reputation < 45) return false;
-          return getRandom() < 0.01;
+          return getRandom() < 0.004;
         },
         run: c => {
           // 计算当前队内学生的最大能力值
