@@ -1576,7 +1576,7 @@ function calculateFinalEnding(gameData, endingReason) {
       return "🌟 荣耀结局";
     }
     
-    if (gameData.budget < 5000) {
+    if (gameData.budget <= 0) {
       return "💸 经费耗尽结局";
     }
     

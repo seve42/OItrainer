@@ -815,7 +815,7 @@ function checkAndTriggerEnding() {
   const activeStudentCount = Array.isArray(game.students) ? game.students.filter(s => s && s.active !== false).length : 0;
   try{ if(typeof window !== 'undefined' && window.__OI_DEBUG_ENDING) console.debug('[ENDING DEBUG] checkAndTriggerEnding activeStudentCount=', activeStudentCount, 'students=', game.students.map(s=>({name: s && s.name, active: s && s.active}))); }catch(e){}
   
-  if (game.budget < 5000) {
+  if (game.budget <= 0) {
     triggerGameEnding('经费不足');
     return true;
   }
