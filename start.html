@@ -101,15 +101,36 @@
   <div class="panel">
     <h3>新游戏设置</h3>
     
-    <label class="block">选择难度</label>
-    <!-- 平铺式难度选择卡（保留隐藏 select 用于兼容旧逻辑） -->
-    <select id="start-diff" style="display:none">
-      <option value="1">简单 - 适合初次体验的人</option>
-      <option value="2" selected>普通 - 标准游戏体验</option>
-      <option value="3">困难 - 适合寻求挑战的人</option>
-    </select>
-    <div id="start-diff-grid" class="diff-grid" style="display:flex;gap:10px;margin-top:8px"></div>
-    <div id="diff-note" class="small muted" style="margin-top:6px"></div>
+    <!-- 难度和模式并排布局 -->
+    <div style="display:flex;gap:16px;margin-bottom:10px;flex-wrap:wrap;">
+      <div style="flex:1;min-width:280px;">
+        <label class="block">选择难度</label>
+        <!-- 平铺式难度选择卡（保留隐藏 select 用于兼容旧逻辑） -->
+        <select id="start-diff" style="display:none">
+          <option value="1">简单 - 适合初次体验的人</option>
+          <option value="2" selected>普通 - 标准游戏体验</option>
+          <option value="3">困难 - 适合寻求挑战的人</option>
+        </select>
+        <div id="start-diff-grid" class="diff-grid" style="display:flex;gap:10px;margin-top:8px"></div>
+        <div id="diff-note" class="small muted" style="margin-top:6px"></div>
+      </div>
+
+      <div style="flex:1;min-width:280px;">
+        <label class="block">游戏模式</label>
+        <div id="start-mode-grid" class="mode-grid" style="display:flex;gap:10px;margin-top:8px;">
+          <div class="option-card mode-card selected" data-val="simplified" style="flex:1;cursor:pointer;padding:10px 12px;border:1px solid #e6e6e6;border-radius:8px;text-align:center;">
+            <div style="font-weight:600;margin-bottom:6px">简化模式</div>
+            <div class="small muted">压缩时间轴，简化决策，节奏较快</div>
+          </div>
+          <div class="option-card mode-card" data-val="realistic" style="flex:1;cursor:not-allowed;padding:10px 12px;border:1px solid #e6e6e6;border-radius:8px;text-align:center;opacity:0.5;">
+            <div style="font-weight:600;margin-bottom:6px">真实模式</div>
+            <div class="small muted">真实时间安排，节奏缓慢</div>
+            <div class="small" style="color:#999;font-style:italic;margin-top:4px;">(即将到来)</div>
+          </div>
+        </div>
+        <input type="hidden" id="start-mode" value="simplified" />
+      </div>
+    </div>
 
     <label class="block" style="margin-top:10px">选择省份</label>
     <div class="small muted" style="margin-bottom:6px">不同省份影响初始经费和训练质量。<strong>强省</strong>资源丰富<strong>弱省</strong>具有挑战性。</div>
@@ -254,6 +275,74 @@
     }
 
     try{ renderDiffGrid(); }catch(e){ console.error('渲染难度网格失败', e); }
+
+  // 渲染游戏模式选择网格
+  function renderModeGrid(){
+    const grid = document.getElementById('start-mode-grid');
+    const hidden = document.getElementById('start-mode');
+    if(!grid || !hidden) return;
+    
+    const cards = grid.querySelectorAll('.mode-card');
+    cards.forEach(card => {
+      const val = card.dataset.val;
+      
+      // 真实模式暂时禁用，只有简化模式可选
+      if(val === 'realistic'){
+        // 已经在HTML中设置为禁用样式
+        return;
+      }
+      
+      card.addEventListener('click', ()=>{
+        // 移除所有选中状态
+        grid.querySelectorAll('.mode-card.selected').forEach(c=>c.classList.remove('selected'));
+        // 添加选中状态
+        card.classList.add('selected');
+        // 同步到隐藏input
+        hidden.value = val;
+      });
+    });
+    
+    // 设置初始选中状态（默认简化模式）
+    const initial = hidden.value || 'simplified';
+    const chosen = grid.querySelector(`.mode-card[data-val='${initial}']`);
+    if(chosen) chosen.classList.add('selected');
+  }
+
+    try{ renderDiffGrid(); }catch(e){ console.error('渲染难度网格失败', e); }
+
+  // 渲染游戏模式选择网格
+  function renderModeGrid(){
+    const grid = document.getElementById('start-mode-grid');
+    const hidden = document.getElementById('start-mode');
+    if(!grid || !hidden) return;
+    
+    const cards = grid.querySelectorAll('.mode-card');
+    cards.forEach(card => {
+      const val = card.dataset.val;
+      
+      // 真实模式暂时禁用，只有简化模式可选
+      if(val === 'realistic'){
+        // 已经在HTML中设置为禁用样式
+        return;
+      }
+      
+      card.addEventListener('click', ()=>{
+        // 移除所有选中状态
+        grid.querySelectorAll('.mode-card.selected').forEach(c=>c.classList.remove('selected'));
+        // 添加选中状态
+        card.classList.add('selected');
+        // 同步到隐藏input
+        hidden.value = val;
+      });
+    });
+    
+    // 设置初始选中状态（默认简化模式）
+    const initial = hidden.value || 'simplified';
+    const chosen = grid.querySelector(`.mode-card[data-val='${initial}']`);
+    if(chosen) chosen.classList.add('selected');
+  }
+
+  try{ renderModeGrid(); }catch(e){ console.error('渲染模式网格失败', e); }
 
   // render province buttons using PROVINCES from script.js (保留页面其他功能的兼容性)
   if(typeof renderStartPageUI !== 'undefined'){
