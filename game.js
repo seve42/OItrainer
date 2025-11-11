@@ -328,9 +328,13 @@ function trainStudentsWithTask(task, intensity) {
     
     const intensityFactor = intensity === 1 ? 0.7 : intensity === 3 ? 1.3 : 1.0;
     
+    // 应用知识点增加：基础效率加成 + 图书馆加成 + 强度系数 + 生病惩罚
     for(const boost of results.boosts) {
-      const additionalBoost = Math.floor(boost.actualAmount * (libraryMultiplier - 1.0) * intensityFactor * sick_penalty);
-      s.addKnowledge(boost.type, additionalBoost);
+      // 计算总的知识点增加（包含所有加成因素）
+      const totalBoost = Math.floor(boost.actualAmount * libraryMultiplier * intensityFactor * sick_penalty);
+      s.addKnowledge(boost.type, totalBoost);
+      // 更新 actualAmount 为实际增加量，以便日志正确显示
+      boost.actualAmount = totalBoost;
     }
     
     const computerLevel = game.facilities.computer;
