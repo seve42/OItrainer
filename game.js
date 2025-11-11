@@ -1260,17 +1260,40 @@ function initGame(difficulty, province_choice, student_count){
     log(`对点招生：${recruited.name} 加入队伍`);
   }
   
-  for(let i=0;i<student_count;i++){
-    let name = generateName();
+  const usedNames = new Set();
+
+  for (let i = 0; i < student_count; i++) {
+    let name;
+
+    // 保证生成的名字不重复
+    do {
+      name = generateName();
+    } while (usedNames.has(name));
+    usedNames.add(name);
+
+    // 正态分布生成属性
     let mean = (min_val + max_val) / 2;
     let stddev = (max_val - min_val);
     let thinking = clamp(normal(mean, stddev), 0, 100);
     let coding = clamp(normal(mean, stddev), 0, 100);
     let mental = clamp(normal(mean, stddev), 0, 100);
+
+    // 创建学生对象
     const newStud = new Student(name, thinking, coding, mental);
-    try{ if(window.TalentManager && typeof window.TalentManager.assignInitialTalent === 'function') window.TalentManager.assignInitialTalent(newStud); }catch(e){}
+
+    try {
+      if (
+        window.TalentManager &&
+        typeof window.TalentManager.assignInitialTalent === "function"
+      )
+        window.TalentManager.assignInitialTalent(newStud);
+    } catch (e) {
+      console.error(e);
+    }
+
     game.students.push(newStud);
   }
+
   game.updateWeather();
   log("初始化完成，开始游戏！");
 }
