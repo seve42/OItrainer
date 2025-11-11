@@ -1012,7 +1012,7 @@
         }
       });
 
-      // 蓝色P站：学生访问洛谷
+      // 蓝色P站：学生访问
       this.register({
         id: 'blue_p_site',
         name: '蓝色P站',
