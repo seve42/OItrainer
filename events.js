@@ -538,7 +538,10 @@
           const newKnowledgeDp = Math.floor(maxKnowledgeDp * 0.8);
           
           // 生成随机学生姓名（使用主逻辑中封装好的函数）
-          const newStudentName = (typeof window.generateName === 'function') ? window.generateName() : '新学生';
+          let provForName = c.game && c.game.province_name ? c.game.province_name : null;
+          if (typeof provForName === 'number' && c.PROVINCES && c.PROVINCES[provForName]) provForName = c.PROVINCES[provForName].name;
+          provForName = (provForName || '') + '';
+          const newStudentName = (typeof window.generateName === 'function') ? window.generateName({ region: provForName }) : '新学生';
           
           const options = [
             { label: '接收', effect: () => {
