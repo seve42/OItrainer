@@ -113,12 +113,12 @@ function renderDifficultyTag(diff){
   const d = Number(diff) || 0;
   let label = '';
   let cls = '';
-  if(d <= 14){ label = '入门'; cls = 'diff-red'; }
-  else if(d <= 39){ label = '普及-'; cls = 'diff-orange'; }
-  else if(d <= 54){ label = '普及/提高-'; cls = 'diff-yellow'; }
-  else if(d <= 79){ label = '普及+/提高'; cls = 'diff-green'; }
-  else if(d <= 94){ label = '提高+/省选-'; cls = 'diff-blue'; }
-  else if(d <= 110){ label = '省选/NOI-'; cls = 'diff-purple'; }
+  if(d <= 20){ label = '入门'; cls = 'diff-red'; }
+  else if(d <= 50){ label = '普及-'; cls = 'diff-orange'; }
+  else if(d <= 86){ label = '普及/提高-'; cls = 'diff-yellow'; }
+  else if(d <= 103){ label = '普及+/提高'; cls = 'diff-green'; }
+  else if(d <=120){ label = '提高+/省选-'; cls = 'diff-blue'; }
+  else if(d <= 150){ label = '省选/NOI-'; cls = 'diff-purple'; }
   else { label = 'NOI+/CTSC'; cls = 'diff-black'; }
 
   const legacy = (d <= 24) ? 'diff-beginner' : (d <= 34) ? 'diff-popular-low' : (d <= 44) ? 'diff-popular-high' : (d <= 64) ? 'diff-advanced-low' : (d <= 79) ? 'diff-provincial' : 'diff-noi';
@@ -635,7 +635,7 @@ function closeModal(){
 }
 
 function trainStudentsUI(){
-  const tasks = selectRandomTasks(5);
+  const tasks = selectRandomTasks(7);
   
   const taskCards = tasks.map((task, idx) => {
     const boostStr = task.boosts.map(b => `${b.type}+${b.amount}`).join(' ');
@@ -664,7 +664,7 @@ function trainStudentsUI(){
   `;
 
   showModal(`<h3>选择训练题目</h3>
-    <div class="small muted" style="margin-bottom:10px">从下方5道题目中选择一道进行训练。题目提升效果受学生能力与难度匹配度影响。</div>
+    <div class="small muted" style="margin-bottom:10px">从下方7道题目中选择一道进行训练。题目提升效果受学生能力与难度匹配度影响。</div>
     <label class="block">可选题目</label>
     <div id="train-task-grid" style="display:flex;gap:12px;flex-wrap:wrap;margin-top:8px;overflow-x:auto;max-height:300px;overflow-y:auto;">${taskCards}</div>
     <div id="train-task-helper" class="small muted" style="margin-top:6px;display:none;color:#c53030;font-weight:700"></div>
