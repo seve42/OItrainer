@@ -541,7 +541,17 @@
           let provForName = c.game && c.game.province_name ? c.game.province_name : null;
           if (typeof provForName === 'number' && c.PROVINCES && c.PROVINCES[provForName]) provForName = c.PROVINCES[provForName].name;
           provForName = (provForName || '') + '';
-          const newStudentName = (typeof window.generateName === 'function') ? window.generateName({ region: provForName }) : '新学生';
+          
+          // 获取当前所有学生的名字列表以避免重名
+          const existingNames = c.game.students.map(s => s.name);
+          let newStudentName;
+          if (typeof window.generateUniqueName === 'function') {
+            newStudentName = window.generateUniqueName({ region: provForName, existingNames: existingNames });
+          } else if (typeof window.generateName === 'function') {
+            newStudentName = window.generateName({ region: provForName });
+          } else {
+            newStudentName = '新学生';
+          }
           
           const options = [
             { label: '接收', effect: () => {

@@ -1320,7 +1320,16 @@ function initGame(difficulty, province_choice, student_count){
   }
   
   for(let i=0;i<student_count;i++){
-    let name = typeof generateName === 'function' ? generateName({ region: prov.name }) : '学生';
+    // 获取当前所有学生的名字列表以避免重名
+    const existingNames = game.students.map(s => s.name);
+    let name;
+    if (typeof generateUniqueName === 'function') {
+      name = generateUniqueName({ region: prov.name, existingNames: existingNames });
+    } else if (typeof generateName === 'function') {
+      name = generateName({ region: prov.name });
+    } else {
+      name = '学生';
+    }
     let mean = (min_val + max_val) / 2;
     let stddev = (max_val - min_val);
     let thinking = clamp(normal(mean, stddev), 0, 100);
