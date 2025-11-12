@@ -101,6 +101,7 @@
     </div>
   </div>
 </div>
+<script src="lib/chinese-convert.js"></script>
 <script src="lib/constants.js"></script>
 <script src="lib/utils.js"></script>
 <script src="lib/models.js"></script>
@@ -145,6 +146,20 @@
   
   // render summary if available
   if(typeof renderEndSummary === 'function') renderEndSummary();
+  
+  // 检查是否需要使用繁体中文
+  (function(){
+    try{
+      if(window.ChineseConverter && window.ChineseConverter.shouldUseTraditionalChinese()){
+        // 等待DOM完全加载和渲染完成后再转换
+        setTimeout(function(){
+          window.ChineseConverter.convertPageToTraditional();
+        }, 300);
+      }
+    }catch(e){ 
+      console.error('繁体中文转换失败:', e); 
+    }
+  })();
 </script>
   <footer style="text-align:center;padding:12px 8px;color:#666;font-size:13px;border-top:1px solid #eee;margin-top:18px">
     作者 @Dreamers-seve · 洛谷: <a href="https://www.luogu.com.cn/user/668972" target="_blank" rel="noopener">https://www.luogu.com.cn/user/668972</a> · GitHub: <a href="https://github.com/seve42/OItrainer" target="_blank" rel="noopener">https://github.com/seve42/OItrainer</a>

@@ -1264,6 +1264,18 @@ function initGame(difficulty, province_choice, student_count){
   game.province_id = province_choice;
   game.province_name = prov.name; game.province_type = prov.type; game.is_north = prov.isNorth; game.budget = prov.baseBudget; game.base_comfort = prov.isNorth?BASE_COMFORT_NORTH:BASE_COMFORT_SOUTH;
   try{ game.province_climate = prov.climate || null; }catch(e){ game.province_climate = null; }
+  
+  // 如果选择香港(14)或澳门(25)，设置使用繁体中文
+  if (province_choice === 14 || province_choice === 25) {
+    try {
+      if (window.ChineseConverter) {
+        window.ChineseConverter.setUseTraditionalChinese(true);
+      }
+    } catch (e) {
+      console.error('设置繁体中文失败:', e);
+    }
+  }
+  
   if(game.difficulty===1){ game.budget = Math.floor(game.budget * EASY_MODE_BUDGET_MULTIPLIER); }
   else if(game.difficulty===3){ game.budget = Math.floor(game.budget * HARD_MODE_BUDGET_MULTIPLIER); }
   

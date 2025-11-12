@@ -194,6 +194,7 @@
 
 <script src="tutorial.js"></script>
 <script src="events.js"></script>
+<script src="lib/chinese-convert.js"></script>
 <script src="lib/constants.js"></script>
 <script src="lib/utils.js"></script>
 <script src="lib/models.js"></script>
@@ -242,6 +243,28 @@
       const raw = localStorage.getItem('oi_coach_save');
       if(!raw){ window.location.href = 'start.html'; }
     }catch(e){ /* ignore */ }
+  })();
+  
+  // 检查是否需要使用繁体中文
+  (function(){
+    try{
+      if(window.ChineseConverter && window.ChineseConverter.shouldUseTraditionalChinese()){
+        // 等待DOM完全加载后再转换
+        if(document.readyState === 'loading'){
+          document.addEventListener('DOMContentLoaded', function(){
+            setTimeout(function(){
+              window.ChineseConverter.convertPageToTraditional();
+            }, 200);
+          });
+        } else {
+          setTimeout(function(){
+            window.ChineseConverter.convertPageToTraditional();
+          }, 200);
+        }
+      }
+    }catch(e){ 
+      console.error('繁体中文转换失败:', e); 
+    }
   })();
 </script>
   <footer style="text-align:center;padding:12px 8px;color:#666;font-size:13px;border-top:1px solid #eee;margin-top:18px">

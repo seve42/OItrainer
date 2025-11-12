@@ -165,6 +165,7 @@
   </div>
 </div>
 
+<script src="lib/chinese-convert.js"></script>
 <script src="events.js"></script>
 <script src="lib/constants.js"></script>
 <script src="lib/utils.js"></script>
@@ -348,6 +349,32 @@
   if(typeof renderStartPageUI !== 'undefined'){
     renderStartPageUI && renderStartPageUI();
     setTimeout(() => {
+      // 添加省份选择监听器，实现繁简切换
+      const provGrid = document.getElementById('start-prov-grid');
+      if (provGrid && window.ChineseConverter) {
+        provGrid.addEventListener('click', (e) => {
+          const btn = e.target.closest('.prov-btn');
+          if (btn) {
+            const provId = parseInt(btn.dataset.val);
+            // 香港(14)和澳门(25)使用繁体中文
+            if (provId === 14 || provId === 25) {
+              window.ChineseConverter.setUseTraditionalChinese(true);
+              // 延迟转换，确保DOM更新完成
+              setTimeout(() => {
+                window.ChineseConverter.convertPageToTraditional();
+              }, 100);
+            } else {
+              // 其他省份使用简体中文，需要重新加载页面
+              const wasTraditional = window.ChineseConverter.shouldUseTraditionalChinese();
+              if (wasTraditional) {
+                window.ChineseConverter.setUseTraditionalChinese(false);
+                window.location.reload();
+              }
+            }
+          }
+        });
+      }
+      
       // 保留帮助与开始按钮行为
       document.getElementById('start-help').onclick = ()=>{ window.open('help.html','_blank'); };
       document.getElementById('start-button').onclick = ()=>{ startFromStartPage && startFromStartPage(); };
@@ -497,6 +524,29 @@
         }
         container.innerHTML = linkHtml;
       }catch(e){}
+    })();
+  </script>
+  <script>
+    // 页面加载时检查是否需要使用繁体中文
+    (function(){
+      try{
+        if(window.ChineseConverter && window.ChineseConverter.shouldUseTraditionalChinese()){
+          // 等待DOM完全加载后再转换
+          if(document.readyState === 'loading'){
+            document.addEventListener('DOMContentLoaded', function(){
+              setTimeout(function(){
+                window.ChineseConverter.convertPageToTraditional();
+              }, 100);
+            });
+          } else {
+            setTimeout(function(){
+              window.ChineseConverter.convertPageToTraditional();
+            }, 100);
+          }
+        }
+      }catch(e){ 
+        console.error('繁体中文转换失败:', e); 
+      }
     })();
   </script>
   <div class="disclaimer" role="note" aria-label="免责声明" style="margin-top:8px;margin-bottom:18px;font-size:13px;color:#444;">

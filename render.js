@@ -618,6 +618,15 @@ function renderAll(){
     const compCard = document.getElementById('comp-only-action');
     if (compCard) compCard.remove();
   }
+  
+  // 如果需要使用繁体中文，转换所有动态生成的内容
+  try {
+    if (window.ChineseConverter && window.ChineseConverter.shouldUseTraditionalChinese()) {
+      window.ChineseConverter.convertElementToTraditional(document.body);
+    }
+  } catch (e) {
+    console.error('renderAll 繁体转换失败:', e);
+  }
 }
 
 function showModal(html){
@@ -664,6 +673,15 @@ function showModal(html){
   }
   root._modalKeyHandler = keyHandler;
   window.addEventListener('keydown', keyHandler);
+  
+  // 如果需要使用繁体中文，转换模态框内容
+  try {
+    if (window.ChineseConverter && window.ChineseConverter.shouldUseTraditionalChinese()) {
+      window.ChineseConverter.convertElementToTraditional(dialog);
+    }
+  } catch (e) {
+    console.error('showModal 繁体转换失败:', e);
+  }
 }
 
 function closeModal(){
