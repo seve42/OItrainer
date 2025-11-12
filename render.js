@@ -212,59 +212,6 @@ function renderEventCards(){
   }, 100);
 }
 
-  // 自动将使用原生 title 的内联元素转换为可立即显示的样式化 tooltip
-  // 目标：统一使用 .talent-tag + .talent-tooltip 的样式（和天赋标签一致），并移除原生 title 避免浏览器延迟提示
-  ;(function(){
-    function convertTitleElements(root){
-      const nodes = root.querySelectorAll('[title]');
-      for(const el of nodes){
-        // 跳过交互控件（按钮、输入），这些保留原生 title
-        const tag = el.tagName.toUpperCase();
-        if(tag === 'BUTTON' || tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') continue;
-        const txt = el.getAttribute('title');
-        if(!txt) continue;
-        try{
-          // 如果已经是 talent-tag，跳过
-          if(el.classList.contains('talent-tag')){
-            // 如果没有内置 tooltip，则添加
-            if(!el.querySelector('.talent-tooltip')){
-              const tip = document.createElement('span');
-              tip.className = 'talent-tooltip';
-              tip.textContent = txt;
-              el.appendChild(tip);
-            }
-          }else{
-            // 为元素添加 talent-tag 风格（不覆盖已有内联样式）
-            el.classList.add('talent-tag');
-            // 添加 tooltip 子节点
-            const tip = document.createElement('span');
-            tip.className = 'talent-tooltip';
-            tip.textContent = txt;
-            el.appendChild(tip);
-          }
-          // 移除原生 title，防止默认浏览器 tooltip
-          el.removeAttribute('title');
-        }catch(e){ console.error('convertTitleElements', e); }
-      }
-    }
-
-    if(document.readyState === 'loading'){
-      document.addEventListener('DOMContentLoaded', function(){ convertTitleElements(document); });
-    }else{
-      convertTitleElements(document);
-    }
-
-    // 监控后续动态插入的节点（如渲染更新），以便保持一致行为
-    const mo = new MutationObserver(muts=>{
-      for(const m of muts){
-        for(const n of m.addedNodes){
-          if(n && n.querySelectorAll) convertTitleElements(n);
-        }
-      }
-    });
-    mo.observe(document.documentElement || document.body, { childList: true, subtree: true });
-  })();
-
 // 检查事件卡片是否溢出并添加相应的视觉提示
 function checkEventCardsOverflow() {
   const container = $('event-cards-container');
@@ -489,7 +436,7 @@ function renderAll(){
       <div class="student-header">
         <div class="student-name">
           ${s.name}
-          ${s.sick_weeks > 0 ? '<span class="talent-tag" style="background-color:#d9770620;color:#d97706;border-color:#d9770640; margin-left:6px;">[生病]<span class="talent-tooltip">训练效率下降，压力累计加速</span></span>' : ''}
+          ${s.sick_weeks > 0 ? '<span class="warn" title="训练效率下降，压力累计加速" aria-label="训练效率下降，压力累计加速">[生病]</span>' : ''}
           ${hasTendency ? '<span class="warn">[退队倾向]</span>' : ''}
           ${qualificationInfo.html}
         </div>
@@ -1306,7 +1253,7 @@ function renderEndSummary(){
           <div class="student-header">
             <div class="student-name">
               ${s.name}
-              ${s.sick_weeks > 0 ? '<span class="talent-tag" style="background-color:#d9770620;color:#d97706;border-color:#d9770640;margin-left:6px;">[生病]<span class="talent-tooltip">训练效率下降，压力累计加速</span></span>' : ''}
+              ${s.sick_weeks > 0 ? '<span class="warn" title="训练效率下降，压力累计加速" aria-label="训练效率下降，压力累计加速">[生病]</span>' : ''}
               ${!isActive ? '<span class="warn">[退队]</span>' : ''}
             </div>
             <div class="student-status">
