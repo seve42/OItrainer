@@ -1405,66 +1405,6 @@ function renderEndSummary(){
       timelineHtml += `</div>`;
     }
     
-    // 获取开发者工具检测结果
-    let devToolsHtml = '';
-    try {
-      let devToolsResult = null;
-      
-      // 优先从存档中读取（确保显示保存的数据）
-      if (o.devToolsDetection) {
-        // 从存档中读取
-        devToolsResult = {
-          detected: o.devToolsDetection.detected || false,
-          tampered: false,
-          firstDetectedTime: o.devToolsDetection.firstDetectedTime || 0,
-          detectionCount: o.devToolsDetection.detectionCount || 0,
-          trustLevel: o.devToolsDetection.detected ? 50 : 100,
-          message: o.devToolsDetection.detected ? '⚠️ 检测到开发者工具' : '✓ 未检测到开发者工具'
-        };
-        
-        // 验证完整性
-        try {
-          if (o.devToolsDetection.detected !== o.devToolsDetection.detectedBackup1 ||
-              o.devToolsDetection.detected !== o.devToolsDetection.detectedBackup2) {
-            devToolsResult.tampered = true;
-            devToolsResult.message = '⚠️ 检测到数据异常';
-            devToolsResult.trustLevel = 0;
-          }
-        } catch (e) {
-          console.error('验证开发者工具检测数据完整性失败:', e);
-        }
-        
-        console.log('[Render] 从存档读取 devTools 检测结果:', devToolsResult);
-      } else if (typeof window !== 'undefined' && window.DevToolsDetector && typeof window.DevToolsDetector.getResult === 'function') {
-        // 备用：从检测器实时获取（用于游戏进行中）
-        devToolsResult = window.DevToolsDetector.getResult();
-        console.log('[Render] 从检测器实时获取 devTools 结果:', devToolsResult);
-      }
-      
-      // 只在检测到问题时才显示警告
-      if (devToolsResult && (devToolsResult.detected || devToolsResult.tampered)) {
-        const bgColor = devToolsResult.tampered ? '#f8d7da' : '#fff3cd';
-        const textColor = devToolsResult.tampered ? '#721c24' : '#856404';
-        const borderColor = devToolsResult.tampered ? '#dc3545' : '#ffc107';
-        const icon = devToolsResult.tampered ? '⛔' : '⚠️';
-        const title = devToolsResult.tampered ? '存档数据异常' : '存档完整性提示';
-        const trustText = devToolsResult.tampered ? '(数据异常)' : `(可信度: ${devToolsResult.trustLevel}%)`;
-        
-        devToolsHtml = `
-          <div style="background:${bgColor};color:${textColor};padding:12px;border-radius:8px;margin-bottom:16px;border:1px solid ${borderColor}">
-            <div style="display:flex;align-items:center;justify-content:space-between">
-              <div style="font-weight:bold;font-size:14px">${icon} ${title}</div>
-              <div style="font-size:12px;opacity:0.8">${trustText}</div>
-            </div>
-            <div style="font-size:13px;margin-top:6px">${devToolsResult.message}</div>
-            ${devToolsResult.detected && devToolsResult.detectionCount > 0 ? `<div style="font-size:12px;margin-top:4px;opacity:0.9">检测次数: ${devToolsResult.detectionCount}</div>` : ''}
-          </div>
-        `;
-      }
-    } catch (e) {
-      console.error('获取开发者工具检测结果失败:', e);
-    }
-    
     // 计算表现分
     const performanceScoreData = calculatePerformanceScore(o);
     
@@ -1473,7 +1413,6 @@ function renderEndSummary(){
         <div style="font-size:16px;font-weight:bold;margin-bottom:4px">📅 今日挑战</div>
         <div style="font-size:13px;opacity:0.9">${o.dailyChallengeDate || '日期未知'} · 种子: ${o.dailyChallengeSeed || 'N/A'}</div>
       </div>` : ''}
-      ${devToolsHtml}
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:16px">
         <div>
           <h4>📈 基本信息</h4>

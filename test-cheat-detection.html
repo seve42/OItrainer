@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>反作弊检测测试</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      background-color: #f5f5f5;
+    }
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    h1 {
+      color: #333;
+    }
+    .test-section {
+      margin: 20px 0;
+      padding: 15px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+    }
+    .test-section h3 {
+      margin-top: 0;
+      color: #555;
+    }
+    button {
+      padding: 10px 20px;
+      margin: 5px;
+      cursor: pointer;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+    button:hover {
+      background-color: #45a049;
+    }
+    button.danger {
+      background-color: #f44336;
+    }
+    button.danger:hover {
+      background-color: #da190b;
+    }
+    .status {
+      margin-top: 10px;
+      padding: 10px;
+      border-radius: 4px;
+      font-weight: bold;
+    }
+    .status.safe {
+      background-color: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+    }
+    .status.detected {
+      background-color: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+    }
+    .code-block {
+      background-color: #f4f4f4;
+      padding: 10px;
+      border-radius: 4px;
+      font-family: 'Courier New', monospace;
+      margin: 10px 0;
+      font-size: 13px;
+    }
+    .info {
+      background-color: #d1ecf1;
+      color: #0c5460;
+      padding: 10px;
+      border-radius: 4px;
+      margin: 10px 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🛡️ 反作弊检测系统测试</h1>
+    
+    <div class="info">
+      <strong>测试说明：</strong>本页面用于测试反作弊系统是否能正确检测各种作弊行为。<br>
+      浏览器：<span id="browser-info"></span>
+    </div>
+
+    <div class="test-section">
+      <h3>当前检测状态</h3>
+      <div id="status" class="status safe">正在初始化...</div>
+      <button onclick="checkStatus()">刷新状态</button>
+    </div>
+
+    <div class="test-section">
+      <h3>测试1：直接修改游戏数值</h3>
+      <p>测试在控制台输入以下命令能否被检测：</p>
+      <div class="code-block">game.money = 999999</div>
+      <button class="danger" onclick="testDirectModification()">执行测试（作弊行为）</button>
+      <p><small>提示：也可以手动在控制台输入上述命令测试</small></p>
+    </div>
+
+    <div class="test-section">
+      <h3>测试2：修改嵌套属性</h3>
+      <p>测试修改学生技能值：</p>
+      <div class="code-block">game.students[0].skills.algorithm = 9999</div>
+      <button class="danger" onclick="testNestedModification()">执行测试（作弊行为）</button>
+    </div>
+
+    <div class="test-section">
+      <h3>测试3：使用 eval 执行代码</h3>
+      <div class="code-block">eval("game.reputation = 1000")</div>
+      <button class="danger" onclick="testEval()">执行测试（作弊行为）</button>
+    </div>
+
+    <div class="test-section">
+      <h3>测试4：修改 localStorage</h3>
+      <div class="code-block">localStorage.setItem('game_save', '...')</div>
+      <button class="danger" onclick="testLocalStorage()">执行测试（作弊行为）</button>
+    </div>
+
+    <div class="test-section">
+      <h3>测试5：正常游戏操作（应该不被检测）</h3>
+      <button onclick="testNormalOperation()">执行正常操作</button>
+      <p><small>正常操作不应该触发检测</small></p>
+    </div>
+
+    <div class="test-section">
+      <h3>游戏状态</h3>
+      <div id="game-state" style="font-family: monospace; font-size: 12px;"></div>
+      <button onclick="updateGameState()">刷新游戏状态</button>
+    </div>
+  </div>
+
+  <script>
+    // 模拟游戏对象
+    function GameState() {
+      this.money = 1000;
+      this.reputation = 50;
+      this.students = [
+        {
+          name: '测试学生',
+          skills: {
+            algorithm: 60,
+            dataStructure: 55,
+            math: 70
+          }
+        }
+      ];
+    }
+
+    // 初始化游戏
+    window.game = new GameState();
+
+    // 显示浏览器信息
+    document.getElementById('browser-info').textContent = navigator.userAgent;
+
+    // 检查状态
+    function checkStatus() {
+      const statusEl = document.getElementById('status');
+      statusEl.className = 'status safe';
+      statusEl.innerHTML = `
+        ℹ️ <strong>反作弊模块已移除</strong><br>
+        此测试页面不再可用
+      `;
+    }
+
+    // 测试1：直接修改
+    function testDirectModification() {
+      console.log('=== 反作弊模块已移除 ===');
+      alert('反作弊模块已被移除，此测试不再可用');
+    }
+
+    // 测试2：嵌套属性修改
+    function testNestedModification() {
+      console.log('=== 反作弊模块已移除 ===');
+      alert('反作弊模块已被移除，此测试不再可用');
+    }
+
+    // 测试3：eval
+    function testEval() {
+      console.log('=== 测试3：使用 eval ===');
+      eval("game.reputation = 1000");
+      console.log('已使用 eval 修改 game.reputation = 1000');
+      setTimeout(checkStatus, 500);
+    }
+
+    // 测试4：localStorage
+    function testLocalStorage() {
+      console.log('=== 测试4：修改 localStorage ===');
+      localStorage.setItem('game_test', JSON.stringify({money: 999999}));
+      console.log('已修改 localStorage');
+      setTimeout(checkStatus, 500);
+    }
+
+    // 测试5：正常操作
+    function testNormalOperation() {
+      console.log('=== 测试5：正常游戏操作 ===');
+      console.log('=== 反作弊模块已移除 ===');
+      alert('反作弊模块已被移除，此测试不再可用');
+    }
+
+    function normalGameFunction() {
+      // 模拟正常的游戏函数修改数值
+      window.game.money += 100;
+      window.game.reputation += 1;
+      console.log('正常操作：金钱+100, 声誉+1');
+    }
+
+    // 更新游戏状态显示
+    function updateGameState() {
+      const stateEl = document.getElementById('game-state');
+      stateEl.textContent = JSON.stringify(window.game, null, 2);
+    }
+
+    // 初始化
+    setTimeout(() => {
+      console.log('反作弊模块已被移除');
+      console.log('当前浏览器:', navigator.userAgent);
+      checkStatus();
+      updateGameState();
+    }, 500);
+  </script>
+</body>
+</html>
