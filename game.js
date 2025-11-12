@@ -1257,6 +1257,7 @@ function startFromStartPage(){
 }
 
 function initGame(difficulty, province_choice, student_count){
+  console.log(province_choice);
   game = new GameState();
   window.game = game;
   game.difficulty = clampInt(difficulty,1,3);
@@ -1319,17 +1320,40 @@ function initGame(difficulty, province_choice, student_count){
     log(`对点招生：${recruited.name} 加入队伍`);
   }
   
-  for(let i=0;i<student_count;i++){
-    let name = typeof generateName === 'function' ? generateName({ region: prov.name }) : '学生';
+  const usedNames = new Set();
+  console.log(province_choice);
+  for (let i = 0; i < student_count; i++) {
+    let name;
+
+    // 保证生成的名字不重复
+    do {
+      name = generateName(province_choice);
+    } while (usedNames.has(name));
+    usedNames.add(name);
+
+    // 正态分布生成属性
     let mean = (min_val + max_val) / 2;
     let stddev = (max_val - min_val);
     let thinking = clamp(normal(mean, stddev), 0, 100);
     let coding = clamp(normal(mean, stddev), 0, 100);
     let mental = clamp(normal(mean, stddev), 0, 100);
+
+    // 创建学生对象
     const newStud = new Student(name, thinking, coding, mental);
-    try{ if(window.TalentManager && typeof window.TalentManager.assignInitialTalent === 'function') window.TalentManager.assignInitialTalent(newStud); }catch(e){}
+
+    try {
+      if (
+        window.TalentManager &&
+        typeof window.TalentManager.assignInitialTalent === "function"
+      )
+        window.TalentManager.assignInitialTalent(newStud);
+    } catch (e) {
+      console.error(e);
+    }
+
     game.students.push(newStud);
   }
+
   game.updateWeather();
   
   // 初始化第一周的题目
@@ -1340,7 +1364,20 @@ function initGame(difficulty, province_choice, student_count){
   log("初始化完成，开始游戏！");
 }
 
-window.onload = ()=>{
+window.onload = async ()=>{
+  // Attempt to preload name pools from same-origin CSV when possible.
+  // This helps when the page is served over HTTP and `data/result.csv` is accessible.
+  async function _tryPreloadNamePools(){
+    if(typeof preloadNamePools !== 'function') return false;
+    try{
+      // try absolute then relative path
+      let ok = false;
+      try{ ok = Boolean(await preloadNamePools('/data/result.csv')); }catch(e){}
+      if(!ok){ try{ ok = Boolean(await preloadNamePools('data/result.csv')); }catch(e){} }
+      if(!ok){ try{ console.debug('[preloadNamePools] CSV not loaded via fetch; if you are opening the page via file://, run a local HTTP server (e.g. python3 -m http.server) or use the upload UI.'); }catch(e){} }
+      return ok;
+    }catch(e){ try{ console.warn('[preloadNamePools] error', e); }catch(_){}; return false; }
+  }
   if(window.EventManager && typeof window.EventManager.registerDefaultEvents === 'function'){
     try{
       window.EventManager.registerDefaultEvents({
@@ -1368,7 +1405,7 @@ window.onload = ()=>{
   
   if(document.getElementById('action-train')){
     const qs = (function(){ try{ return new URLSearchParams(window.location.search); }catch(e){ return null; } })();
-    if(qs && qs.get('new') === '1'){
+  if(qs && qs.get('new') === '1'){
       const diff = clampInt(parseInt(qs.get('d')||2),1,3);
       const prov = clampInt(parseInt(qs.get('p')||1),1,Object.keys(PROVINCES).length);
       const count = clampInt(parseInt(qs.get('c')||5),3,10);
@@ -1383,6 +1420,7 @@ window.onload = ()=>{
         } else {
           console.warn('[今日挑战] setRandomSeed 函数未定义，种子设置失败');
         }
+        await _tryPreloadNamePools();
         initGame(diff, prov, count);
         game.isDailyChallenge = true;
         game.dailyChallengeSeed = seed;
@@ -1395,6 +1433,7 @@ window.onload = ()=>{
         if(typeof setRandomSeed === 'function'){
           setRandomSeed(null);
         }
+        await _tryPreloadNamePools();
         initGame(diff, prov, count);
       }
       
