@@ -116,7 +116,8 @@ footer{margin-top:16px;text-align:center;color:var(--muted)}
   font-size: 10px;
   font-weight: 600;
   cursor: pointer;
-  z-index: 2;
+  /* 降低显示优先级，确保模态/提示等能覆盖该按钮 */
+  z-index: 0;
   box-shadow: 0 1px 3px rgba(229,62,62,0.2);
   transition: all 0.2s ease;
   opacity: 0;

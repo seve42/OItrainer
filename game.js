@@ -747,6 +747,11 @@ function weeklyUpdate(weeks=1){
     game.recordExpense(weeklyAdj, '周维护费用');
     game.week++;
     game.updateWeather();
+    
+    // 在每周开始时选择本周的训练题目（7道：5推荐+2随机）
+    if (typeof selectRandomTasks === 'function') {
+      game.weeklyTasks = selectRandomTasks(7);
+    }
   }
   
   // 检查高二晋级链断裂自动退队（在周数推进后执行）
@@ -1210,13 +1215,30 @@ function loadGame(){ try{
     }
     return student;
   });
+  
+  // 恢复本周题目：如果存档中没有或已失效，重新选择
+  if (!game.weeklyTasks || !Array.isArray(game.weeklyTasks) || game.weeklyTasks.length === 0) {
+    if (typeof selectRandomTasks === 'function') {
+      game.weeklyTasks = selectRandomTasks(7);
+    }
+  }
+  
   renderAll(); alert("已载入存档"); }catch(e){ alert("载入失败："+e); } }
 
 function silentLoad(){ try{ 
   let raw = null;
   try{ raw = sessionStorage.getItem('oi_coach_save'); }catch(e){ raw = null; }
   try{ if(!raw) raw = localStorage.getItem('oi_coach_save'); }catch(e){}
-  if(!raw) return false; let o = JSON.parse(raw); game = Object.assign(new GameState(), o); window.game = game; game.facilities = Object.assign(new Facilities(), o.facilities); game.students = (o.students || []).map(s => { const student = Object.assign(new Student(), s); if(s.talents && Array.isArray(s.talents)){ student.talents = new Set(s.talents); } else if(s.talents && typeof s.talents === 'object'){ student.talents = new Set(Object.keys(s.talents).filter(k => s.talents[k])); } return student; }); return true; }catch(e){ return false; } }
+  if(!raw) return false; let o = JSON.parse(raw); game = Object.assign(new GameState(), o); window.game = game; game.facilities = Object.assign(new Facilities(), o.facilities); game.students = (o.students || []).map(s => { const student = Object.assign(new Student(), s); if(s.talents && Array.isArray(s.talents)){ student.talents = new Set(s.talents); } else if(s.talents && typeof s.talents === 'object'){ student.talents = new Set(Object.keys(s.talents).filter(k => s.talents[k])); } return student; }); 
+  
+  // 恢复本周题目：如果存档中没有或已失效，重新选择
+  if (!game.weeklyTasks || !Array.isArray(game.weeklyTasks) || game.weeklyTasks.length === 0) {
+    if (typeof selectRandomTasks === 'function') {
+      game.weeklyTasks = selectRandomTasks(7);
+    }
+  }
+  
+  return true; }catch(e){ return false; } }
 
 function startFromStartPage(){
   let diff = parseInt(document.getElementById('start-diff').value);
@@ -1321,6 +1343,12 @@ function initGame(difficulty, province_choice, student_count){
   }
 
   game.updateWeather();
+  
+  // 初始化第一周的题目
+  if (typeof selectRandomTasks === 'function') {
+    game.weeklyTasks = selectRandomTasks(7);
+  }
+  
   log("初始化完成，开始游戏！");
 }
 

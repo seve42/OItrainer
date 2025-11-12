@@ -113,12 +113,12 @@ function renderDifficultyTag(diff){
   const d = Number(diff) || 0;
   let label = '';
   let cls = '';
-  if(d <= 14){ label = '入门'; cls = 'diff-red'; }
-  else if(d <= 39){ label = '普及-'; cls = 'diff-orange'; }
-  else if(d <= 54){ label = '普及/提高-'; cls = 'diff-yellow'; }
-  else if(d <= 79){ label = '普及+/提高'; cls = 'diff-green'; }
-  else if(d <= 94){ label = '提高+/省选-'; cls = 'diff-blue'; }
-  else if(d <= 110){ label = '省选/NOI-'; cls = 'diff-purple'; }
+  if(d <= 20){ label = '入门'; cls = 'diff-red'; }
+  else if(d <= 50){ label = '普及-'; cls = 'diff-orange'; }
+  else if(d <= 86){ label = '普及/提高-'; cls = 'diff-yellow'; }
+  else if(d <= 103){ label = '普及+/提高'; cls = 'diff-green'; }
+  else if(d <=120){ label = '提高+/省选-'; cls = 'diff-blue'; }
+  else if(d <= 150){ label = '省选/NOI-'; cls = 'diff-purple'; }
   else { label = 'NOI+/CTSC'; cls = 'diff-black'; }
 
   const legacy = (d <= 24) ? 'diff-beginner' : (d <= 34) ? 'diff-popular-low' : (d <= 44) ? 'diff-popular-high' : (d <= 64) ? 'diff-advanced-low' : (d <= 79) ? 'diff-provincial' : 'diff-noi';
@@ -211,59 +211,6 @@ function renderEventCards(){
     checkEventCardsOverflow();
   }, 100);
 }
-
-  // 自动将使用原生 title 的内联元素转换为可立即显示的样式化 tooltip
-  // 目标：统一使用 .talent-tag + .talent-tooltip 的样式（和天赋标签一致），并移除原生 title 避免浏览器延迟提示
-  ;(function(){
-    function convertTitleElements(root){
-      const nodes = root.querySelectorAll('[title]');
-      for(const el of nodes){
-        // 跳过交互控件（按钮、输入），这些保留原生 title
-        const tag = el.tagName.toUpperCase();
-        if(tag === 'BUTTON' || tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') continue;
-        const txt = el.getAttribute('title');
-        if(!txt) continue;
-        try{
-          // 如果已经是 talent-tag，跳过
-          if(el.classList.contains('talent-tag')){
-            // 如果没有内置 tooltip，则添加
-            if(!el.querySelector('.talent-tooltip')){
-              const tip = document.createElement('span');
-              tip.className = 'talent-tooltip';
-              tip.textContent = txt;
-              el.appendChild(tip);
-            }
-          }else{
-            // 为元素添加 talent-tag 风格（不覆盖已有内联样式）
-            el.classList.add('talent-tag');
-            // 添加 tooltip 子节点
-            const tip = document.createElement('span');
-            tip.className = 'talent-tooltip';
-            tip.textContent = txt;
-            el.appendChild(tip);
-          }
-          // 移除原生 title，防止默认浏览器 tooltip
-          el.removeAttribute('title');
-        }catch(e){ console.error('convertTitleElements', e); }
-      }
-    }
-
-    if(document.readyState === 'loading'){
-      document.addEventListener('DOMContentLoaded', function(){ convertTitleElements(document); });
-    }else{
-      convertTitleElements(document);
-    }
-
-    // 监控后续动态插入的节点（如渲染更新），以便保持一致行为
-    const mo = new MutationObserver(muts=>{
-      for(const m of muts){
-        for(const n of m.addedNodes){
-          if(n && n.querySelectorAll) convertTitleElements(n);
-        }
-      }
-    });
-    mo.observe(document.documentElement || document.body, { childList: true, subtree: true });
-  })();
 
 // 检查事件卡片是否溢出并添加相应的视觉提示
 function checkEventCardsOverflow() {
@@ -489,7 +436,7 @@ function renderAll(){
       <div class="student-header">
         <div class="student-name">
           ${s.name}
-          ${s.sick_weeks > 0 ? '<span class="talent-tag" style="background-color:#d9770620;color:#d97706;border-color:#d9770640; margin-left:6px;">[生病]<span class="talent-tooltip">训练效率下降，压力累计加速</span></span>' : ''}
+          ${s.sick_weeks > 0 ? '<span class="warn" title="训练效率下降，压力累计加速" aria-label="训练效率下降，压力累计加速">[生病]</span>' : ''}
           ${hasTendency ? '<span class="warn">[退队倾向]</span>' : ''}
           ${qualificationInfo.html}
         </div>
@@ -688,7 +635,13 @@ function closeModal(){
 }
 
 function trainStudentsUI(){
-  const tasks = selectRandomTasks(5);
+  // 从 game 对象读取本周的题目（在周推进时已选好）
+  // 如果没有本周题目（例如游戏刚开始），则现场选择
+  let tasks = game.weeklyTasks;
+  if (!tasks || !Array.isArray(tasks) || tasks.length === 0) {
+    tasks = selectRandomTasks(7);
+    game.weeklyTasks = tasks;
+  }
   
   const taskCards = tasks.map((task, idx) => {
     const boostStr = task.boosts.map(b => `${b.type}+${b.amount}`).join(' ');
@@ -717,7 +670,7 @@ function trainStudentsUI(){
   `;
 
   showModal(`<h3>选择训练题目</h3>
-    <div class="small muted" style="margin-bottom:10px">从下方5道题目中选择一道进行训练。题目提升效果受学生能力与难度匹配度影响。</div>
+    <div class="small muted" style="margin-bottom:10px">从下方7道题目中选择一道进行训练。题目提升效果受学生能力与难度匹配度影响。</div>
     <label class="block">可选题目</label>
     <div id="train-task-grid" style="display:flex;gap:12px;flex-wrap:wrap;margin-top:8px;overflow-x:auto;max-height:300px;overflow-y:auto;">${taskCards}</div>
     <div id="train-task-helper" class="small muted" style="margin-top:6px;display:none;color:#c53030;font-weight:700"></div>
@@ -1306,7 +1259,7 @@ function renderEndSummary(){
           <div class="student-header">
             <div class="student-name">
               ${s.name}
-              ${s.sick_weeks > 0 ? '<span class="talent-tag" style="background-color:#d9770620;color:#d97706;border-color:#d9770640;margin-left:6px;">[生病]<span class="talent-tooltip">训练效率下降，压力累计加速</span></span>' : ''}
+              ${s.sick_weeks > 0 ? '<span class="warn" title="训练效率下降，压力累计加速" aria-label="训练效率下降，压力累计加速">[生病]</span>' : ''}
               ${!isActive ? '<span class="warn">[退队]</span>' : ''}
             </div>
             <div class="student-status">
