@@ -43,11 +43,11 @@
         run: c => {
           for(let s of c.game.students){
             if(!s || s.active === false) continue;
-            const oldP = Number(s.pressure || 0);
-            s.pressure = Math.min(100, oldP + 15);
-            s.comfort  = Math.max(0,   s.comfort  - 10);
+            // 使用 modifier 而不是直接修改
+            s.pressure_modifier = (s.pressure_modifier || 0) + 15;
+            s.comfort_modifier = (s.comfort_modifier || 0) - 10;
             // trigger talent: pressure change due to typhoon
-            try{ if(typeof s.triggerTalents === 'function'){ s.triggerTalents('pressure_change', { source: 'typhoon', amount: s.pressure - oldP }); } }catch(e){ console.error('triggerTalents pressure_change', e); }
+            try{ if(typeof s.triggerTalents === 'function'){ s.triggerTalents('pressure_change', { source: 'typhoon', amount: 15 }); } }catch(e){ console.error('triggerTalents pressure_change', e); }
           }
           const loss = utils.uniformInt(10000, 20000);
           c.game.recordExpense(loss, '台风损失');
@@ -217,9 +217,10 @@
             else s.thinking = (s.thinking||0) + incT;
             if(typeof s.addCoding === 'function') s.addCoding(incC);
             else s.coding = (s.coding  ||0) + incC;
-            const oldP = Number(s.pressure || 0);
-            s.pressure = Math.max(0,   oldP - c.utils.uniformInt(20,50));
-            try{ if(typeof s.triggerTalents === 'function'){ s.triggerTalents('pressure_change', { source: 'coach_visit', amount: s.pressure - oldP }); } }catch(e){ console.error('triggerTalents pressure_change', e); }
+            // 使用 modifier
+            const pressureDec = c.utils.uniformInt(20,50);
+            s.pressure_modifier = (s.pressure_modifier || 0) - pressureDec;
+            try{ if(typeof s.triggerTalents === 'function'){ s.triggerTalents('pressure_change', { source: 'coach_visit', amount: -pressureDec }); } }catch(e){ console.error('triggerTalents pressure_change', e); }
           }
           const msg = `金牌教练来访，学生能力微增，压力微降`;
           c.log && c.log(`[金牌教练] ${msg}`);
@@ -286,11 +287,11 @@
         run: c => {
           for(const s of c.game.students){
             if(!s || s.active === false) continue;
-            const oldP = Number(s.pressure || 0);
-            s.pressure = Math.min(100, oldP + 20);
+            // 使用 modifier
+            s.pressure_modifier = (s.pressure_modifier || 0) + 20;
             try{ 
               if(typeof s.triggerTalents === 'function'){ 
-                s.triggerTalents('pressure_change', { source: 'forgot_checker', amount: s.pressure - oldP }); 
+                s.triggerTalents('pressure_change', { source: 'forgot_checker', amount: 20 }); 
               } 
             }catch(e){ 
               console.error('triggerTalents pressure_change', e); 
@@ -404,11 +405,13 @@
         run: c => {
           for (const s of c.game.students) {
             if (s && s.active === false) continue;
-            s.comfort = Math.max(0, s.comfort - c.utils.uniformInt(2, 5));
+            // 使用 modifier
+            const comfortDec = c.utils.uniformInt(2, 5);
+            const pressureInc = c.utils.uniformInt(1, 4);
+            s.comfort_modifier = (s.comfort_modifier || 0) - comfortDec;
+            s.pressure_modifier = (s.pressure_modifier || 0) + pressureInc;
             s.mental = Math.max(0, (s.mental || 100) - c.utils.uniformInt(1, 3));
-            const oldP = Number(s.pressure || 0);
-            s.pressure = Math.min(100, oldP + c.utils.uniformInt(1, 4));
-            try{ if(typeof s.triggerTalents === 'function'){ s.triggerTalents('pressure_change', { source: 'internal_conflict', amount: s.pressure - oldP }); } }catch(e){ console.error('triggerTalents pressure_change', e); }
+            try{ if(typeof s.triggerTalents === 'function'){ s.triggerTalents('pressure_change', { source: 'internal_conflict', amount: pressureInc }); } }catch(e){ console.error('triggerTalents pressure_change', e); }
           }
           const msg = '团队内部矛盾爆发，舒适度和心理素质下降，压力上升';
           c.log && c.log(`[内部矛盾] ${msg}`);
@@ -452,7 +455,9 @@
           c.game.food_sick_weeks = weeks;
           for (const s of c.game.students) {
             if (!s || s.active === false) continue;
-            s.comfort = Math.max(0, s.comfort - c.utils.uniformInt(2, 5));
+            // 使用 modifier
+            const comfortDec = c.utils.uniformInt(2, 5);
+            s.comfort_modifier = (s.comfort_modifier || 0) - comfortDec;
           }
           const msg = `食堂卫生问题，接下来 ${weeks} 周学生生病概率上升，舒适度下降`;
           c.log && c.log(`[食堂卫生] ${msg}`);
@@ -473,9 +478,9 @@
                 for (const s of c.game.students) if (s.active) {
                   s.thinking = (s.thinking || 0) + 1;
                   s.coding = (s.coding || 0) + 1;
-                  const oldP = Number(s.pressure || 0);
-                  s.pressure = Math.min(100, oldP + 2);
-                  try{ if(typeof s.triggerTalents === 'function'){ s.triggerTalents('pressure_change', { source: 'exchange_invite', amount: s.pressure - oldP }); } }catch(e){ console.error('triggerTalents pressure_change', e); }
+                  // 使用 modifier
+                  s.pressure_modifier = (s.pressure_modifier || 0) + 2;
+                  try{ if(typeof s.triggerTalents === 'function'){ s.triggerTalents('pressure_change', { source: 'exchange_invite', amount: 2 }); } }catch(e){ console.error('triggerTalents pressure_change', e); }
                 }
                 // 推送事件卡说明：显示选择结果和造成的影响
                 const desc = `接受友校交流：经费 -¥5000，学生能力小幅提升，压力略增`;
@@ -633,7 +638,10 @@
           const options = [
             { label: '高调宣传', effect: () => {
                 c.game.reputation = Math.min(100, c.game.reputation + 10);
-                for (const s of c.game.students) if (s.active) s.pressure = Math.min(100, s.pressure + 10);
+                for (const s of c.game.students) if (s.active) {
+                  // 使用 modifier
+                  s.pressure_modifier = (s.pressure_modifier || 0) + 10;
+                }
                 // give a modest monetary boost scaled by reputation
                 const baseGain = c.utils.uniformInt(2000, 8000);
                 const rep = (c.game && typeof c.game.reputation === 'number') ? Math.max(0, Math.min(100, c.game.reputation)) : 0;
@@ -672,7 +680,8 @@
                 const gain = Math.round(baseGain * (1.0 + (rep / 100.0) * repBonus));
                 c.game.budget += gain;
                 for (const s of c.game.students) if (s.active) {
-                  s.pressure = Math.min(100, s.pressure + 10);
+                  // 使用 modifier
+                  s.pressure_modifier = (s.pressure_modifier || 0) + 10;
                 }
                 const desc = `参加商业活动：经费 +¥${gain}，学生压力 +10`;
                 window.pushEvent && window.pushEvent({ name: '选择结果', description: desc, week: c.game.week });
@@ -793,7 +802,11 @@
                     }
                     c.game.quit_students = (c.game.quit_students || 0) + 1;
                     c.game.reputation = Math.max(0, (c.game.reputation || 0) - 20);
-                    for(const s of c.game.students){ if(!s || s.active === false) continue; s.pressure = Math.min(100, Number(s.pressure || 0) + 10); }
+                    for(const s of c.game.students){ 
+                      if(!s || s.active === false) continue; 
+                      // 使用 modifier
+                      s.pressure_modifier = (s.pressure_modifier || 0) + 10;
+                    }
                     const msg = `${stud.name} 被挖走，声誉 -20，队内压力 +10`;
                     c.log && c.log(`[挽留失败] ${msg}`);
                     window.pushEvent && window.pushEvent({ name: '挽留失败', description: msg, week: c.game.week });
@@ -910,9 +923,9 @@
           this._pendingTriggered = null;
           if (!triggered.length) return null;
           for (const s of triggered){
-            const oldP = Number(s.pressure || 0);
-            s.pressure = Math.max(0, oldP - 5);
-            try{ if(typeof s.triggerTalents === 'function'){ s.triggerTalents('pressure_change', { source: 'poker_cards', amount: s.pressure - oldP }); } }catch(e){}
+            // 使用 modifier
+            s.pressure_modifier = (s.pressure_modifier || 0) - 5;
+            try{ if(typeof s.triggerTalents === 'function'){ s.triggerTalents('pressure_change', { source: 'poker_cards', amount: -5 }); } }catch(e){}
           }
           const names = triggered.map(s => s.name).join('、');
           const msg = `${names} 用草稿纸做了一副扑克牌，压力 -5`;
@@ -937,9 +950,9 @@
           this._pendingTriggered = null;
           if (!triggered.length) return null;
           for (const s of triggered){
-            const oldP = Number(s.pressure || 0);
-            s.pressure = Math.max(0, oldP - 5);
-            try{ if(typeof s.triggerTalents === 'function'){ s.triggerTalents('pressure_change', { source: 'sanguosha', amount: s.pressure - oldP }); } }catch(e){}
+            // 使用 modifier
+            s.pressure_modifier = (s.pressure_modifier || 0) - 5;
+            try{ if(typeof s.triggerTalents === 'function'){ s.triggerTalents('pressure_change', { source: 'sanguosha', amount: -5 }); } }catch(e){}
           }
           const names = triggered.map(s => s.name).join('、');
           const msg = `${names} 做了猪国杀后用草稿纸做了一整套三国杀，压力 -5`;
@@ -964,10 +977,12 @@
           this._pendingTriggered = null;
           if (!triggered.length) return null;
           for (const s of triggered){
-            const oldP = Number(s.pressure || 0);
-            s.pressure = Math.max(0, oldP - 10);
-            s.comfort = Math.max(0, s.comfort - 5);
-            try{ if(typeof s.triggerTalents === 'function'){ s.triggerTalents('pressure_change', { source: 'stinky_water', amount: s.pressure - oldP }); } }catch(e){}
+            // 使用 modifier 而不是直接修改，这样修改会在下次训练/放假时生效
+            s.pressure_modifier = (s.pressure_modifier || 0) - 10;
+            s.comfort_modifier = (s.comfort_modifier || 0) - 5;
+            
+            // 仍然触发天赋事件
+            try{ if(typeof s.triggerTalents === 'function'){ s.triggerTalents('pressure_change', { source: 'stinky_water', amount: -10 }); } }catch(e){}
           }
           const names = triggered.map(s => s.name).join('、');
           const msg = `${names} 在机房养的臭水炸了，压力 -10，舒适度 -5`;
@@ -992,9 +1007,9 @@
           this._pendingTriggered = null;
           if (!triggered.length) return null;
           for (const s of triggered){
-            const oldP = Number(s.pressure || 0);
-            s.pressure = Math.max(0, oldP - 5);
-            try{ if(typeof s.triggerTalents === 'function'){ s.triggerTalents('pressure_change', { source: 'wmc_game', amount: s.pressure - oldP }); } }catch(e){}
+            // 使用 modifier
+            s.pressure_modifier = (s.pressure_modifier || 0) - 5;
+            try{ if(typeof s.triggerTalents === 'function'){ s.triggerTalents('pressure_change', { source: 'wmc_game', amount: -5 }); } }catch(e){}
           }
           const names = triggered.map(s => s.name).join('、');
           const msg = `${names} 用希沃白板打舞梦DX，压力 -5`;
@@ -1018,7 +1033,10 @@
           const triggered = this._pendingTriggered || [];
           this._pendingTriggered = null;
           if (!triggered.length) return null;
-          for (const s of triggered){ s.comfort = Math.max(0, s.comfort - 3); }
+          for (const s of triggered){ 
+            // 使用 modifier
+            s.comfort_modifier = (s.comfort_modifier || 0) - 3;
+          }
           const names = triggered.map(s => s.name).join('、');
           const msg = `${names} 的宿舍进了蛐蛐，叫了一晚上，舒适度 -3`;
           c.log && c.log(`[蟋蟀] ${msg}`);
@@ -1042,9 +1060,9 @@
           this._pendingTriggered = null;
           if (!triggered.length) return null;
           for (const s of triggered){
-            const oldP = Number(s.pressure || 0);
-            s.pressure = Math.max(0, oldP - 5);
-            try{ if(typeof s.triggerTalents === 'function'){ s.triggerTalents('pressure_change', { source: 'florr_game', amount: s.pressure - oldP }); } }catch(e){}
+            // 使用 modifier
+            s.pressure_modifier = (s.pressure_modifier || 0) - 5;
+            try{ if(typeof s.triggerTalents === 'function'){ s.triggerTalents('pressure_change', { source: 'florr_game', amount: -5 }); } }catch(e){}
           }
           const names = triggered.map(s => s.name).join('、');
           const msg = `${names} 发现了一款名为florr.io的游戏，压力 -5`;
@@ -1069,10 +1087,10 @@
           this._pendingTriggered = null;
           if (!triggered.length) return null;
           for (const s of triggered){
-            const oldP = Number(s.pressure || 0);
-            s.pressure = Math.max(0, oldP - 5);
-            s.comfort = Math.max(0, s.comfort - 3);
-            try{ if(typeof s.triggerTalents === 'function'){ s.triggerTalents('pressure_change', { source: 'ice_fire_dance', amount: s.pressure - oldP }); } }catch(e){}
+            // 使用 modifier
+            s.pressure_modifier = (s.pressure_modifier || 0) - 5;
+            s.comfort_modifier = (s.comfort_modifier || 0) - 3;
+            try{ if(typeof s.triggerTalents === 'function'){ s.triggerTalents('pressure_change', { source: 'ice_fire_dance', amount: -5 }); } }catch(e){}
           }
           const names = triggered.map(s => s.name).join('、');
           const msg = `${names} 使用机械键盘大力游玩冰与火之舞，压力 -5，舒适度 -3`;
@@ -1097,9 +1115,9 @@
           this._pendingTriggered = null;
           if (!triggered.length) return null;
           for (const s of triggered){
-            const oldP = Number(s.pressure || 0);
-            s.pressure = Math.max(0, oldP - 5);
-            try{ if(typeof s.triggerTalents === 'function'){ s.triggerTalents('pressure_change', { source: 'evening_run', amount: s.pressure - oldP }); } }catch(e){}
+            // 使用 modifier
+            s.pressure_modifier = (s.pressure_modifier || 0) - 5;
+            try{ if(typeof s.triggerTalents === 'function'){ s.triggerTalents('pressure_change', { source: 'evening_run', amount: -5 }); } }catch(e){}
           }
           const names = triggered.map(s => s.name).join('、');
           const msg = `${names} 晚上去操场跑步，压力 -5`;
@@ -1146,10 +1164,10 @@
           this._pendingTriggered = null;
           if (!triggered.length) return null;
           for (const s of triggered){
-            const oldP = Number(s.pressure || 0);
-            s.pressure = Math.max(0, oldP - 10);
+            // 使用 modifier
+            s.pressure_modifier = (s.pressure_modifier || 0) - 10;
             s.mental = Math.max(0, (s.mental || 100) - 5);
-            try{ if(typeof s.triggerTalents === 'function'){ s.triggerTalents('pressure_change', { source: 'orange_p_site', amount: s.pressure - oldP }); } }catch(e){}
+            try{ if(typeof s.triggerTalents === 'function'){ s.triggerTalents('pressure_change', { source: 'orange_p_site', amount: -10 }); } }catch(e){}
           }
           const names = triggered.map(s => s.name).join('、');
           const msg = `你发现 ${names} 的流量指向......（压力 -10，心理素质 -5）`;

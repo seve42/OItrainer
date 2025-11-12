@@ -350,9 +350,42 @@ function renderAll(){
   else { panel.className = 'next-panel normal'; }
   const scheduleComps = competitions.slice().sort((a, b) => a.week - b.week);
   $('comp-schedule').innerText = scheduleComps.map(c => `${c.week}:${c.name}`).join("  |  ");
-  const currentComfort = game.getComfort();
+  
+  // 显示学生的平均实际舒适度（包含 modifier 效果）
+  // 而不是仅显示全局舒适度，这样事件对舒适度的影响会被反映出来
+  const activeStudents = game.students.filter(s => s && s.active !== false);
+  let displayComfort = game.getComfort(); // 默认使用全局舒适度
+  if(activeStudents.length > 0){
+    // 计算学生的平均实际舒适度（考虑个体差异和modifier）
+    const avgStudentComfort = activeStudents.reduce((sum, s) => {
+      let personalComfort = game.getComfort();
+      
+      // 应用天赋修正
+      if(s.talents && s.talents.has('天气敏感')){
+        const baseComfort = game.base_comfort;
+        const weatherEffect = personalComfort - baseComfort;
+        personalComfort = baseComfort + weatherEffect * 2;
+        personalComfort = Math.max(0, Math.min(100, personalComfort));
+      }
+      if(s.talents && s.talents.has('美食家')){
+        const canteenBonus = 3 * (game.facilities.canteen - 1);
+        personalComfort += canteenBonus;
+        personalComfort = Math.max(0, Math.min(100, personalComfort));
+      }
+      
+      // 应用事件产生的临时修正值
+      if(typeof s.comfort_modifier === 'number'){
+        personalComfort += s.comfort_modifier;
+        personalComfort = Math.max(0, Math.min(100, personalComfort));
+      }
+      
+      return sum + personalComfort;
+    }, 0) / activeStudents.length;
+    displayComfort = avgStudentComfort;
+  }
+  
   const comfortEl = $('comfort-val');
-  if(comfortEl) comfortEl.innerText = Math.floor(currentComfort);
+  if(comfortEl) comfortEl.innerText = Math.floor(displayComfort);
   $('fac-computer').innerText = game.facilities.computer;
   $('fac-library').innerText = game.facilities.library;
   $('fac-ac').innerText = game.facilities.ac;
