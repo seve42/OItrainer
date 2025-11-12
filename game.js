@@ -306,6 +306,12 @@ function trainStudentsWithTask(task, intensity) {
       personalComfort = Math.max(0, Math.min(100, personalComfort));
     }
     
+    // 应用事件产生的临时修正值
+    if(typeof s.comfort_modifier === 'number'){
+      personalComfort += s.comfort_modifier;
+      personalComfort = Math.max(0, Math.min(100, personalComfort));
+    }
+    
     s.comfort = personalComfort;
     
     let sick_penalty = (s.sick_weeks > 0) ? 0.7 : 1.0;
@@ -397,7 +403,14 @@ function trainStudentsWithTask(task, intensity) {
       }
     }catch(e){ console.error('triggerTalents pressure_change', e); }
     
-    s.pressure += finalPressureIncrease;
+    // 应用事件产生的临时压力修正值
+    let totalPressureChange = finalPressureIncrease;
+    if(typeof s.pressure_modifier === 'number'){
+      totalPressureChange += s.pressure_modifier;
+      s.pressure_modifier = 0; // 训练后清除压力修正（已应用）
+    }
+    
+    s.pressure += totalPressureChange;
     
     trainingResults.push({
       name: s.name,
@@ -707,10 +720,22 @@ function weeklyUpdate(weeks=1){
       personalComfort = Math.max(0, Math.min(100, personalComfort));
     }
     
+    // 应用事件产生的临时修正值
+    if(typeof s.comfort_modifier === 'number'){
+      personalComfort += s.comfort_modifier;
+      personalComfort = Math.max(0, Math.min(100, personalComfort));
+    }
+    
     let pressure_recovery = RECOVERY_RATE * (personalComfort/100.0) * weeks;
     
     if(s.talents && s.talents.has('乐天派')){
       pressure_recovery += 3 * weeks;
+    }
+    
+    // 应用事件产生的临时压力修正值（在恢复之前）
+    if(typeof s.pressure_modifier === 'number'){
+      s.pressure = Math.min(100, Math.max(0, s.pressure + s.pressure_modifier));
+      s.pressure_modifier = 0; // 放假后清除压力修正（已应用）
     }
     
     s.pressure = Math.max(0, s.pressure - pressure_recovery);
