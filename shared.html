@@ -335,7 +335,7 @@
         timelineHtml += `</div></div>`;
       }
       
-      // 获取开发者工具检测结果（只在有问题时显示）
+  // 获取开发者工具检测结果（只在有问题时显示）
       let devToolsHtml = '';
       try {
         console.log('[shared.html] o.devTools:', o.devTools);
@@ -369,6 +369,8 @@
       } catch (e) {
         console.error('[shared.html] 获取开发者工具检测结果失败:', e);
       }
+      // 计算表现分（如果渲染库中存在该函数）
+      const performanceScoreData = typeof calculatePerformanceScore === 'function' ? calculatePerformanceScore(o) : { totalScore: 0, byContest: [] };
       
       // 渲染完整信息
       el.innerHTML = `
@@ -391,6 +393,13 @@
               <div>累计消费: <strong>¥${totalExpenses.toLocaleString()}</strong></div>
               <div>结束原因: <strong>${endingReason}</strong></div>
             </div>
+          </div>
+        </div>
+        <div style="margin-top:8px">
+          <h4> 表现分</h4>
+          <div style="background:#f9f9f9;padding:12px;border-radius:8px;max-width:260px">
+            <div style="font-size:20px;font-weight:bold;color:#1976d2;margin-bottom:8px">${(performanceScoreData && performanceScoreData.totalScore) ? (performanceScoreData.totalScore.toFixed(2)) : '0.00'}</div>
+            <div style="font-size:12px;color:#666">基于比赛成绩计算</div>
           </div>
         </div>
         ${timelineHtml}
