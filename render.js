@@ -138,7 +138,16 @@ function renderEventCards(){
   const container = $('event-cards-container');
   if(!container) return;
   
-  // 清空并重建结构
+  // 清空并重建结构，释放旧的DOM引用
+  const oldWrapper = document.getElementById('event-cards-wrapper');
+  if(oldWrapper){
+    // 移除滚动事件监听器
+    const clonedWrapper = oldWrapper.cloneNode(false);
+    if(oldWrapper.parentNode){
+      oldWrapper.parentNode.replaceChild(clonedWrapper, oldWrapper);
+    }
+  }
+  
   container.innerHTML = '';
   
   if(recentEvents.length === 0){
@@ -237,61 +246,65 @@ function checkEventCardsOverflow() {
   }
 }
 
-window.addEventListener('load', () => {
-  const container = $('event-cards-container');
-  if (!container) return;
-  (function(){
-    if(!document.getElementById('event-detail-animations')){
-      const s = document.createElement('style');
-      s.id = 'event-detail-animations';
-      s.textContent = `
-        @keyframes et-slide-in-right { from { opacity: 0; transform: translateX(24px); } to { opacity: 1; transform: translateX(0); } }
-        @keyframes et-slide-out-right { from { opacity: 1; transform: translateX(0); } to { opacity: 0; transform: translateX(24px); } }
-        .event-detail { display: none; }
-        .event-detail.visible { display: block; animation: et-slide-in-right 0.25s ease both; }
-        .event-detail.hiding { animation: et-slide-out-right 0.22s ease both; }
-      `;
-      document.head.appendChild(s);
-    }
-  })();
+// 使用单次初始化标志避免重复绑定
+if(!window._eventCardsInitialized){
+  window._eventCardsInitialized = true;
+  
+  window.addEventListener('load', () => {
+    const container = $('event-cards-container');
+    if (!container) return;
+    
+    // 添加动画样式（仅一次）
+    (function(){
+      if(!document.getElementById('event-detail-animations')){
+        const s = document.createElement('style');
+        s.id = 'event-detail-animations';
+        s.textContent = `
+          @keyframes et-slide-in-right { from { opacity: 0; transform: translateX(24px); } to { opacity: 1; transform: translateX(0); } }
+          @keyframes et-slide-out-right { from { opacity: 1; transform: translateX(0); } to { opacity: 0; transform: translateX(24px); } }
+          .event-detail { display: none; }
+          .event-detail.visible { display: block; animation: et-slide-in-right 0.25s ease both; }
+          .event-detail.hiding { animation: et-slide-out-right 0.22s ease both; }
+        `;
+        document.head.appendChild(s);
+      }
+    })();
 
-  container.addEventListener('click', function(e){
-    const btn = e.target.closest('.more-btn');
-    if (!btn) return;
-    const uid = btn.dataset.uid ? parseInt(btn.dataset.uid, 10) : null;
-    if (!uid) return;
-    const detail = container.querySelector(`.event-detail[data-uid='${uid}']`);
-    const desc = container.querySelector(`.card-desc[data-uid='${uid}']`);
-    if (!detail || !desc) return;
+    // 使用事件委托处理"更多"按钮点击
+    container.addEventListener('click', function(e){
+      const btn = e.target.closest('.more-btn');
+      if (!btn) return;
+      const uid = btn.dataset.uid ? parseInt(btn.dataset.uid, 10) : null;
+      if (!uid) return;
+      const detail = container.querySelector(`.event-detail[data-uid='${uid}']`);
+      const desc = container.querySelector(`.card-desc[data-uid='${uid}']`);
+      if (!detail || !desc) return;
 
-    if (detail.classList.contains('visible')){
-      detail.classList.remove('visible');
-      detail.classList.add('hiding');
-      desc.classList.add('clamp');
-      btn.innerText = '更多';
-      const onAnimEnd = function(ev){
+      if (detail.classList.contains('visible')){
+        detail.classList.remove('visible');
+        detail.classList.add('hiding');
+        desc.classList.add('clamp');
+        btn.innerText = '更多';
+        const onAnimEnd = function(ev){
+          detail.classList.remove('hiding');
+          detail.style.display = 'none';
+          detail.removeEventListener('animationend', onAnimEnd);
+        };
+        detail.addEventListener('animationend', onAnimEnd);
+      } else {
+        detail.style.display = 'block';
+        void detail.offsetWidth;
         detail.classList.remove('hiding');
-        detail.style.display = 'none';
-        detail.removeEventListener('animationend', onAnimEnd);
-      };
-      detail.addEventListener('animationend', onAnimEnd);
-    } else {
-      detail.style.display = 'block';
-      void detail.offsetWidth;
-      detail.classList.remove('hiding');
-      detail.classList.add('visible');
-      desc.classList.remove('clamp');
-      btn.innerText = '收起';
-    }
-  });
-});
-
-window.addEventListener('load', () => {
-  const container = $('event-cards-container');
-  if (container) {
+        detail.classList.add('visible');
+        desc.classList.remove('clamp');
+        btn.innerText = '收起';
+      }
+    });
+    
+    // 使用事件委托处理事件选择
     container.addEventListener('click', handleEventChoice);
-  }
-});
+  });
+}
 
 function showEventModal(evt){
   const title = evt?.name || '事件';
@@ -318,6 +331,12 @@ function showChoiceModal(evt){
 
 function renderAll(){
   if(!document.getElementById('header-week')) return;
+  
+  // 清理旧的事件监听器标记
+  if(!window._renderAllCleanupDone){
+    window._renderAllCleanupDone = true;
+  }
+  
   $('header-week').innerText = `第 ${currWeek()} 周`;
   $('header-province').innerText = `省份: ${game.province_name} (${game.province_type})`;
   const headerBudgetEl = $('header-budget');
@@ -406,6 +425,9 @@ function renderAll(){
     const el = $(id);
     if(el) el.innerText = displayEls[id];
   }
+  // 存储学生列表容器引用以便后续清理
+  const studentListEl = $('student-list');
+  
   let out = '';
   for(let s of game.students){
     if(s && s.active === false) continue;
@@ -474,16 +496,36 @@ function renderAll(){
     </div>`;
   }
   if(out==='') out = '<div class="muted">目前没有活跃学生</div>';
-  $('student-list').innerHTML = out;
-  document.querySelectorAll('#student-list .evict-btn').forEach(b=>{
-    b.onclick = (e) => {
-      const idx = parseInt(b.dataset.idx,10);
+  
+  // 清理旧的DOM节点和事件监听器
+  if(studentListEl){
+    // 移除旧的事件监听器
+    const oldButtons = studentListEl.querySelectorAll('.evict-btn');
+    oldButtons.forEach(btn => {
+      const clonedBtn = btn.cloneNode(true);
+      if(btn.parentNode){
+        btn.parentNode.replaceChild(clonedBtn, btn);
+      }
+    });
+    
+    // 更新内容
+    studentListEl.innerHTML = out;
+  }
+  
+  // 重新绑定事件（使用事件委托减少监听器数量）
+  if(studentListEl && !studentListEl._evictDelegated){
+    studentListEl._evictDelegated = true;
+    studentListEl.addEventListener('click', function(e){
+      const btn = e.target.closest('.evict-btn');
+      if(!btn) return;
+      const idx = parseInt(btn.dataset.idx,10);
       if(isNaN(idx)) return;
       if(game.reputation < EVICT_REPUTATION_COST){ alert('声誉不足，无法劝退'); return; }
       if(!confirm(`确认劝退 ${game.students[idx].name}？将消耗声誉 ${EVICT_REPUTATION_COST}`)) return;
       evictSingle(idx);
-    };
-  });
+    });
+  }
+  
   renderEventCards();
 
   try{
@@ -627,10 +669,21 @@ function showModal(html){
 function closeModal(){
   const root = $('modal-root');
   if(!root) return;
+  
+  // 清理事件监听器
   if(root._modalKeyHandler){
     try{ window.removeEventListener('keydown', root._modalKeyHandler); }catch(e){}
     root._modalKeyHandler = null;
   }
+  
+  // 清理DOM内的所有按钮事件监听器
+  const allButtons = root.querySelectorAll('button');
+  allButtons.forEach(btn => {
+    const clone = btn.cloneNode(true);
+    if(btn.parentNode) btn.parentNode.replaceChild(clone, btn);
+  });
+  
+  // 清空内容
   root.innerHTML = '';
 }
 
