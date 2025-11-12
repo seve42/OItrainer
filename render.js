@@ -635,7 +635,13 @@ function closeModal(){
 }
 
 function trainStudentsUI(){
-  const tasks = selectRandomTasks(7);
+  // 从 game 对象读取本周的题目（在周推进时已选好）
+  // 如果没有本周题目（例如游戏刚开始），则现场选择
+  let tasks = game.weeklyTasks;
+  if (!tasks || !Array.isArray(tasks) || tasks.length === 0) {
+    tasks = selectRandomTasks(7);
+    game.weeklyTasks = tasks;
+  }
   
   const taskCards = tasks.map((task, idx) => {
     const boostStr = task.boosts.map(b => `${b.type}+${b.amount}`).join(' ');
