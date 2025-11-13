@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>临时增益系统测试</title>
+</head>
+<body>
+  <h1>临时增益系统测试</h1>
+  <div id="output"></div>
+
+  <script src="lib/constants.js"></script>
+  <script src="lib/utils.js"></script>
+  <script src="lib/models.js"></script>
+  <script src="lib/talent.js"></script>
+
+  <script>
+    const output = document.getElementById('output');
+    
+    function log(msg) {
+      output.innerHTML += `<p>${msg}</p>`;
+      console.log(msg);
+    }
+
+    // 创建测试学生
+    const student = new Student('测试学生', 50, 50, 50);
+    student.talents.add('激进');
+    student.talents.add('原题机（伪）');
+    
+    // 初始化天赋系统
+    if(window.TalentManager){
+      TalentManager.registerDefaultTalents(null, window);
+    }
+    
+    // 添加触发天赋的方法
+    student.triggerTalents = function(eventName, ctx){
+      if(window.TalentManager){
+        return TalentManager.handleStudentEvent(this, eventName, ctx || {});
+      }
+      return [];
+    };
+    
+    log('<h2>初始状态</h2>');
+    log(`基础值: thinking=${student._base_thinking}, coding=${student._base_coding}, mental=${student._base_mental}`);
+    log(`显示值: thinking=${student.thinking}, coding=${student.coding}, mental=${student.mental}`);
+    log(`临时增益: thinking=${student.getTempModifier('thinking')}, coding=${student.getTempModifier('coding')}, mental=${student.getTempModifier('mental')}`);
+    
+    log('<h2>模拟赛开始</h2>');
+    const results1 = student.triggerTalents('mock_start', { contestName: '模拟赛' });
+    for(const r of results1){
+      if(r.result) log(`天赋: ${r.talent} -> ${typeof r.result === 'string' ? r.result : JSON.stringify(r.result)}`);
+    }
+    
+    log('<h3>模拟赛中</h3>');
+    log(`基础值（不变）: thinking=${student._base_thinking}, coding=${student._base_coding}, mental=${student._base_mental}`);
+    log(`显示值（含增益）: thinking=${student.thinking}, coding=${student.coding}, mental=${student.mental}`);
+    log(`临时增益: thinking=${student.getTempModifier('thinking')}, coding=${student.getTempModifier('coding')}, mental=${student.getTempModifier('mental')}`);
+    
+    log('<h2>模拟赛结束</h2>');
+    const results2 = student.triggerTalents('mock_end', {});
+    for(const r of results2){
+      if(r.result) log(`天赋: ${r.talent} -> ${typeof r.result === 'string' ? r.result : JSON.stringify(r.result)}`);
+    }
+    
+    log('<h3>模拟赛后</h3>');
+    log(`基础值（不变）: thinking=${student._base_thinking}, coding=${student._base_coding}, mental=${student._base_mental}`);
+    log(`显示值（应恢复）: thinking=${student.thinking}, coding=${student.coding}, mental=${student.mental}`);
+    log(`临时增益（应清零）: thinking=${student.getTempModifier('thinking')}, coding=${student.getTempModifier('coding')}, mental=${student.getTempModifier('mental')}`);
+    
+    // 验证结果
+    log('<h2>验证结果</h2>');
+    if(student.thinking === 50 && student.coding === 50 && student.mental === 50){
+      log('<span style="color: green;">✓ 测试通过：能力已正确恢复到初始值</span>');
+    } else {
+      log(`<span style="color: red;">✗ 测试失败：能力未正确恢复 (thinking=${student.thinking}, coding=${student.coding}, mental=${student.mental})</span>`);
+    }
+    
+    if(student.getTempModifier('thinking') === 0 && student.getTempModifier('coding') === 0 && student.getTempModifier('mental') === 0){
+      log('<span style="color: green;">✓ 测试通过：临时增益已清零</span>');
+    } else {
+      log('<span style="color: red;">✗ 测试失败：临时增益未清零</span>');
+    }
+  </script>
+</body>
+</html>
