@@ -461,10 +461,27 @@
         mask.style.transition = 'opacity 220ms ease';
         mask.style.opacity = '0';
         setTimeout(()=>{ mask.parentNode && mask.parentNode.removeChild(mask); }, 260);
+        // 记录用户已经关闭过蒙版
+        try{
+          sessionStorage.setItem('oi_start_mask_dismissed', 'true');
+        }catch(e){}
       }catch(e){ console.error('隐藏启动蒙版失败', e); }
     }
 
     window.addEventListener('load', ()=>{
+      // 检查用户是否已经关闭过蒙版
+      try{
+        const dismissed = sessionStorage.getItem('oi_start_mask_dismissed') === 'true';
+        if(dismissed){
+          // 直接隐藏蒙版，不显示动画
+          const mask = document.getElementById('oiStartMask');
+          if(mask){
+            mask.style.display = 'none';
+          }
+          return;
+        }
+      }catch(e){}
+
       const startBtn = document.getElementById('oiMaskStartBtn');
       const skipBtn = document.getElementById('oiMaskSkipBtn');
       const pageStartBtn = document.getElementById('start-button');
