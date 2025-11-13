@@ -1279,19 +1279,26 @@ function renderEndSummary(){
       return;
     }
     
-  let active = (o.students || []).filter(s => s && s.active !== false).length;
+    let active = (o.students || []).filter(s => s && s.active !== false).length;
     let initial = o.initial_students || (o.students? o.students.length : 0);
     let rep = o.reputation || 0;
     let budget = o.budget || 0;
     let totalExpenses = o.totalExpenses || 0;
     let week = o.week || 0;
+    let difficulty = o.difficulty || 2; // 默认为普通难度
+    
+    // 难度文本和颜色映射
+    const difficultyMap = {
+      1: { text: '简单', color: '#4caf50', emoji: '🟢' },
+      2: { text: '普通', color: '#2196f3', emoji: '🔵' },
+      3: { text: '专家', color: '#f44336', emoji: '🔴' }
+    };
+    const diffInfo = difficultyMap[difficulty] || difficultyMap[2];
     
     let avgP = 0; 
     if(o.students && o.students.length>0){ 
       avgP = Math.round(o.students.filter(s => s && s.active !== false).reduce((a,s)=>a+(s.pressure||0),0) / Math.max(1, active)); 
-    }
-    
-  let rawEnding = '';
+    }  let rawEnding = '';
   try{ rawEnding = sessionStorage.getItem('oi_coach_ending_reason') || sessionStorage.getItem('oi_coach_ending') || ''; }catch(e){ rawEnding = ''; }
   try{ if(!rawEnding || rawEnding.length===0) rawEnding = localStorage.getItem('oi_coach_ending_reason') || localStorage.getItem('oi_coach_ending') || ''; }catch(e){}
   let endingReason = normalizeEndingReason(rawEnding || (o.endingReason || o.oi_coach_ending_reason || '赛季结束'));
@@ -1527,6 +1534,7 @@ function renderEndSummary(){
         <div>
           <h4>📈 基本信息</h4>
           <div style="background:#f9f9f9;padding:12px;border-radius:8px">
+            <div>游戏难度: <strong style="color:${diffInfo.color}">${diffInfo.emoji} ${diffInfo.text}</strong></div>
             <div>初始人数: <strong>${initial}</strong></div>
             <div>当前在队: <strong>${active}</strong></div>
             <div>平均压力: <strong>${avgP}</strong></div>
