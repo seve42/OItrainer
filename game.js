@@ -683,6 +683,21 @@ function weeklyUpdate(weeks=1){
       return;
     }
   }catch(e){ /* ignore and continue if check fails */ }
+  
+  // 触发 week_start 事件
+  try{
+    for(let s of game.students){
+      if(!s) continue;
+      try{
+        if(typeof s.triggerTalents === 'function'){
+          s.triggerTalents('week_start', {});
+        } else if(typeof window !== 'undefined' && window.TalentManager && typeof window.TalentManager.handleStudentEvent === 'function'){
+          window.TalentManager.handleStudentEvent(s, 'week_start', {});
+        }
+      }catch(e){ console.error('triggerTalents week_start', e); }
+    }
+  }catch(e){ console.error('weeklyUpdate trigger week_start talents failed', e); }
+  
   let comfort = game.getComfort();
   
   for(let s of game.students){
@@ -1345,6 +1360,20 @@ function initGame(difficulty, province_choice, student_count){
   if (typeof selectRandomTasks === 'function') {
     game.weeklyTasks = selectRandomTasks(7);
   }
+  
+  // 触发 game_start 事件，让天赋系统可以在游戏开始时进行检查
+  try{
+    for(let s of game.students){
+      if(!s) continue;
+      try{
+        if(typeof s.triggerTalents === 'function'){
+          s.triggerTalents('game_start', {});
+        } else if(typeof window !== 'undefined' && window.TalentManager && typeof window.TalentManager.handleStudentEvent === 'function'){
+          window.TalentManager.handleStudentEvent(s, 'game_start', {});
+        }
+      }catch(e){ console.error('triggerTalents game_start', e); }
+    }
+  }catch(e){ console.error('initGame trigger game_start talents failed', e); }
   
   log("初始化完成，开始游戏！");
 }
