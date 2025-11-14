@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>全天赋组合测试 - OItrainer</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #f0f0f0; }
+        .test-section { background: white; padding: 20px; margin: 10px 0; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .test-result { margin: 10px 0; padding: 10px; border-radius: 4px; }
+        .test-pass { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .test-fail { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        h1 { color: #333; }
+        h2 { color: #555; margin-top: 0; }
+        .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin: 10px 0; }
+        .stat-item { background: #e9ecef; padding: 10px; border-radius: 4px; }
+        .stat-label { font-weight: bold; color: #495057; }
+        .stat-value { font-size: 1.2em; color: #007bff; }
+        button { background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-size: 16px; }
+        button:hover { background: #0056b3; }
+        .test-group { margin: 20px 0; }
+        .talent-combo { background: #fff3cd; padding: 8px; margin: 5px 0; border-radius: 4px; border-left: 4px solid #ffc107; }
+    </style>
+</head>
+<body>
+    <h1>全天赋组合测试 - 临时增益系统验证</h1>
+    
+    <div class="test-section">
+        <h2>测试说明</h2>
+        <p>本测试验证所有天赋在多次组合使用时，能力值不会固化（即赛后能正确恢复到基础值）。</p>
+        <p>测试策略：为学生分配多个能力修改型天赋，模拟多场比赛，验证每场赛后能力值都能恢复到基础值。</p>
+        <button onclick="runAllTests()">运行全部测试</button>
+    </div>
+
+    <div id="test-results"></div>
+
+    <script src="lib/utils.js"></script>
+    <script src="lib/models.js"></script>
+    <script src="lib/constants.js"></script>
+    <script src="lib/talent.js"></script>
+    <script>
+        // 初始化天赋系统
+        if (typeof TalentManager !== 'undefined' && TalentManager.init) {
+            TalentManager.init();
+        }
+        
+        // 测试结果容器
+        const resultsDiv = document.getElementById('test-results');
+        let testsPassed = 0;
+        let testsFailed = 0;
+
+        function logTest(name, passed, details = '') {
+            const div = document.createElement('div');
+            div.className = `test-result ${passed ? 'test-pass' : 'test-fail'}`;
+            div.innerHTML = `
+                <strong>${passed ? '✓ 通过' : '✗ 失败'}: ${name}</strong>
+                ${details ? `<br><small>${details}</small>` : ''}
+            `;
+            resultsDiv.appendChild(div);
+            if (passed) testsPassed++;
+            else testsFailed++;
+        }
+
+        function createTestStudent(talents) {
+            const student = new Student('测试学生', 50, 50, 50);
+            student.talents = talents;
+            return student;
+        }
+
+        function simulateMockContest(student, rounds = 1) {
+            const results = [];
+            
+            for (let round = 1; round <= rounds; round++) {
+                // 记录赛前基础值
+                const beforeBase = {
+                    thinking: student._base_thinking,
+                    coding: student._base_coding,
+                    mental: student._base_mental
+                };
+                
+                // 触发模拟赛开始
+                const mockState = {
+                    tick: 0,
+                    totalTicks: 180,
+                    problems: [
+                        { id: 0, solved: false, tags: ['DP'] },
+                        { id: 1, solved: false, tags: ['图论'] },
+                        { id: 2, solved: false, tags: ['字符串'] },
+                        { id: 3, solved: false, tags: ['数据结构'] }
+                    ],
+                    getProblem: function(id) {
+                        return this.problems[id];
+                    }
+                };
+                
+                if (window.TalentManager && typeof TalentManager.handleStudentEvent === 'function') {
+                    TalentManager.handleStudentEvent(student, 'mock_start', { 
+                        state: mockState,
+                        contestName: '模拟赛'
+                    });
+                }
+                
+                // 记录赛中值
+                const duringContest = {
+                    thinking: student.thinking,
+                    coding: student.coding,
+                    mental: student.mental
+                };
+                
+                // 模拟一些赛中事件
+                if (window.TalentManager && typeof TalentManager.handleStudentEvent === 'function') {
+                    // 选题事件
+                    TalentManager.handleStudentEvent(student, 'contest_select_problem', {
+                        problemId: 0,
+                        state: mockState,
+                        contestName: '模拟赛'
+                    });
+                    
+                    // 思考事件
+                    TalentManager.handleStudentEvent(student, 'contest_thinking', {
+                        state: mockState,
+                        contestName: '模拟赛'
+                    });
+                    
+                    // 通过子任务事件
+                    TalentManager.handleStudentEvent(student, 'contest_pass_subtask', {
+                        state: mockState,
+                        contestName: '模拟赛',
+                        knowledgeType: 'knowledge_dp'
+                    });
+                    
+                    // 后半场
+                    mockState.tick = 100;
+                    TalentManager.handleStudentEvent(student, 'contest_select_problem', {
+                        problemId: 2,
+                        state: mockState,
+                        contestName: '模拟赛'
+                    });
+                }
+                
+                // 清除临时增益（模拟赛结束）
+                student.clearTempModifiers();
+                if (window.TalentManager && typeof TalentManager.handleStudentEvent === 'function') {
+                    TalentManager.handleStudentEvent(student, '__talent_cleanup__', {});
+                }
+                // 清理天赋状态
+                student._talent_state = {};
+                
+                // 记录赛后值
+                const afterBase = {
+                    thinking: student._base_thinking,
+                    coding: student._base_coding,
+                    mental: student._base_mental
+                };
+                
+                const afterActual = {
+                    thinking: student.thinking,
+                    coding: student.coding,
+                    mental: student.mental
+                };
+                
+                results.push({
+                    round,
+                    beforeBase,
+                    duringContest,
+                    afterBase,
+                    afterActual
+                });
+            }
+            
+            return results;
+        }
+
+        function verifyNoAbilityCreep(results, baseName) {
+            const firstRound = results[0];
+            const lastRound = results[results.length - 1];
+            
+            // 验证基础值没有被修改
+            const baseUnchanged = 
+                firstRound.beforeBase.thinking === lastRound.afterBase.thinking &&
+                firstRound.beforeBase.coding === lastRound.afterBase.coding &&
+                firstRound.beforeBase.mental === lastRound.afterBase.mental;
+            
+            // 验证最终实际值等于基础值（临时增益已清除）
+            const actualEqualsBase =
+                Math.abs(lastRound.afterActual.thinking - lastRound.afterBase.thinking) < 0.01 &&
+                Math.abs(lastRound.afterActual.coding - lastRound.afterBase.coding) < 0.01 &&
+                Math.abs(lastRound.afterActual.mental - lastRound.afterBase.mental) < 0.01;
+            
+            const passed = baseUnchanged && actualEqualsBase;
+            
+            let details = `初始基础值: 思维=${firstRound.beforeBase.thinking.toFixed(1)}, 编程=${firstRound.beforeBase.coding.toFixed(1)}<br>`;
+            details += `最终基础值: 思维=${lastRound.afterBase.thinking.toFixed(1)}, 编程=${lastRound.afterBase.coding.toFixed(1)}<br>`;
+            details += `最终实际值: 思维=${lastRound.afterActual.thinking.toFixed(1)}, 编程=${lastRound.afterActual.coding.toFixed(1)}<br>`;
+            
+            if (!passed) {
+                details += `<span style="color: red;">`;
+                if (!baseUnchanged) details += `基础值被修改！ `;
+                if (!actualEqualsBase) details += `实际值未恢复到基础值！`;
+                details += `</span>`;
+            }
+            
+            return { passed, details };
+        }
+
+        // 测试用例定义
+        const testCases = [
+            {
+                name: '激进 + 原题机伪',
+                talents: ['激进', '原题机伪'],
+                rounds: 3
+            },
+            {
+                name: '冷静 + 原题机伪',
+                talents: ['冷静', '原题机伪'],
+                rounds: 3
+            },
+            {
+                name: '慢热 + 原题机伪',
+                talents: ['慢热', '原题机伪'],
+                rounds: 3
+            },
+            {
+                name: '激进 + 冷静 + 原题机伪',
+                talents: ['激进', '冷静', '原题机伪'],
+                rounds: 3
+            },
+            {
+                name: '赛场狂热 + 最后一搏',
+                talents: ['赛场狂热', '最后一搏'],
+                rounds: 3
+            },
+            {
+                name: '跳跃思维 + 偏科',
+                talents: ['跳跃思维', '偏科'],
+                rounds: 3
+            },
+            {
+                name: '慢热 + 虎头蛇尾',
+                talents: ['慢热', '虎头蛇尾'],
+                rounds: 3
+            },
+            {
+                name: '爆发型 + 心态稳定',
+                talents: ['爆发型', '心态稳定'],
+                rounds: 3
+            },
+            {
+                name: '数据结构狂热者 + 图论直觉',
+                talents: ['数据结构狂热者', '图论直觉'],
+                rounds: 3
+            },
+            {
+                name: '字符串魔法师 + 知识熔炉',
+                talents: ['字符串魔法师', '知识熔炉'],
+                rounds: 3
+            },
+            {
+                name: '绝境逢生 + 压力转化',
+                talents: ['绝境逢生', '压力转化'],
+                rounds: 3
+            },
+            {
+                name: '五天赋组合: 激进+冷静+原题机伪+爆发型+心态稳定',
+                talents: ['激进', '冷静', '原题机伪', '爆发型', '心态稳定'],
+                rounds: 5
+            },
+            {
+                name: '能力修改型天赋全组合',
+                talents: ['激进', '冷静', '原题机伪', '慢热', '虎头蛇尾', '爆发型', '心态稳定', '赛场狂热'],
+                rounds: 5
+            }
+        ];
+
+        function runAllTests() {
+            // 清空结果
+            resultsDiv.innerHTML = '';
+            testsPassed = 0;
+            testsFailed = 0;
+            
+            const startTime = Date.now();
+            
+            // 创建测试组
+            const testGroup = document.createElement('div');
+            testGroup.className = 'test-group';
+            testGroup.innerHTML = '<h2>天赋组合测试结果</h2>';
+            resultsDiv.appendChild(testGroup);
+            
+            // 运行每个测试用例
+            testCases.forEach(testCase => {
+                const comboDiv = document.createElement('div');
+                comboDiv.className = 'talent-combo';
+                comboDiv.innerHTML = `<strong>测试组合:</strong> ${testCase.talents.join(' + ')} (${testCase.rounds}场)`;
+                resultsDiv.appendChild(comboDiv);
+                
+                try {
+                    const student = createTestStudent(testCase.talents);
+                    const results = simulateMockContest(student, testCase.rounds);
+                    const verification = verifyNoAbilityCreep(results, testCase.name);
+                    
+                    logTest(testCase.name, verification.passed, verification.details);
+                } catch (error) {
+                    logTest(testCase.name, false, `异常: ${error.message}`);
+                    console.error(error);
+                }
+            });
+            
+            // 显示统计
+            const elapsed = Date.now() - startTime;
+            const statsDiv = document.createElement('div');
+            statsDiv.className = 'test-section';
+            statsDiv.innerHTML = `
+                <h2>测试统计</h2>
+                <div class="stats">
+                    <div class="stat-item">
+                        <div class="stat-label">总测试数</div>
+                        <div class="stat-value">${testsPassed + testsFailed}</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">通过</div>
+                        <div class="stat-value" style="color: #28a745;">${testsPassed}</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">失败</div>
+                        <div class="stat-value" style="color: #dc3545;">${testsFailed}</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">通过率</div>
+                        <div class="stat-value">${((testsPassed / (testsPassed + testsFailed) * 100) || 0).toFixed(1)}%</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">耗时</div>
+                        <div class="stat-value">${elapsed}ms</div>
+                    </div>
+                </div>
+            `;
+            resultsDiv.appendChild(statsDiv);
+        }
+
+        // 页面加载完成后自动运行测试
+        window.addEventListener('load', () => {
+            console.log('测试页面已加载，点击按钮开始测试');
+        });
+    </script>
+</body>
+</html>
