@@ -1,7 +1,7 @@
 
 # OItrainer — 信息学教练模拟器
 
-<span style="color:red;">作者被NOIP2025创飞了，从此不再频繁更新维护。</span>
+> <span style="color:red;">**作者被NOIP2025创飞了，从此不再频繁更新维护。**</span>
 
 这是一个基于浏览器的文字/策略模拟游戏，模拟信息学教练训练选手从赛季训练到正式比赛的成长与抉择。  
 项目由 **HTML / JavaScript / CSS** 构建，无需后端即可运行。
