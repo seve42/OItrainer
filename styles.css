@@ -1140,6 +1140,147 @@ body.comp-week .action-cards .action-card:not(#comp-only-action) {
   margin-left: 4px;
 }
 
+/* ========== start.html 启动页专属样式 ========== */
+
+/* 启动蒙版 */
+.oi-start-mask {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  background: linear-gradient(180deg, rgba(10,25,47,0.95), rgba(22,32,54,0.95)), url('assets/start-bg.jpg') center/cover no-repeat;
+  color: #fff;
+  padding: 20px;
+  box-sizing: border-box;
+  flex-direction: column;
+}
+.oi-start-mask .mask-content {
+  max-width: 880px;
+  text-align: center;
+  backdrop-filter: blur(2px);
+}
+.oi-start-mask h2 {
+  font-size: 34px;
+  margin: 0 0 12px 0;
+  text-shadow: 0 2px 8px rgba(0,0,0,0.6);
+}
+.oi-start-mask p {
+  margin: 0 0 18px 0;
+  color: rgba(255,255,255,0.9);
+  font-size: 16px;
+}
+.oi-start-mask .mask-actions {
+  margin-top: 8px;
+}
+.oi-start-mask .btn {
+  min-width: 150px;
+  padding: 10px 16px;
+  font-size: 16px;
+  border-radius: 6px;
+}
+.oi-start-mask .btn-start {
+  background: #38a169;
+  border: none;
+  color: white;
+}
+.oi-start-mask .btn-skip {
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.2);
+  color: white;
+  margin-left: 8px;
+}
+.oi-start-subtitle {
+  font-size: 16px;
+  margin: 6px 0 12px;
+  color: rgba(255,255,255,0.95);
+  font-weight: 400;
+  line-height: 1.9;
+}
+
+/* 免责声明 */
+.disclaimer {
+  font-size: 13px;
+  color: #444;
+  margin: 8px 0 18px 0;
+  line-height: 1.6;
+  text-align: left;
+  background: rgba(240,240,240,0.9);
+  padding: 10px 12px;
+  border-radius: 8px;
+  max-width: 960px;
+  margin-left: auto;
+  margin-right: auto;
+  box-sizing: border-box;
+  opacity: 0.98;
+}
+
+/* 地图容器 */
+#map-container {
+  width: 100%;
+  max-width: 680px;
+  height: 520px;
+  margin: 10px auto;
+  border: 1px solid #e0e0e0;
+  background-color: #fafbfc;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  border-radius: 8px;
+  cursor: pointer;
+}
+#prov-info-panel {
+  text-align: center;
+  margin-top: 4px;
+  font-size: 14px;
+  color: #666;
+  min-height: 22px;
+}
+#prov-info-panel .prov-type-tag {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.prov-type-strong { background: #e8f5e9; color: #2e7d32; }
+.prov-type-normal { background: #fff3e0; color: #e65100; }
+.prov-type-weak   { background: #fce4ec; color: #c62828; }
+
+/* 三步向导 */
+.step-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  margin-bottom: 20px;
+}
+.step-dot {
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; font-weight: 700;
+  background: #e0e0e0; color: #999;
+  transition: all 0.3s;
+}
+.step-dot.active { background: var(--accent); color: #fff; }
+.step-dot.done   { background: #67c23a; color: #fff; }
+.step-line {
+  width: 60px; height: 2px;
+  background: #e0e0e0;
+  transition: background 0.3s;
+}
+.step-line.done { background: #67c23a; }
+.step-body { min-height: 400px; }
+.step-body > div { display: none; }
+.step-body > div.active { display: block; }
+.step-actions {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 16px;
+}
+
 
 
 

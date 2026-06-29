@@ -1259,6 +1259,11 @@ function startFromStartPage(){
   let diff = parseInt(document.getElementById('start-diff').value);
   let provBtn = document.querySelector('#start-prov-grid .prov-btn.selected');
   let prov = provBtn ? parseInt(provBtn.dataset.val) : 1;
+  // 兼容交互式地图：优先从隐藏input读取省份ID
+  let mapProv = document.getElementById('start-prov');
+  if(mapProv && mapProv.value){
+    prov = parseInt(mapProv.value) || prov;
+  }
   let count = clampInt(parseInt(document.getElementById('start-stu').value),3,10);
   
   try {
