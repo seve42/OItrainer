@@ -21,39 +21,73 @@
       const {game, PROVINCES, constants, utils, log} = ctx;
       if(!game || !utils) return;
 
-      // 台风（沿海）
+      // 台风
       this.register({
         id: 'typhoon',
         name: '台风',
-        description: '沿海省份夏秋季台风，影响舒适度/压力/经费',
-        check: c => {
-          // 规范化省份名称：支持 numeric id、去除常见后缀（省/市/自治区/特别行政区）并去除首尾空格
-          const coastal = ["广东","浙江","上海","福建","江苏","山东","辽宁","海南","天津"];
-          let prov = c.game.province_name;
-          if (typeof prov === 'number' && c.PROVINCES && c.PROVINCES[prov]) prov = c.PROVINCES[prov].name;
-          prov = (prov || '') + '';
-          prov = prov.replace(/(省|市|自治区|特别行政区)/g, '').trim();
-          if (!coastal.includes(prov)) return false;
-          const w = c.game.week;
-          let p = 0;
-          if (w >= 20 && w <= 39) p = 0.08;
-          else if ((w >= 14 && w <= 19) || (w >= 40 && w <= 45)) p = 0.03;
-          return getRandom() < p;
-        },
+        description: '台风来袭，舒适度和经费受损',
+        check: c => shouldTriggerWeatherEvent(c.game.province_name, c.game.week, 'typhoon'),
         run: c => {
           for(let s of c.game.students){
             if(!s || s.active === false) continue;
-            // 使用 modifier 而不是直接修改
-            s.pressure_modifier = (s.pressure_modifier || 0) + 15;
-            s.comfort_modifier = (s.comfort_modifier || 0) - 10;
-            // trigger talent: pressure change due to typhoon
-            try{ if(typeof s.triggerTalents === 'function'){ s.triggerTalents('pressure_change', { source: 'typhoon', amount: 15 }); } }catch(e){ console.error('triggerTalents pressure_change', e); }
+            s.comfort_modifier = (s.comfort_modifier || 0) - 50;
           }
           const loss = utils.uniformInt(10000, 20000);
           c.game.recordExpense(loss, '台风损失');
-          const msg = `台风来袭，经费损失 ¥${loss}`;
+          const msg = `台风来袭，舒适度 -50%，经费损失 ¥${loss}`;
           log && log(`[台风] ${msg}`);
           window.pushEvent && window.pushEvent({ name:'台风', description: msg, week: c.game.week });
+        }
+      });
+
+      // 强对流天气
+      this.register({
+        id: 'severe_convective',
+        name: '强对流天气',
+        description: '强对流天气来袭，舒适度下降，学生压力略降',
+        check: c => shouldTriggerWeatherEvent(c.game.province_name, c.game.week, 'severe_convective'),
+        run: c => {
+          for(let s of c.game.students){
+            if(!s || s.active === false) continue;
+            s.comfort_modifier = (s.comfort_modifier || 0) - 30;
+            s.pressure_modifier = (s.pressure_modifier || 0) - 20;
+          }
+          const msg = `强对流天气来袭，舒适度 -30%，全体学生压力 -20%`;
+          log && log(`[强对流天气] ${msg}`);
+          window.pushEvent && window.pushEvent({ name:'强对流天气', description: msg, week: c.game.week });
+        }
+      });
+
+      // 冰雹
+      this.register({
+        id: 'hail',
+        name: '冰雹',
+        description: '冰雹灾害造成经费损失',
+        check: c => shouldTriggerWeatherEvent(c.game.province_name, c.game.week, 'hail'),
+        run: c => {
+          const loss = utils.uniformInt(20000, 40000);
+          c.game.recordExpense(loss, '冰雹损失');
+          const msg = `冰雹灾害，经费损失 ¥${loss}`;
+          log && log(`[冰雹] ${msg}`);
+          window.pushEvent && window.pushEvent({ name:'冰雹', description: msg, week: c.game.week });
+        }
+      });
+
+      // 沙尘暴
+      this.register({
+        id: 'sandstorm',
+        name: '沙尘暴',
+        description: '沙尘暴来袭，舒适度下降，学生压力上升',
+        check: c => shouldTriggerWeatherEvent(c.game.province_name, c.game.week, 'sandstorm'),
+        run: c => {
+          for(let s of c.game.students){
+            if(!s || s.active === false) continue;
+            s.comfort_modifier = (s.comfort_modifier || 0) - 30;
+            s.pressure_modifier = (s.pressure_modifier || 0) + 20;
+          }
+          const msg = `沙尘暴来袭，舒适度 -30%，全体学生压力 +20%`;
+          log && log(`[沙尘暴] ${msg}`);
+          window.pushEvent && window.pushEvent({ name:'沙尘暴', description: msg, week: c.game.week });
         }
       });
 
