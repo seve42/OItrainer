@@ -255,87 +255,99 @@
     if(typeof onReady === 'function') onReady(myChart);
     myChart.showLoading();
 
+    // 渲染地图的核心逻辑（geoJson已加载完成后调用）
+    function renderMapWithGeoJson(geoJson){
+      myChart.hideLoading();
+      echarts.registerMap('china', geoJson);
+
+      var initialProvId = parseInt(hiddenInput.value) || 1;
+      var initialMapName = '北京市';
+      for(var mapName in MAP_NAME_TO_PROVINCE_ID){
+        if(MAP_NAME_TO_PROVINCE_ID.hasOwnProperty(mapName) && MAP_NAME_TO_PROVINCE_ID[mapName] === initialProvId){
+          initialMapName = mapName; break;
+        }
+      }
+
+      var option = {
+        tooltip: {
+          trigger: 'item',
+          formatter: function(params){
+            if(params.name === '台湾省' || params.name === '南海诸岛') return params.name + '该区域选手无法参加NOI';
+            var pid = MAP_NAME_TO_PROVINCE_ID[params.name];
+            var baseBudget = '';
+            if(pid !== undefined && typeof PROVINCES !== 'undefined' && PROVINCES[pid]){
+              var p = PROVINCES[pid];
+              var adjustedBudget = getAdjustedBudget(p.baseBudget);
+              baseBudget = adjustedBudget.toLocaleString();
+              return params.name + '<br/>类型：' + p.type + '<br/>初始经费：¥' + baseBudget;
+            }
+            return params.name;
+          }
+        },
+        series: [{
+          name: '中国地图',
+          type: 'map',
+          map: 'china',
+          roam: true,
+          zoom: 1.2,
+          selectedMode: 'single',
+          label: { show: true, fontSize: 10, color: '#333' },
+          itemStyle: { areaColor: '#e0e8f5', borderColor: '#fff', borderWidth: 1 },
+          emphasis: { label: { color: '#000' }, itemStyle: { areaColor: '#b5c8ea' } },
+          select: { label: { color: '#fff' }, itemStyle: { areaColor: '#409EFF' } },
+          data: [{
+            name: '台湾省',
+            select: { disabled: true },
+            itemStyle: { areaColor: '#dcdcdc', color: '#dcdcdc' },
+            emphasis: { label: { show: true }, itemStyle: { areaColor: '#dcdcdc' } }
+          }, {
+            name: '南海诸岛',
+            select: { disabled: true },
+            itemStyle: { areaColor: '#e0e0e0', color: '#e0e0e0' },
+            emphasis: { label: { show: true }, itemStyle: { areaColor: '#e0e0e0' } }
+          }]
+        }]
+      };
+
+      myChart.setOption(option);
+
+      if(initialMapName && MAP_NAME_TO_PROVINCE_ID[initialMapName] !== undefined){
+        myChart.dispatchAction({ type: 'select', seriesIndex: 0, name: initialMapName });
+        updateProvInfo(initialMapName);
+      }
+
+      myChart.on('click', function(params){
+        if(params.name === '台湾省' || params.name === '南海诸岛'){
+          myChart.dispatchAction({ type: 'unselect', seriesIndex: 0, name: params.name });
+          infoPanel.innerHTML = '<span style="color:#E6A23C;">该区域暂不可选</span>';
+          return;
+        }
+        if(!params.name) return;
+
+        var pid = MAP_NAME_TO_PROVINCE_ID[params.name];
+        if(pid !== undefined){
+          hiddenInput.value = pid;
+          updateProvInfo(params.name);
+          handleProvLanguageSwitch(pid);
+        } else {
+          infoPanel.innerHTML = '<span style="color:#E6A23C;">该区域暂不可选</span>';
+        }
+      });
+
+      window.addEventListener('resize', function(){ myChart.resize(); });
+    }
+
+    // 先尝试从CDN加载，失败则回退到本地文件（解决GitHub Pages的CORS问题）
     fetch('https://geo.datav.aliyun.com/areas_v3/bound/100000_full.json')
       .then(function(response){ return response.json(); })
+      .then(function(geoJson){ renderMapWithGeoJson(geoJson); })
+      .catch(function(cdnError){
+        console.warn('CDN地图数据加载失败，尝试本地文件:', cdnError);
+        return fetch('assets/china.json')
+          .then(function(response){ return response.json(); });
+      })
       .then(function(geoJson){
-        myChart.hideLoading();
-        echarts.registerMap('china', geoJson);
-
-        var initialProvId = parseInt(hiddenInput.value) || 1;
-        var initialMapName = '北京市';
-        for(var mapName in MAP_NAME_TO_PROVINCE_ID){
-          if(MAP_NAME_TO_PROVINCE_ID.hasOwnProperty(mapName) && MAP_NAME_TO_PROVINCE_ID[mapName] === initialProvId){
-            initialMapName = mapName; break;
-          }
-        }
-
-        var option = {
-          tooltip: {
-            trigger: 'item',
-            formatter: function(params){
-              if(params.name === '台湾省' || params.name === '南海诸岛') return params.name + '该区域选手无法参加NOI';
-              var pid = MAP_NAME_TO_PROVINCE_ID[params.name];
-              var baseBudget = '';
-              if(pid !== undefined && typeof PROVINCES !== 'undefined' && PROVINCES[pid]){
-                var p = PROVINCES[pid];
-                var adjustedBudget = getAdjustedBudget(p.baseBudget);
-                baseBudget = adjustedBudget.toLocaleString();
-                return params.name + '<br/>类型：' + p.type + '<br/>初始经费：¥' + baseBudget;
-              }
-              return params.name;
-            }
-          },
-          series: [{
-            name: '中国地图',
-            type: 'map',
-            map: 'china',
-            roam: true,
-            zoom: 1.2,
-            selectedMode: 'single',
-            label: { show: true, fontSize: 10, color: '#333' },
-            itemStyle: { areaColor: '#e0e8f5', borderColor: '#fff', borderWidth: 1 },
-            emphasis: { label: { color: '#000' }, itemStyle: { areaColor: '#b5c8ea' } },
-            select: { label: { color: '#fff' }, itemStyle: { areaColor: '#409EFF' } },
-            data: [{
-              name: '台湾省',
-              select: { disabled: true },
-              itemStyle: { areaColor: '#dcdcdc', color: '#dcdcdc' },
-              emphasis: { label: { show: true }, itemStyle: { areaColor: '#dcdcdc' } }
-            }, {
-              name: '南海诸岛',
-              select: { disabled: true },
-              itemStyle: { areaColor: '#e0e0e0', color: '#e0e0e0' },
-              emphasis: { label: { show: true }, itemStyle: { areaColor: '#e0e0e0' } }
-            }]
-          }]
-        };
-
-        myChart.setOption(option);
-
-        if(initialMapName && MAP_NAME_TO_PROVINCE_ID[initialMapName] !== undefined){
-          myChart.dispatchAction({ type: 'select', seriesIndex: 0, name: initialMapName });
-          updateProvInfo(initialMapName);
-        }
-
-        myChart.on('click', function(params){
-          if(params.name === '台湾省' || params.name === '南海诸岛'){
-            myChart.dispatchAction({ type: 'unselect', seriesIndex: 0, name: params.name });
-            infoPanel.innerHTML = '<span style="color:#E6A23C;">该区域暂不可选</span>';
-            return;
-          }
-          if(!params.name) return;
-
-          var pid = MAP_NAME_TO_PROVINCE_ID[params.name];
-          if(pid !== undefined){
-            hiddenInput.value = pid;
-            updateProvInfo(params.name);
-            handleProvLanguageSwitch(pid);
-          } else {
-            infoPanel.innerHTML = '<span style="color:#E6A23C;">该区域暂不可选</span>';
-          }
-        });
-
-        window.addEventListener('resize', function(){ myChart.resize(); });
+        if(geoJson) renderMapWithGeoJson(geoJson);
       })
       .catch(function(error){
         myChart.hideLoading();
