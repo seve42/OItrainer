@@ -28,94 +28,6 @@
 
   const TICK_INTERVAL = 10; // 每个tick代表10分钟
 
-  /* ========== 公式工具函数（参数来自 constants.js） ========== */
-
-  /**
-   * Sigmoid 概率函数：将能力差距映射为 [0, 1] 区间的通过概率
-   * @param {number} gap - 能力与难度的差值（正=能力高于难度）
-   * @param {number} scale - 尺度参数（默认 SIGMOID_SCALE = 12.0）
-   * @returns {number} 通过概率
-   */
-  function sigmoidProbability(gap, scale) {
-    scale = (typeof scale === 'number') ? scale : (typeof SIGMOID_SCALE !== 'undefined' ? SIGMOID_SCALE : 12.0);
-    return 1.0 / (1.0 + Math.exp(-gap / scale));
-  }
-
-  /**
-   * 心理稳定性调节：心理指数越高，发挥越稳定
-   * @param {number} mental - 心理指数 (0-100)
-   * @param {number} base - 基础稳定性
-   * @param {number} range - 心理影响幅度
-   * @returns {number} 稳定性系数
-   */
-  function mentalStability(mental, base, range) {
-    base = (typeof base === 'number') ? base : (typeof THINKING_STABILITY_BASE !== 'undefined' ? THINKING_STABILITY_BASE : 0.75);
-    range = (typeof range === 'number') ? range : (typeof THINKING_STABILITY_RANGE !== 'undefined' ? THINKING_STABILITY_RANGE : 0.25);
-    return base + range * (mental / 100.0);
-  }
-
-  /**
-   * 知识点门槛惩罚：知识不足时指数衰减通过率
-   * @param {number} knowledge - 学生的相关知识值
-   * @param {number} requirement - 题目所需知识值
-   * @returns {number} 惩罚系数 (0.05 ~ 1.0)
-   */
-  function knowledgePenalty(knowledge, requirement) {
-    if (knowledge >= requirement) return 1.0;
-    const decay = typeof KNOWLEDGE_PENALTY_DECAY !== 'undefined' ? KNOWLEDGE_PENALTY_DECAY : 15.0;
-    const min = typeof KNOWLEDGE_PENALTY_MIN !== 'undefined' ? KNOWLEDGE_PENALTY_MIN : 0.05;
-    const gap = requirement - knowledge;
-    const penalty = Math.exp(-gap / decay);
-    return Math.max(min, penalty);
-  }
-
-  /**
-   * 子任务难度比值曲线：根据进度计算难度比例（指数递增）
-   * @param {number} progress - 档位进度 (0~1)
-   * @returns {number} 难度比例
-   */
-  function subtaskDifficultyRatio(progress) {
-    const base = typeof SUBTASK_DIFFICULTY_BASE_RATIO !== 'undefined' ? SUBTASK_DIFFICULTY_BASE_RATIO : 0.35;
-    const range = typeof SUBTASK_DIFFICULTY_RANGE_RATIO !== 'undefined' ? SUBTASK_DIFFICULTY_RANGE_RATIO : 0.65;
-    const exponent = typeof SUBTASK_DIFFICULTY_EXPONENT !== 'undefined' ? SUBTASK_DIFFICULTY_EXPONENT : 1.8;
-    return base + range * Math.pow(progress, exponent);
-  }
-
-  /**
-   * 难度压制检测：题目是否远超学生能力
-   * @param {number} problemDifficulty - 题目难度
-   * @param {number} effectiveAbility - 学生有效能力
-   * @returns {boolean}
-   */
-  function isDifficultySuppressed(problemDifficulty, effectiveAbility) {
-    const ratio = typeof DIFFICULTY_SUPPRESSION_RATIO !== 'undefined' ? DIFFICULTY_SUPPRESSION_RATIO : 2.0;
-    return problemDifficulty > ratio * effectiveAbility;
-  }
-
-  /**
-   * 夹紧概率值到安全范围
-   * @param {number} prob - 原始概率
-   * @returns {number} 夹紧后的概率
-   */
-  function clampProbability(prob) {
-    const floor = typeof PROBABILITY_FLOOR !== 'undefined' ? PROBABILITY_FLOOR : 0.03;
-    const ceil = typeof PROBABILITY_CEIL !== 'undefined' ? PROBABILITY_CEIL : 0.98;
-    return Math.max(floor, Math.min(ceil, prob));
-  }
-
-  /**
-   * 计算思考时间驱动的降级因子
-   * @param {number} thinkingTime - 已思考时间（分钟）
-   * @returns {number} 降级因子 (0~0.8)
-   */
-  function thinkingTimeDowngradeFactor(thinkingTime) {
-    const start = typeof PARTIAL_THINK_START !== 'undefined' ? PARTIAL_THINK_START : 20;
-    const divisor = typeof PARTIAL_TIME_DIVISOR !== 'undefined' ? PARTIAL_TIME_DIVISOR : 40;
-    const maxFactor = typeof PARTIAL_TIME_FACTOR_MAX !== 'undefined' ? PARTIAL_TIME_FACTOR_MAX : 0.8;
-    if (thinkingTime < start) return 0;
-    return Math.min(maxFactor, (thinkingTime - start) / divisor);
-  }
-
   /* ========== 部分分（Subtask）生成 ========== */
   /**
    * 为一道题生成部分分档位
@@ -137,7 +49,7 @@
     const specifiedNum = options && options.numSubtasks;
     const numSubtasks = forceSingle ? 1 : 
                         (specifiedNum && specifiedNum > 0) ? specifiedNum :
-                        (SUBTASK_COUNT_MIN + Math.floor(getRandom() * (SUBTASK_COUNT_MAX - SUBTASK_COUNT_MIN + 1))); // 3~5 档
+                        (3 + Math.floor(getRandom() * 3)); // 1 或 3-5 档 或 指定数量
     const subtasks = [];
     
     for(let i = 1; i <= numSubtasks; i++){
@@ -158,7 +70,8 @@
         // 难度递增：使用指数曲线分布，确保各档难度差距足够大
         // 第1档约为题目难度的35%，之后呈指数递增到100%
         const progress = i / numSubtasks; // 0到1之间的进度
-        const difficultyRatio = subtaskDifficultyRatio(progress);
+        // 使用平方函数使难度增长更陡峭：0.35 + 0.65 * progress^1.8
+        const difficultyRatio = 0.35 + 0.65 * Math.pow(progress, 1.8);
         difficulty = Math.floor(problemDifficulty * difficultyRatio);
       }
 
@@ -170,7 +83,8 @@
       // 对于多档题目，前面的档位应该降低难度（使用档位进度调整）
       if(numSubtasks > 1 && i < numSubtasks){
         const progress = i / numSubtasks;
-        const difficultyScale = subtaskDifficultyRatio(progress);
+        // 使用与score类似的指数曲线：前面档位难度更低
+        const difficultyScale = 0.35 + 0.65 * Math.pow(progress, 1.8);
         thinkingDifficultyBase = Math.floor(thinkingDifficultyBase * difficultyScale);
         codingDifficultyBase = Math.floor(codingDifficultyBase * difficultyScale);
       }
@@ -618,7 +532,7 @@
         
         const knowledge = this.getKnowledgeForProblem(student, p);
         const ability = student.getComprehensiveAbility ? student.getComprehensiveAbility() : 50;
-        const effectiveAbility = ability + knowledge * KNOWLEDGE_BONUS_TO_EFFECTIVE;
+        const effectiveAbility = ability + knowledge * 0.5;
         
         // 计算题目相对于学生能力的难度
         const difficultyGap = easiestSubtask.difficulty - effectiveAbility;
@@ -627,26 +541,26 @@
         let baseScore = 100;
         
         // 难度匹配度评分：简单题得分更高
-        if(difficultyGap <= SELECT_GAP_VERY_EASY){
+        if(difficultyGap <= -20){
           // 非常简单的题目：高分（能力远超难度）
-          baseScore += SELECT_BONUS_VERY_EASY;
-        } else if(difficultyGap <= SELECT_GAP_EASY){
+          baseScore += 80;
+        } else if(difficultyGap <= 0){
           // 简单题目：较高分（能力略超难度）
-          baseScore += SELECT_BONUS_EASY;
-        } else if(difficultyGap <= SELECT_GAP_MODERATE){
+          baseScore += 60;
+        } else if(difficultyGap <= 20){
           // 适中题目：中等分（能力与难度相当）
-          baseScore += SELECT_BONUS_MODERATE;
-        } else if(difficultyGap <= SELECT_GAP_HARD){
+          baseScore += 40;
+        } else if(difficultyGap <= 40){
           // 较难题目：较低分（能力略低于难度）
-          baseScore += SELECT_BONUS_HARD;
+          baseScore += 20;
         } else {
           // 很难题目：低分（能力远低于难度）
-          baseScore += SELECT_BONUS_VERY_HARD;
+          baseScore += 10;
         }
         
         // 顺序开题倾向：靠前的题目获得额外权重
         // 题目0获得+40分，题目1获得+32分，题目2获得+24分...
-        const positionBonus = SELECT_POSITION_BASE - (p.id * SELECT_POSITION_DECAY);
+        const positionBonus = 40 - (p.id * 8);
         baseScore += Math.max(0, positionBonus);
         
         // 确保权重为正数
@@ -697,41 +611,41 @@
         
         // 能力与难度的匹配度（越接近越好）
         // 使用更宽松的匹配区间：能力在难度的60%-140%之间都认为是合适的
-        const thinkingGap = (thinking + knowledge * KNOWLEDGE_BONUS_TO_THINKING) - thinkingDiff;
-        const codingGap = (coding + knowledge * KNOWLEDGE_BONUS_TO_CODING) - codingDiff;
+        const thinkingGap = (thinking + knowledge * 0.5) - thinkingDiff;
+        const codingGap = (coding + knowledge * 0.3) - codingDiff;
         
         // 综合匹配度：使用更平滑的评分曲线
         let matchScore = 0;
         
         // 思维匹配：能力在难度的60%-140%之间得分最高
-        const thinkingRatio = (thinking + knowledge * KNOWLEDGE_BONUS_TO_THINKING) / Math.max(1, thinkingDiff);
-        if(thinkingRatio >= SUBTASK_MATCH_RATIO_MIN && thinkingRatio <= SUBTASK_MATCH_RATIO_MAX){
+        const thinkingRatio = (thinking + knowledge * 0.5) / Math.max(1, thinkingDiff);
+        if(thinkingRatio >= 0.6 && thinkingRatio <= 1.4){
           matchScore += 100; // 合适区间内
-        } else if(thinkingRatio > SUBTASK_MATCH_RATIO_MAX){
+        } else if(thinkingRatio > 1.4){
           // 能力过高：得分下降，但下降速度放缓
-          matchScore += Math.max(SUBTASK_OVERMATCH_FLOOR, 100 - (thinkingRatio - SUBTASK_MATCH_RATIO_MAX) * SUBTASK_OVERMATCH_DECAY_RATE);
+          matchScore += Math.max(60, 100 - (thinkingRatio - 1.4) * 40);
         } else {
           // 能力过低：得分快速下降
-          matchScore += Math.max(10, thinkingRatio * SUBTASK_UNDERMATCH_DECAY_FACTOR);
+          matchScore += Math.max(10, thinkingRatio * 100);
         }
         
         // 代码匹配：类似逻辑
-        const codingRatio = (coding + knowledge * KNOWLEDGE_BONUS_TO_CODING) / Math.max(1, codingDiff);
-        if(codingRatio >= SUBTASK_MATCH_RATIO_MIN && codingRatio <= SUBTASK_MATCH_RATIO_MAX){
+        const codingRatio = (coding + knowledge * 0.3) / Math.max(1, codingDiff);
+        if(codingRatio >= 0.6 && codingRatio <= 1.4){
           matchScore += 100;
-        } else if(codingRatio > SUBTASK_MATCH_RATIO_MAX){
-          matchScore += Math.max(SUBTASK_OVERMATCH_FLOOR, 100 - (codingRatio - SUBTASK_MATCH_RATIO_MAX) * SUBTASK_OVERMATCH_DECAY_RATE);
+        } else if(codingRatio > 1.4){
+          matchScore += Math.max(60, 100 - (codingRatio - 1.4) * 40);
         } else {
-          matchScore += Math.max(10, codingRatio * SUBTASK_UNDERMATCH_DECAY_FACTOR);
+          matchScore += Math.max(10, codingRatio * 100);
         }
         
         // 分值权重：优先尝试高分档（增加权重）
-        const scoreWeight = st.score * SUBTASK_SCORE_WEIGHT;
+        const scoreWeight = st.score * 0.8;
         
         // 已获得分数惩罚：如果已经拿到了部分分，降低低分档的吸引力
         let scorePenalty = 0;
         if(prob.maxScore > 0 && st.score <= prob.maxScore){
-          scorePenalty = SUBTASK_SCORE_PENALTY; // 已经拿到的分数，不要再尝试更低的档位
+          scorePenalty = -50; // 已经拿到的分数，不要再尝试更低的档位
         }
         
         // 综合得分
@@ -751,14 +665,18 @@
       // 判断是否想不出正解：
       // 1. 当前选择的是最后一档（满分档）
       // 2. 且学生的思维或代码能力明显不足（比难度低30%以上）
-      const cannotSolveFullScore = isLastSubtask && (bestSubtask.thinkingRatio < PARTIAL_CANNOT_SOLVE_RATIO || bestSubtask.codingRatio < PARTIAL_CANNOT_SOLVE_RATIO);
+      const cannotSolveFullScore = isLastSubtask && (bestSubtask.thinkingRatio < 0.7 || bestSubtask.codingRatio < 0.7);
       
       // 策略2：如果在题目上卡了一定时间，也应该考虑降级做部分分
       // 根据思考时间动态调整降级概率：
       // 20分钟以内：基本不降级
       // 20-40分钟：开始考虑降级（概率渐增）
       // 40分钟以上：强烈倾向降级
-      const thinkingTimeFactor = thinkingTimeDowngradeFactor(thinkingTime);
+      let thinkingTimeFactor = 0;
+      if(thinkingTime >= 20){
+        // 每10分钟增加25%的降级倾向
+        thinkingTimeFactor = Math.min(0.8, (thinkingTime - 20) / 40);
+      }
       
       // 综合判断是否需要降级做部分分
       const shouldDowngrade = cannotSolveFullScore || (getRandom() < thinkingTimeFactor);
@@ -777,25 +695,22 @@
             
             // 核心匹配度评分：使用指数衰减函数，偏离1.0越多，得分越低
             // 当能力/难度比率在 0.8-1.2 之间时，得分较高（表示难度适中）
-            const matchExpDecay = typeof PARTIAL_MATCH_EXP_DECAY !== 'undefined' ? PARTIAL_MATCH_EXP_DECAY : 2.0;
-            const thinkingScore = Math.exp(-thinkingMatch * matchExpDecay); // 指数衰减
-            const codingScore = Math.exp(-codingMatch * matchExpDecay);
+            const thinkingScore = Math.exp(-thinkingMatch * 2.0); // 指数衰减
+            const codingScore = Math.exp(-codingMatch * 2.0);
             const matchQuality = (thinkingScore + codingScore) / 2.0;
             
             // 额外考虑：不要选择太简单的题（能力远超难度）
             // 如果能力是难度的1.5倍以上，给予惩罚
             let difficultyPenalty = 0;
-            const overpowerThreshold = typeof PARTIAL_OVERPOWER_THRESHOLD !== 'undefined' ? PARTIAL_OVERPOWER_THRESHOLD : 1.5;
-            const underpowerThreshold = typeof PARTIAL_UNDERPOWER_THRESHOLD !== 'undefined' ? PARTIAL_UNDERPOWER_THRESHOLD : 0.6;
-            if(s.thinkingRatio > overpowerThreshold || s.codingRatio > overpowerThreshold){
-              const overpower = Math.max(s.thinkingRatio - overpowerThreshold, s.codingRatio - overpowerThreshold, 0);
+            if(s.thinkingRatio > 1.5 || s.codingRatio > 1.5){
+              const overpower = Math.max(s.thinkingRatio - 1.5, s.codingRatio - 1.5, 0);
               difficultyPenalty = -overpower * 0.3; // 过于简单的题惩罚
             }
             
             // 也不要选择太难的题（能力低于难度太多）
             // 如果能力低于难度的60%，也给予惩罚
-            if(s.thinkingRatio < underpowerThreshold || s.codingRatio < underpowerThreshold){
-              const tooHard = Math.max(underpowerThreshold - s.thinkingRatio, underpowerThreshold - s.codingRatio, 0);
+            if(s.thinkingRatio < 0.6 || s.codingRatio < 0.6){
+              const tooHard = Math.max(0.6 - s.thinkingRatio, 0.6 - s.codingRatio, 0);
               difficultyPenalty -= tooHard * 0.5; // 过难的题更大惩罚
             }
             
@@ -804,25 +719,21 @@
             const totalSubtasks = subtasks.length;
             const relativePos = s.idx / Math.max(1, totalSubtasks - 1); // 0到1之间
             // 最佳位置在0.4-0.7之间（中等偏高）
-            const posOptimalMin = typeof PARTIAL_POSITION_OPTIMAL_MIN !== 'undefined' ? PARTIAL_POSITION_OPTIMAL_MIN : 0.4;
-            const posOptimalMax = typeof PARTIAL_POSITION_OPTIMAL_MAX !== 'undefined' ? PARTIAL_POSITION_OPTIMAL_MAX : 0.7;
             let positionScore = 0;
-            if(relativePos >= posOptimalMin && relativePos <= posOptimalMax){
+            if(relativePos >= 0.4 && relativePos <= 0.7){
               positionScore = 0.15; // 中等偏高档位加分
-            } else if(relativePos < posOptimalMin){
-              positionScore = 0.1 - (posOptimalMin - relativePos) * 0.2; // 太低档位适度减分
+            } else if(relativePos < 0.4){
+              positionScore = 0.1 - (0.4 - relativePos) * 0.2; // 太低档位适度减分
             } else {
-              positionScore = 0.1 - (relativePos - posOptimalMax) * 0.3; // 太高档位减分更多
+              positionScore = 0.1 - (relativePos - 0.7) * 0.3; // 太高档位减分更多
             }
             
             // 时间因素：卡得越久，越倾向选择更低的档位（更保守）
             let timeAdjustment = 0;
-            const timeAdjustStart = typeof PARTIAL_TIME_ADJUST_START !== 'undefined' ? PARTIAL_TIME_ADJUST_START : 30;
-            const timeAdjustMax = typeof PARTIAL_TIME_ADJUST_MAX !== 'undefined' ? PARTIAL_TIME_ADJUST_MAX : 60;
-            if(thinkingTime > timeAdjustStart){
+            if(thinkingTime > 30){
               // 超过30分钟后，每10分钟增加对低档位的倾向
-              const extraTime = Math.min(thinkingTime - timeAdjustStart, timeAdjustMax); // 最多考虑60分钟额外时间
-              timeAdjustment = (1.0 - relativePos) * (extraTime / timeAdjustMax) * 0.15; // 越低档位加分越多
+              const extraTime = Math.min(thinkingTime - 30, 60); // 最多考虑60分钟额外时间
+              timeAdjustment = (1.0 - relativePos) * (extraTime / 60) * 0.15; // 越低档位加分越多
             }
             
             // 综合得分：匹配度 + 难度惩罚 + 位置评分 + 时间调整
@@ -842,9 +753,7 @@
           rescored.sort((a, b) => b.partialScore - a.partialScore);
           
           // 根据情况决定是否真的降级
-          const downgradeProbCannot = typeof PARTIAL_DOWNGRADE_PROB_CANNOT !== 'undefined' ? PARTIAL_DOWNGRADE_PROB_CANNOT : 0.85;
-          const downgradeProbBase = typeof PARTIAL_DOWNGRADE_PROB_BASE !== 'undefined' ? PARTIAL_DOWNGRADE_PROB_BASE : 0.5;
-          const downgradeProb = cannotSolveFullScore ? downgradeProbCannot : (downgradeProbBase + thinkingTimeFactor * 0.3); // 能力不足时更可能降级
+          const downgradeProb = cannotSolveFullScore ? 0.85 : (0.5 + thinkingTimeFactor * 0.3); // 能力不足时更可能降级
           
           if(getRandom() < downgradeProb){
             // 选择得分最高的档位（最合适的难度）
@@ -860,11 +769,9 @@
       // === 原有逻辑：正常选择 ===
       // 80%概率选择最佳，15%选择次佳，5%随机
       const rand = getRandom();
-      const bestProb = typeof SUBTASK_SELECT_BEST_PROB !== 'undefined' ? SUBTASK_SELECT_BEST_PROB : 0.80;
-      const secondProb = typeof SUBTASK_SELECT_SECOND_PROB !== 'undefined' ? SUBTASK_SELECT_SECOND_PROB : 0.95;
-      if(rand < bestProb && scored.length > 0){
+      if(rand < 0.80 && scored.length > 0){
         return scored[0].idx;
-      } else if(rand < secondProb && scored.length > 1){
+      } else if(rand < 0.95 && scored.length > 1){
         return scored[1].idx;
       } else {
         const randIdx = Math.floor(getRandom() * scored.length);
@@ -897,35 +804,43 @@
       // ========== 知识点门槛机制 ==========
       // 计算知识点需求（基于题目难度的归一化值）
       // 知识点需求为题目难度的 30%-50%（根据难度动态调整）
-      const knowledgeReqRatio = typeof KNOWLEDGE_REQUIREMENT_RATIO !== 'undefined' ? KNOWLEDGE_REQUIREMENT_RATIO : 0.35;
-      const knowledgeReqMin = typeof KNOWLEDGE_REQUIREMENT_MIN !== 'undefined' ? KNOWLEDGE_REQUIREMENT_MIN : 15;
-      const knowledgeRequirement = Math.max(knowledgeReqMin, taskThinkingDifficulty * knowledgeReqRatio);
+      const knowledgeRequirement = Math.max(15, taskThinkingDifficulty * 0.35);
       
       // 知识点惩罚：如果知识点不足，会严重降低通过概率
-      // 使用公式函数计算（exp 衰减，最低保留 5%）
-      const knowledgePenaltyFactor = knowledgePenalty(knowledge, knowledgeRequirement);
+      let knowledgePenalty = 1.0;
+      if(knowledge < knowledgeRequirement){
+        // 知识点差距越大，惩罚越重
+        const knowledgeGap = knowledgeRequirement - knowledge;
+        // 使用指数衰减：每差10点知识，通过率降低约40%
+        knowledgePenalty = Math.exp(-knowledgeGap / 15.0);
+        // 最低保留5%的通过可能（给天赋或运气留空间）
+        knowledgePenalty = Math.max(0.05, knowledgePenalty);
+      }
 
       // 思维能力判定（thinking）：降低知识点的直接加成，改为乘性门槛
-      // 基础思维能力只获得少量知识加成
-      const thinkingBase = Number(student.thinking || 50) + knowledge * KNOWLEDGE_BONUS_TO_THINKING;
+      // 基础思维能力只获得少量知识加成（从2.0降低到0.5）
+      const thinkingBase = Number(student.thinking || 50) + knowledge * 0.5;
       const thinkingGap = thinkingBase - taskThinkingDifficulty;
-      let thinkingProb = sigmoidProbability(thinkingGap);
+      let thinkingProb = 1.0 / (1.0 + Math.exp(-thinkingGap / 12.0)); // sigmoid, 更灵敏于思维差距
 
       // 心理影响：提高稳定性但不过度决定成败
-      thinkingProb = thinkingProb * mentalStability(mental, THINKING_STABILITY_BASE, THINKING_STABILITY_RANGE);
+      const thinkingStability = 0.75 + 0.25 * (mental / 100.0);
+      thinkingProb = thinkingProb * thinkingStability;
 
       // 应用知识点门槛惩罚（乘性效果）
-      thinkingProb = thinkingProb * knowledgePenaltyFactor;
+      thinkingProb = thinkingProb * knowledgePenalty;
 
       // 代码能力判定（coding）：同样降低知识加成并应用门槛
-      const codingBase = Number(student.coding || 50) + knowledge * KNOWLEDGE_BONUS_TO_CODING;
+      // 代码能力的知识加成从0.8降低到0.3
+      const codingBase = Number(student.coding || 50) + knowledge * 0.3;
       const codingGap = codingBase - taskCodingDifficulty;
-      let codingProb = sigmoidProbability(codingGap);      
+      let codingProb = 1.0 / (1.0 + Math.exp(-codingGap / 12.0));      
       // coding 稳定性受心理影响较小，给出较窄区间
-      codingProb = codingProb * mentalStability(mental, CODING_STABILITY_BASE, CODING_STABILITY_RANGE);
+      const codingStability = 0.8 + 0.2 * (mental / 100.0);
+      codingProb = codingProb * codingStability;
 
       // 应用知识点门槛惩罚（乘性效果）
-      codingProb = codingProb * knowledgePenaltyFactor;
+      codingProb = codingProb * knowledgePenalty;
 
       // ====== 调用 contest_check_subtask 天赋（最小侵入） ======
       try{
@@ -1027,11 +942,11 @@
 
       // 难度压制：如果整体 problem.difficulty 很高（远大于综合能力），减低两者概率
       try{
-        const effectiveAbility = ability + knowledge * KNOWLEDGE_BONUS_TO_EFFECTIVE;
-        if(problem && typeof problem.difficulty === 'number' && isDifficultySuppressed(problem.difficulty, effectiveAbility)){
-          const suppressionFactor = typeof DIFFICULTY_SUPPRESSION_FACTOR !== 'undefined' ? DIFFICULTY_SUPPRESSION_FACTOR : 0.45;
-          thinkingProb *= suppressionFactor;
-          codingProb *= suppressionFactor;
+        // 降低知识点在有效能力计算中的权重（从2.0改为0.5）
+        const effectiveAbility = ability + knowledge * 0.5;
+        if(problem && typeof problem.difficulty === 'number' && problem.difficulty > 2.0 * effectiveAbility){
+          thinkingProb *= 0.45;
+          codingProb *= 0.45;
           // 难度压制不记录日志，保持日志简洁（仅显示得分和天赋信息）
         }
       }catch(e){ 
@@ -1039,8 +954,8 @@
       }
 
       // 限定极值
-      thinkingProb = clampProbability(thinkingProb);
-      codingProb = clampProbability(codingProb);
+      thinkingProb = Math.max(0.03, Math.min(0.98, thinkingProb));
+      codingProb = Math.max(0.03, Math.min(0.98, codingProb));
 
       // 实际掷骰
       const thinkingPass = getRandom() < thinkingProb;
@@ -1054,7 +969,7 @@
     // 跳题判断：基于时间而非尝试次数
     shouldSkipProblem(state, student){
       // 特质影响：如果学生有"专注"特质，增加耐心
-      const focusBonus = (state._focusedBonus || student.hasTalent && student.hasTalent('专注')) ? SKIP_FOCUS_BONUS : 0;
+      const focusBonus = (state._focusedBonus || student.hasTalent && student.hasTalent('专注')) ? 30 : 0;
       if(state._focusedBonus){
         state._focusedBonus = false; // 重置标记
       }
@@ -1065,7 +980,7 @@
 
       const ability = student.getComprehensiveAbility ? student.getComprehensiveAbility() : 50;
       const knowledge = this.getKnowledgeForProblem(student, prob);
-      const effectiveAbility = ability + knowledge * KNOWLEDGE_BONUS_TO_EFFECTIVE;
+      const effectiveAbility = ability + knowledge * 0.5;
       
       // 找到所有档位中最简单的作为难度参考
       const easiestSubtask = prob.subtasks.reduce((min, st) => 
@@ -1078,25 +993,25 @@
       const difficultyGap = easiestSubtask.difficulty - effectiveAbility;
       let timeThreshold;
       
-      if(difficultyGap > SKIP_GAP_EXTREME){
+      if(difficultyGap > 50){
         // 极难题目：卡20分钟就可能跳题
-        timeThreshold = SKIP_TIME_EXTREME + focusBonus;
-      } else if(difficultyGap > SKIP_GAP_HARD){
+        timeThreshold = 20 + focusBonus;
+      } else if(difficultyGap > 30){
         // 很难题目：卡35分钟后可能跳题
-        timeThreshold = SKIP_TIME_HARD + focusBonus;
-      } else if(difficultyGap > SKIP_GAP_MODERATE){
+        timeThreshold = 35 + focusBonus;
+      } else if(difficultyGap > 10){
         // 中等偏难：卡50分钟后可能跳题
-        timeThreshold = SKIP_TIME_MODERATE + focusBonus;
+        timeThreshold = 50 + focusBonus;
       } else {
         // 能力足够：卡70分钟后才考虑跳题
-        timeThreshold = SKIP_TIME_EASY + focusBonus;
+        timeThreshold = 70 + focusBonus;
       }
 
       // 超过时间阈值后，概率性跳题
       if(state.thinkingTime >= timeThreshold){
         // 时间越长，跳题概率越高
-        const overtimeRatio = (state.thinkingTime - timeThreshold) / SKIP_OVERTIME_DIVISOR;
-        const skipProb = Math.min(SKIP_PROB_MAX, SKIP_PROB_BASE + overtimeRatio * SKIP_PROB_INCREMENT); // 30%起步，最高70%
+        const overtimeRatio = (state.thinkingTime - timeThreshold) / 30.0;
+        const skipProb = Math.min(0.7, 0.3 + overtimeRatio * 0.1); // 30%起步，最高70%
         return getRandom() < skipProb;
       }
 
@@ -1282,15 +1197,12 @@
         const difficultyFactors = COMPETITION_DIFFICULTY_FACTORS[contestDef.name];
         if(difficultyFactors && difficultyFactors[i] !== undefined){
           const factor = difficultyFactors[i];
-          const perturbationRange = typeof BUILD_PERTURBATION_RANGE !== 'undefined' ? BUILD_PERTURBATION_RANGE : 0.15;
-          const randomPerturbation = (getRandom() - 0.5) * perturbationRange; // ±7.5%的随机扰动
+          const randomPerturbation = (getRandom() - 0.5) * 0.15; // ±7.5%的随机扰动
           const actualFactor = factor * (1.0 + randomPerturbation);
           rawProblemDifficulty = contestDef.difficulty * actualFactor;
         } else {
           // 默认方式
-          const step = typeof BUILD_DIFFICULTY_STEP !== 'undefined' ? BUILD_DIFFICULTY_STEP : 20;
-          const offset = typeof BUILD_DIFFICULTY_OFFSET !== 'undefined' ? BUILD_DIFFICULTY_OFFSET : -10;
-          rawProblemDifficulty = contestDef.difficulty + (i * step) + offset + Math.floor(getRandom() * step);
+          rawProblemDifficulty = contestDef.difficulty + (i * 20) - 10 + Math.floor(getRandom() * 20);
         }
       } 
       // 如果是网赛且有配置的难度系数
@@ -1298,22 +1210,17 @@
         const difficultyFactors = getOnlineContestDifficultyFactors(contestDef.onlineContestType, contestDef.numProblems);
         if(difficultyFactors && difficultyFactors[i] !== undefined){
           const factor = difficultyFactors[i];
-          const perturbationRange = typeof BUILD_PERTURBATION_RANGE !== 'undefined' ? BUILD_PERTURBATION_RANGE : 0.15;
-          const randomPerturbation = (getRandom() - 0.5) * perturbationRange; // ±7.5%的随机扰动
+          const randomPerturbation = (getRandom() - 0.5) * 0.15; // ±7.5%的随机扰动
           const actualFactor = factor * (1.0 + randomPerturbation);
           rawProblemDifficulty = contestDef.difficulty * actualFactor;
         } else {
           // 默认方式
-          const step = typeof BUILD_DIFFICULTY_STEP !== 'undefined' ? BUILD_DIFFICULTY_STEP : 20;
-          const offset = typeof BUILD_DIFFICULTY_OFFSET !== 'undefined' ? BUILD_DIFFICULTY_OFFSET : -10;
-          rawProblemDifficulty = contestDef.difficulty + (i * step) + offset + Math.floor(getRandom() * step);
+          rawProblemDifficulty = contestDef.difficulty + (i * 20) - 10 + Math.floor(getRandom() * 20);
         }
       }
       else {
         // 默认方式：基于题号递增
-        const step = typeof BUILD_DIFFICULTY_STEP !== 'undefined' ? BUILD_DIFFICULTY_STEP : 20;
-        const offset = typeof BUILD_DIFFICULTY_OFFSET !== 'undefined' ? BUILD_DIFFICULTY_OFFSET : -10;
-        rawProblemDifficulty = contestDef.difficulty + (i * step) + offset + Math.floor(getRandom() * step);
+        rawProblemDifficulty = contestDef.difficulty + (i * 20) - 10 + Math.floor(getRandom() * 20);
       }
       
       // 归一化到 0-100 范围，使用常量 DIFFICULTY_NORMALIZE_DIVISOR（定义在 constants.js）
@@ -1323,16 +1230,17 @@
 
       // 生成部分分
       // 为每题生成一个 skew，使得思维/代码难度在该题上有显著差异，但平均保持 problemDifficulty
-      const maxSkew = typeof BUILD_MAX_SKEW !== 'undefined' ? BUILD_MAX_SKEW : 30;
+      const maxSkew = 30; // 可调：表示两者最大偏差幅度；增大可产生更强的思维/代码冷热题
       const skew = Math.floor(uniformInt(-maxSkew, maxSkew));
       // 使用线性一次函数将归一化后的 problemDifficulty 映射到 thinking/coding 基数。
+      // 斜率由 DIFFICULTY_TO_SKILL_SLOPE 控制（在 constants.js 中定义）。
+      // 不对值进行上限截断，允许超过 100 以表现高难度的放大效应。
       const baseMapped = Math.floor(problemDifficulty * (typeof DIFFICULTY_TO_SKILL_SLOPE === 'number' ? DIFFICULTY_TO_SKILL_SLOPE : 1.0));
       let thinkingBase = baseMapped + skew;
       let codingBase = baseMapped - skew;
       // 轻微随机扰动，避免所有题严格对称
-      const perturbation = typeof BUILD_SKILL_PERTURBATION !== 'undefined' ? BUILD_SKILL_PERTURBATION : 5;
-      thinkingBase = thinkingBase + Math.floor(getRandom()*perturbation - perturbation/2);
-      codingBase = codingBase + Math.floor(getRandom()*perturbation - perturbation/2);
+      thinkingBase = thinkingBase + Math.floor(getRandom()*5 - 2);
+      codingBase = codingBase + Math.floor(getRandom()*5 - 2);
       
       // 确保思维和代码难度不为0（最小值为1）
       thinkingBase = Math.max(1, thinkingBase);
@@ -1385,9 +1293,49 @@
    * @returns {Array<number>} - 难度系数数组
    */
   function getOnlineContestDifficultyFactors(contestType, numProblems){
-    // 优先使用 constants.js 中定义的配置
-    if(typeof ONLINE_CONTEST_DIFFICULTY_FACTORS !== 'undefined' && ONLINE_CONTEST_DIFFICULTY_FACTORS[contestType]){
-      return ONLINE_CONTEST_DIFFICULTY_FACTORS[contestType];
+    // Atcoder ABC: 7题，从40到160，难度递增
+    if(contestType === "Atcoder-ABC"){
+      // 基准难度120，题目难度范围 40-160
+      // 系数计算：(目标难度 / 基准难度)
+      // 40/120=0.33, 60/120=0.5, 80/120=0.67, 100/120=0.83, 120/120=1.0, 140/120=1.17, 160/120=1.33
+      return [0.33, 0.5, 0.67, 0.83, 1.0, 1.17, 1.33];
+    }
+    
+    // Atcoder ARC: 4题，从120到350，难度递增
+    if(contestType === "Atcoder-ARC"){
+      // 基准难度230，题目难度范围 120-350
+      // 120/230=0.52, 200/230=0.87, 275/230=1.20, 350/230=1.52
+      return [0.52, 0.87, 1.20, 1.52];
+    }
+    
+    // Codeforces Div3: 5题，普及级难度(120)
+    if(contestType === "Codeforces-Div3"){
+      // 使用类似递增分布：0.4, 0.7, 1.0, 1.3, 1.6
+      return [0.4, 0.7, 1.0, 1.3, 1.6];
+    }
+    
+    // Codeforces Div2: 5题，NOIP级难度(230)
+    if(contestType === "Codeforces-Div2"){
+      // 使用类似递增分布：0.4, 0.7, 1.0, 1.3, 1.6
+      return [0.4, 0.7, 1.0, 1.3, 1.6];
+    }
+    
+    // Codeforces Div1: 5题，省选级难度(320)
+    if(contestType === "Codeforces-Div1"){
+      // 使用类似递增分布：0.4, 0.7, 1.0, 1.3, 1.6
+      return [0.4, 0.7, 1.0, 1.3, 1.6];
+    }
+    
+    // 洛谷月赛: 4题，NOIP级难度(230)
+    if(contestType === "洛谷月赛"){
+      // 使用类似 Div2 的分布，但4题：0.5, 0.8, 1.2, 1.5
+      return [0.5, 0.8, 1.2, 1.5];
+    }
+    
+    // Ucup: 4题，省选级难度(320)
+    if(contestType === "Ucup"){
+      // 使用类似 Div1 的分布，但4题：0.5, 0.8, 1.2, 1.5
+      return [0.5, 0.8, 1.2, 1.5];
     }
     
     // 默认返回均匀分布
