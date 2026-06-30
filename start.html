@@ -69,8 +69,14 @@
           <option value="2" selected>普通 - 标准游戏体验</option>
           <option value="3">困难 - 适合寻求挑战的人</option>
         </select>
-        <div id="start-diff-grid" class="diff-grid" style="display:flex;gap:14px;margin-top:8px"></div>
-        <div id="diff-note" class="small muted" style="margin-top:6px"></div>
+        <div class="diff-carousel-wrapper">
+          <button class="carousel-arrow carousel-arrow-left" id="diff-prev" aria-label="上一个难度">&lt;</button>
+          <div class="carousel-viewport">
+            <div class="carousel-track" id="diff-carousel-track"></div>
+          </div>
+          <button class="carousel-arrow carousel-arrow-right" id="diff-next" aria-label="下一个难度">&gt;</button>
+        </div>
+        <div id="diff-detail" class="diff-detail-panel"></div>
 
         <label class="block" style="margin-top:16px">游戏模式</label>
         <div id="start-mode-grid" class="mode-grid" style="display:flex;gap:14px;margin-top:8px;justify-content:center;">
@@ -395,48 +401,138 @@
   }
   // ============ 地图省份选择 end ============
 
-    // Render difficulty as tiled options and sync with hidden select (#start-diff)
+    // 轮播式难度选择（东方Project风格）
     function renderDiffGrid(){
-      const defs = [
-        {v:1,label:'简单',desc:'适合初次体验的人'},
-        {v:2,label:'普通',desc:'标准游戏体验'},
-        {v:3,label:'专家',desc:'适合寻求挑战的人'}
+      var defs = [
+        {v:1, label:'简单', desc:'适合初次体验的人', detail:'', stats:[
+          {k:'经费倍率', v:'150%'}, {k:'初始能力', v:'+20'}, {k:'比赛强度', v:'较低'}
+        ]},
+        {v:2, label:'普通', desc:'标准游戏体验', detail:'', stats:[
+          {k:'经费倍率', v:'100%'}, {k:'初始能力', v:'+0'}, {k:'比赛强度', v:'标准'}
+        ]},
+        {v:3, label:'专家', desc:'不适合任何人', detail:'', stats:[
+          {k:'经费倍率', v:'50%'}, {k:'初始能力', v:'-20'}, {k:'比赛强度', v:'高'}
+        ]}
       ];
-      const grid = document.getElementById('start-diff-grid');
-      const hidden = document.getElementById('start-diff');
-      const note = document.getElementById('diff-note');
-      if(!grid || !hidden) return;
-      grid.innerHTML = '';
-      defs.forEach(d => {
-        const card = document.createElement('div');
-        card.className = 'option-card';
-        card.dataset.val = d.v;
-        card.style.cursor = 'pointer';
-        card.style.padding = '14px 16px';
-        card.style.border = '1px solid #e6e6e6';
-        card.style.borderRadius = '8px';
-        card.style.flex = '1';
-        card.style.textAlign = 'center';
-        card.innerHTML = `<div style="font-weight:600;margin-bottom:6px">${d.label}</div><div class="small muted">${d.desc}</div>`;
-        card.addEventListener('click', ()=>{
-          grid.querySelectorAll('.option-card.selected').forEach(c=>c.classList.remove('selected'));
-          card.classList.add('selected');
-          // sync hidden select
-          hidden.value = ''+d.v;
-          // show note under grid
-          if(note) note.textContent = d.label + ' — ' + d.desc;
-        });
-        grid.appendChild(card);
-      });
+      var track = document.getElementById('diff-carousel-track');
+      var hidden = document.getElementById('start-diff');
+      var detail = document.getElementById('diff-detail');
+      if(!track || !hidden) return;
 
-      // mark initial selection based on select value
-      const initial = hidden.value || '2';
-      const chosen = grid.querySelector(`.option-card[data-val='${initial}']`);
-      if(chosen) chosen.classList.add('selected');
-      if(note){ const c = grid.querySelector('.option-card.selected'); note.textContent = c ? (c.querySelector('div').textContent + ' — ' + c.querySelector('.small').textContent) : ''; }
+      var currentIndex = 0;
+      var initialVal = parseInt(hidden.value) || 2;
+      for(var i = 0; i < defs.length; i++){ if(defs[i].v === initialVal){ currentIndex = i; break; } }
+
+      var isAnimating = false;
+      var ANIM_DURATION = 300; // 与CSS过渡时长保持同步
+      var DETAIL_FADE_GAP = 140; // 详情面板先淡出、再更新内容、再淡入的间隔
+
+      function buildCard(def, extraClass){
+        var card = document.createElement('div');
+        card.className = 'diff-carousel-card' + (extraClass ? ' ' + extraClass : '');
+        card.dataset.val = def.v;
+        var nameEl = document.createElement('div');
+        nameEl.className = 'diff-card-name';
+        nameEl.textContent = def.label;
+        var descEl = document.createElement('div');
+        descEl.className = 'diff-card-desc';
+        descEl.textContent = def.desc;
+        card.appendChild(nameEl);
+        card.appendChild(descEl);
+        return card;
+      }
+
+      function updateDetail(def){
+        if(!detail) return;
+        // 先淡出详情面板
+        detail.classList.remove('diff-detail-visible');
+        // 等待淡出完成后更新内容并淡入
+        clearTimeout(detail._fadeTimer);
+        detail._fadeTimer = setTimeout(function(){
+          var html = '<div class="diff-detail-desc">' + def.detail + '</div>';
+          html += '<div class="diff-detail-stats">';
+          for(var i = 0; i < def.stats.length; i++){
+            var s = def.stats[i];
+            html += '<div class="diff-stat-item"><span class="diff-stat-key">' + s.k + '</span><span class="diff-stat-val">' + s.v + '</span></div>';
+          }
+          html += '</div>';
+          detail.innerHTML = html;
+          // 触发回流后淡入
+          void detail.offsetWidth;
+          detail.classList.add('diff-detail-visible');
+        }, DETAIL_FADE_GAP);
+      }
+
+      function showCard(index, direction){
+        if(isAnimating) return;
+        if(index < 0 || index >= defs.length) return;
+        if(index === currentIndex) return;
+
+        isAnimating = true;
+        var oldCard = track.querySelector('.diff-carousel-card');
+        var newDef = defs[index];
+
+        // 确定进出方向对应的CSS类
+        var enterClass = direction === 'next' ? 'carousel-enter-right' : 'carousel-enter-left';
+        var exitClass  = direction === 'next' ? 'carousel-exit-left'  : 'carousel-exit-right';
+
+        // 创建新卡片，初始状态为离屏
+        var newCard = buildCard(newDef, enterClass);
+        track.appendChild(newCard);
+
+        // 强制回流，确保浏览器识别起始状态
+        void newCard.offsetWidth;
+
+        // 同时触发旧卡片退出和新卡片进入
+        if(oldCard){ oldCard.classList.add(exitClass); }
+        newCard.classList.remove(enterClass);
+        newCard.classList.add('carousel-active');
+
+        // 更新隐藏select和详情面板
+        hidden.value = '' + newDef.v;
+        updateDetail(newDef);
+        currentIndex = index;
+
+        // 动画结束后清理旧卡片
+        setTimeout(function(){
+          if(oldCard && oldCard.parentNode) oldCard.parentNode.removeChild(oldCard);
+          isAnimating = false;
+        }, ANIM_DURATION + 20);
+      }
+
+      // 初始渲染
+      track.innerHTML = '';
+      var initialCard = buildCard(defs[currentIndex], 'carousel-active');
+      track.appendChild(initialCard);
+      // 初始详情直接显示，不需要动画
+      if(detail){
+        var d = defs[currentIndex];
+        var html = '<div class="diff-detail-desc">' + d.detail + '</div>';
+        html += '<div class="diff-detail-stats">';
+        for(var i = 0; i < d.stats.length; i++){
+          var s = d.stats[i];
+          html += '<div class="diff-stat-item"><span class="diff-stat-key">' + s.k + '</span><span class="diff-stat-val">' + s.v + '</span></div>';
+        }
+        html += '</div>';
+        detail.innerHTML = html;
+        void detail.offsetWidth;
+        detail.classList.add('diff-detail-visible');
+      }
+
+      // 绑定箭头事件
+      var prevBtn = document.getElementById('diff-prev');
+      var nextBtn = document.getElementById('diff-next');
+      if(prevBtn) prevBtn.addEventListener('click', function(){ showCard(currentIndex - 1, 'prev'); });
+      if(nextBtn) nextBtn.addEventListener('click', function(){ showCard(currentIndex + 1, 'next'); });
+
+      // 支持键盘左右方向键切换
+      document.addEventListener('keydown', function(e){
+        if(e.key === 'ArrowLeft'){ showCard(currentIndex - 1, 'prev'); }
+        if(e.key === 'ArrowRight'){ showCard(currentIndex + 1, 'next'); }
+      });
     }
 
-    try{ renderDiffGrid(); }catch(e){ console.error('渲染难度网格失败', e); }
+    try{ renderDiffGrid(); }catch(e){ console.error('渲染难度轮播失败', e); }
 
   // 渲染游戏模式选择网格
   function renderModeGrid(){
