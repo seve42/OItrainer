@@ -78,18 +78,6 @@
         </div>
         <div id="diff-detail" class="diff-detail-panel"></div>
 
-        <label class="block" style="margin-top:16px">游戏模式</label>
-        <div id="start-mode-grid" class="mode-grid" style="display:flex;gap:14px;margin-top:8px;justify-content:center;">
-          <div class="option-card mode-card selected" data-val="simplified" style="flex:1;max-width:280px;cursor:pointer;padding:14px 16px;border:1px solid #e6e6e6;border-radius:8px;text-align:center;">
-            <div style="font-weight:600;margin-bottom:6px">简化模式</div>
-            <div class="small muted">压缩时间轴，简化决策，节奏较快</div>
-          </div>
-          <div class="option-card mode-card" data-val="realistic" style="flex:1;max-width:280px;cursor:not-allowed;padding:14px 16px;border:1px solid #e6e6e6;border-radius:8px;text-align:center;opacity:0.5;">
-            <div style="font-weight:600;margin-bottom:6px">真实模式</div>
-            <div class="small muted">真实时间安排，节奏缓慢</div>
-            <div class="small" style="color:#999;font-style:italic;margin-top:4px;">(即将到来)</div>
-          </div>
-        </div>
         <input type="hidden" id="start-mode" value="simplified" />
 
         <div class="step-actions">
@@ -103,6 +91,7 @@
         <div class="small muted" style="margin-bottom:6px">不同省份影响初始经费和训练质量。<strong>强省</strong>资源丰富<strong>弱省</strong>具有挑战性。</div>
         <div id="map-container"></div>
         <div id="prov-info-panel">请在地图上点击选择省份</div>
+        <div id="climate-info-panel" class="climate-info-panel" style="margin-top:8px;padding:8px 12px;background:#f5f7fa;border:1px solid #e4e7ed;border-radius:6px;font-size:13px;line-height:1.7;color:#555;display:none;"></div>
         <input type="hidden" id="start-prov" value="1" />
 
         <div class="step-actions">
@@ -281,12 +270,10 @@
           formatter: function(params){
             if(params.name === '台湾省' || params.name === '南海诸岛') return params.name + '该区域选手无法参加NOI';
             var pid = MAP_NAME_TO_PROVINCE_ID[params.name];
-            var baseBudget = '';
             if(pid !== undefined && typeof PROVINCES !== 'undefined' && PROVINCES[pid]){
               var p = PROVINCES[pid];
               var adjustedBudget = getAdjustedBudget(p.baseBudget);
-              baseBudget = adjustedBudget.toLocaleString();
-              return params.name + '<br/>类型：' + p.type + '<br/>初始经费：¥' + baseBudget;
+              return params.name + '<br/>类型：' + p.type + '<br/>初始经费：¥' + adjustedBudget.toLocaleString();
             }
             return params.name;
           }
@@ -369,9 +356,54 @@
         var adjustedBudget = getAdjustedBudget(p.baseBudget);
         var tagClass = p.type === '强省' ? 'prov-type-strong' : (p.type === '普通省' ? 'prov-type-normal' : 'prov-type-weak');
         infoPanel.innerHTML = '当前选择：<strong>' + mapName + '</strong><span class="prov-type-tag ' + tagClass + '">' + p.type + '</span> 初始经费：¥' + adjustedBudget.toLocaleString();
+
+        // 更新气候摘要面板
+        updateClimatePanel(mapName);
       } else {
         infoPanel.textContent = '请在地图上点击选择省份';
+        var climatePanel = document.getElementById('climate-info-panel');
+        if(climatePanel) climatePanel.style.display = 'none';
       }
+    }
+
+    function updateClimatePanel(mapName){
+      var climatePanel = document.getElementById('climate-info-panel');
+      if(!climatePanel) return;
+      if(typeof getProvinceClimateSummary !== 'function'){
+        climatePanel.style.display = 'none';
+        return;
+      }
+      var summary = getProvinceClimateSummary(mapName);
+      if(!summary){
+        climatePanel.style.display = 'none';
+        return;
+      }
+
+      // 四季平均气温
+      var tempParts = [];
+      summary.seasons.forEach(function(s){
+        tempParts.push(summary.seasonLabels[s] + summary.avgTemp[s] + '℃');
+      });
+
+      // 四季降水概率
+      var precipParts = [];
+      summary.seasons.forEach(function(s){
+        var pct = Math.round(summary.precipProb[s] * 100);
+        precipParts.push(summary.seasonLabels[s] + pct + '%');
+      });
+
+      // 极端天气
+      var extremeLines = [];
+      summary.extremeWeather.forEach(function(ew){
+        var levelColor = ew.level === '高' ? '#F56C6C' : (ew.level === '中' ? '#E6A23C' : (ew.level === '低' ? '#67C23A' : '#999'));
+        extremeLines.push('<span style="white-space:nowrap">' + ew.label + '（<span style="color:' + levelColor + ';font-weight:600">' + ew.level + '</span>）</span>');
+      });
+
+      climatePanel.innerHTML =
+        '<div><strong>气温：</strong>' + tempParts.join('  ') + '</div>' +
+        '<div><strong>降水概率：</strong>' + precipParts.join('  ') + '</div>' +
+        '<div><strong>极端天气：</strong>' + extremeLines.join('  ') + '</div>';
+      climatePanel.style.display = 'block';
     }
 
     // 根据当前难度计算调整后的经费
@@ -533,40 +565,6 @@
     }
 
     try{ renderDiffGrid(); }catch(e){ console.error('渲染难度轮播失败', e); }
-
-  // 渲染游戏模式选择网格
-  function renderModeGrid(){
-    const grid = document.getElementById('start-mode-grid');
-    const hidden = document.getElementById('start-mode');
-    if(!grid || !hidden) return;
-    
-    const cards = grid.querySelectorAll('.mode-card');
-    cards.forEach(card => {
-      const val = card.dataset.val;
-      
-      // 真实模式暂时禁用，只有简化模式可选
-      if(val === 'realistic'){
-        // 已经在HTML中设置为禁用样式
-        return;
-      }
-      
-      card.addEventListener('click', ()=>{
-        // 移除所有选中状态
-        grid.querySelectorAll('.mode-card.selected').forEach(c=>c.classList.remove('selected'));
-        // 添加选中状态
-        card.classList.add('selected');
-        // 同步到隐藏input
-        hidden.value = val;
-      });
-    });
-    
-    // 设置初始选中状态（默认简化模式）
-    const initial = hidden.value || 'simplified';
-    const chosen = grid.querySelector(`.mode-card[data-val='${initial}']`);
-    if(chosen) chosen.classList.add('selected');
-  }
-
-  try{ renderModeGrid(); }catch(e){ console.error('渲染模式网格失败', e); }
 
   // ============ 三步向导导航逻辑 ============
   var currentStep = 1;
@@ -815,7 +813,7 @@
     })();
   </script>
   <div class="disclaimer" role="note" aria-label="免责声明">
-    免责声明：本游戏为虚构的教学与娱乐模拟游戏。游戏中所展示的训练方式、成绩、资源分配、时间安排均为玩法设定。所有人名均为随机生成，所有训练用题库均为AI生成，和现实中对应年份比赛题目完全不相关。省份强弱和各国选手水平均为虚构和游戏设定，台湾省、香港特别行政区和澳门特别行政区均为中国不可分割的一部分，IOI成员国/地区为截止2025年10月官网标准。
+    免责声明：本游戏为虚构的教学与娱乐模拟游戏。游戏中所展示的训练方式、成绩、资源分配、时间安排均为玩法设定。所有人名均为随机生成，所有训练用题库均为AI生成，和现实中对应年份比赛题目完全不相关。省份强弱和各国选手水平均为虚构和游戏设定，IOI成员国/地区为截止2025年10月官网标准。
   </div>
 </body>
 </html>
