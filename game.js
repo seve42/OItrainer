@@ -196,9 +196,10 @@ function calculateTrainingPressure(task, intensity) {
         personalComfort = Math.max(0, Math.min(100, personalComfort));
       }
       
+      /* 美食家天赋：享受设施舒适度1.5倍加成 */
       if(s.talents && s.talents.has('美食家')){
-        const canteenBonus = 3 * (game.facilities.canteen - 1);
-        personalComfort += canteenBonus;
+        const facilityComfort = game.facilities.getComfortBonus();
+        personalComfort += facilityComfort * 0.5;
         personalComfort = Math.max(0, Math.min(100, personalComfort));
       }
       
@@ -211,8 +212,7 @@ function calculateTrainingPressure(task, intensity) {
       if(intensity===3) base_pressure *= TRAINING_PRESSURE_MULTIPLIER_HEAVY;
       else if(intensity===2) base_pressure *= TRAINING_PRESSURE_MULTIPLIER_MEDIUM;
       
-      let canteen_reduction = game.facilities.getCanteenPressureReduction();
-      let pressure_increase = base_pressure * weather_factor * canteen_reduction * comfort_factor;
+      let pressure_increase = base_pressure * weather_factor * comfort_factor;
       if(s.sick_weeks > 0) pressure_increase += 10;
       
       pressure_increase *= (typeof PRESSURE_INCREASE_MULTIPLIER !== 'undefined' ? PRESSURE_INCREASE_MULTIPLIER : 1.0);
@@ -300,9 +300,10 @@ function trainStudentsWithTask(task, intensity) {
       personalComfort = Math.max(0, Math.min(100, personalComfort));
     }
     
+    /* 美食家天赋：享受设施舒适度1.5倍加成 */
     if(s.talents && s.talents.has('美食家')){
-      const canteenBonus = 3 * (game.facilities.canteen - 1);
-      personalComfort += canteenBonus;
+      const facilityComfort = game.facilities.getComfortBonus();
+      personalComfort += facilityComfort * 0.5;
       personalComfort = Math.max(0, Math.min(100, personalComfort));
     }
     
@@ -322,19 +323,12 @@ function trainStudentsWithTask(task, intensity) {
     
     const results = applyTaskBoosts(s, task);
     
-    const libraryLevel = game.facilities.library;
-    let libraryBonus = 0;
-    if(libraryLevel === 1) libraryBonus = -0.20;
-    else if(libraryLevel === 2) libraryBonus = -0.05;
-    else if(libraryLevel === 3) libraryBonus = 0.10;
-    else if(libraryLevel === 4) libraryBonus = 0.12;
-    else if(libraryLevel === 5) libraryBonus = 0.14;
-    
-    const libraryMultiplier = 1.0 + libraryBonus;
+    /* 资料库：训练效果（知识）乘区 */
+    const libraryMultiplier = game.facilities.getLibraryMultiplier();
     
     const intensityFactor = intensity === 1 ? 0.7 : intensity === 3 ? 1.3 : 1.0;
     
-    // 应用知识点增加：基础效率加成 + 图书馆加成 + 强度系数 + 生病惩罚
+    // 应用知识点增加：基础效率加成 + 资料库加成 + 强度系数 + 生病惩罚
     for(const boost of results.boosts) {
       // 计算总的知识点增加（包含所有加成因素）
       const totalBoost = Math.floor(boost.actualAmount * libraryMultiplier * intensityFactor * sick_penalty);
@@ -343,15 +337,8 @@ function trainStudentsWithTask(task, intensity) {
       boost.actualAmount = totalBoost;
     }
     
-    const computerLevel = game.facilities.computer;
-    let computerBonus = 0;
-    if(computerLevel === 1) computerBonus = -0.2;
-    else if(computerLevel === 2) computerBonus = 0;
-    else if(computerLevel === 3) computerBonus = 0.1;
-    else if(computerLevel === 4) computerBonus = 0.2;
-    else if(computerLevel === 5) computerBonus = 0.3;
-    
-    const computerMultiplier = 1.0 + computerBonus;
+    /* 计算机：训练效果（思维/代码）乘区 */
+    const computerMultiplier = game.facilities.getComputerMultiplier();
     
     const abilityGainBase = boostMultiplier * intensityFactor * (1 - Math.min(0.6, s.pressure/200.0));
     const thinkingGain = uniform(0.6, 1.5) * abilityGainBase * computerMultiplier * (typeof TRAINING_EFFECT_MULTIPLIER !== 'undefined' ? TRAINING_EFFECT_MULTIPLIER : 1.0);
@@ -370,8 +357,7 @@ function trainStudentsWithTask(task, intensity) {
     if(intensity===3) base_pressure *= TRAINING_PRESSURE_MULTIPLIER_HEAVY;
     else if(intensity===2) base_pressure *= TRAINING_PRESSURE_MULTIPLIER_MEDIUM;
     
-    let canteen_reduction = game.facilities.getCanteenPressureReduction();
-    let pressure_increase = base_pressure * weather_factor * canteen_reduction * comfort_factor;
+    let pressure_increase = base_pressure * weather_factor * comfort_factor;
     if(s.sick_weeks > 0) pressure_increase += 10;
     
     pressure_increase *= (typeof PRESSURE_INCREASE_MULTIPLIER !== 'undefined' ? PRESSURE_INCREASE_MULTIPLIER : 1.0);
@@ -730,8 +716,8 @@ function weeklyUpdate(weeks=1){
     }
     
     if(s.talents && s.talents.has('美食家')){
-      const canteenBonus = 3 * (game.facilities.canteen - 1);
-      personalComfort += canteenBonus;
+      const facilityComfort = game.facilities.getComfortBonus();
+      personalComfort += facilityComfort * 0.5;
       personalComfort = Math.max(0, Math.min(100, personalComfort));
     }
     
@@ -763,9 +749,10 @@ function weeklyUpdate(weeks=1){
     game.week++;
     game.updateWeather();
     
-    // 在每周开始时选择本周的训练题目（7道：5推荐+2随机）
+    // 在每周开始时选择本周的训练题目（基础7道+资料库额外题目）
     if (typeof selectRandomTasks === 'function') {
-      game.weeklyTasks = selectRandomTasks(7);
+      const extraTasks = game.facilities.getLibraryExtraTasks();
+      game.weeklyTasks = selectRandomTasks(7 + extraTasks);
     }
   }
   
@@ -1067,117 +1054,9 @@ function evictSingle(idx){
   }catch(e){}
 }
 
-function upgradeFacility(f){
-  let current = game.facilities.getCurrentLevel(f);
-  let max = game.facilities.getMaxLevel(f);
-  if(current >= max){ alert("已达最高等级"); return; }
-  let cost = game.facilities.getUpgradeCost(f);
-  const mult = (game.getExpenseMultiplier ? game.getExpenseMultiplier() : 1);
-  const costAdj = Math.round(cost * mult);
+// upgradeFacility 已迁移至 lib/facilities.js
 
-  const modalHtml = `
-    <h3>升级设施：${f}</h3>
-    <div class="small" style="margin-top:6px">升级到 ${current+1} 级 将扣款 <strong>¥${costAdj}</strong></div>
-    <div class="modal-actions" style="margin-top:8px">
-      <button class="btn btn-ghost" id="upgrade-cancel">取消</button>
-      <button class="btn" id="upgrade-confirm">确认升级</button>
-    </div>`;
-
-  showModal(modalHtml);
-
-  const cancelBtn = document.getElementById('upgrade-cancel');
-  const confirmBtn = document.getElementById('upgrade-confirm');
-  if(cancelBtn) cancelBtn.onclick = () => { try{ closeModal(); }catch(e){} };
-  if(confirmBtn) confirmBtn.onclick = () => {
-    try{
-      if(game.budget < costAdj){ alert("经费不足"); closeModal(); return; }
-      game.recordExpense(costAdj, `设施升级：${f}`);
-      game.facilities.upgrade(f);
-      log(`设施升级：${f} 到等级 ${current+1}（基础 ¥${cost}，调整后 ¥${costAdj}）`);
-      closeModal();
-      renderAll();
-    }catch(e){ console.error('upgrade confirm handler error', e); }
-  };
-}
-
-function showFacilityUpgradeModal(){
-  const facilities = ['computer', 'library', 'ac', 'dorm', 'canteen'];
-  const facilityNames = {
-    'computer': '计算机',
-    'library': '资料库',
-    'ac': '空调',
-    'dorm': '宿舍',
-    'canteen': '食堂'
-  };
-  const facilityDescs = {
-    'computer': '提升综合训练效率',
-    'library': '提升知识训练效率',
-    'ac': '提升舒适度，缓解极端天气影响',
-    'dorm': '提升舒适度',
-    'canteen': '减少训练压力'
-  };
-
-  let facilityCardsHtml = '';
-  for(let fac of facilities){
-    const name = facilityNames[fac];
-    const desc = facilityDescs[fac];
-    const current = game.facilities.getCurrentLevel(fac);
-    const max = game.facilities.getMaxLevel(fac);
-    const cost = game.facilities.getUpgradeCost(fac);
-    const mult = (game.getExpenseMultiplier ? game.getExpenseMultiplier() : 1);
-    const costAdj = Math.round(cost * mult);
-    const canUpgrade = current < max && game.budget >= costAdj;
-
-    // Use flex column layout so buttons stay aligned at the bottom even when descriptions wrap
-    facilityCardsHtml += `
-      <div class="facility" style="display:flex; flex-direction:column; min-height:150px;">
-        <div>
-          <div class="fac-label">${name}</div>
-          <div class="stat">Lv.${current}</div>
-          <div class="small muted" style="margin-top:6px">${desc}</div>
-        </div>
-        <div class="fac-action" style="margin-top:auto; display:flex; flex-direction:column; align-items:center; gap:6px;">
-          ${current < max ? 
-            `<button class="btn upgrade" data-fac="${fac}">升级到 Lv.${current+1}</button>
-             <div class="small muted" style="margin-top:0; text-align:center">¥${costAdj}</div>` : 
-            `<button class="btn upgrade ghost" disabled>已满级</button>`
-          }
-        </div>
-      </div>
-    `;
-  }
-
-  const maintCost = game.facilities.getMaintenanceCost();
-
-  const modalHtml = `
-    <h3 style="margin:0 0 12px 0; font-size:20px; color:#1f2937;">设施升级</h3>
-    <div class="small" style="margin-bottom:16px; padding:10px; background:#f0f9ff; border-radius:6px; border:1px solid #bfdbfe;">
-      <span style="color:#1e40af;">当前经费: <strong>¥${game.budget}</strong></span>
-      <span style="margin-left:16px; color:#1e40af;">每周维护费: <strong>¥${maintCost}</strong></span>
-    </div>
-    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(170px, 1fr)); gap:14px; margin-bottom:20px;">
-      ${facilityCardsHtml}
-    </div>
-    <div class="modal-actions">
-      <button class="btn" id="facility-modal-close" style="padding:8px 20px;">关闭</button>
-    </div>
-  `;
-
-  showModal(modalHtml);
-
-  // 绑定关闭按钮
-  const closeBtn = document.getElementById('facility-modal-close');
-  if(closeBtn) closeBtn.onclick = () => { closeModal(); };
-
-  // 绑定升级按钮
-  document.querySelectorAll('.btn.upgrade[data-fac]').forEach(btn => {
-    const fac = btn.dataset.fac;
-    btn.onclick = () => {
-      closeModal();
-      setTimeout(() => upgradeFacility(fac), 100);
-    };
-  });
-}
+// showFacilityUpgradeModal 已迁移至 lib/facilities.js
 
 function rest1Week(){
   log("休息1周...");
@@ -1221,6 +1100,14 @@ function loadGame(){ try{
     game = Object.assign(new GameState(), o);
   window.game = game;
   game.facilities = Object.assign(new Facilities(), o.facilities);
+  /* 存档迁移：旧版设施(dorm/canteen)转换为新版(fan/network) */
+  if(typeof o.facilities.dorm !== 'undefined' && typeof o.facilities.fan === 'undefined'){
+    game.facilities.fan = Math.min(o.facilities.dorm || 0, FACILITY_DEFS.fan.maxLevel);
+  }
+  if(typeof o.facilities.canteen !== 'undefined' && typeof o.facilities.network === 'undefined'){
+    game.facilities.network = 0; // canteen无对应新设施
+  }
+  game.facilities.computer_room = 1; // 机房始终为1
   game.students = (o.students || []).map(s => {
     const student = Object.assign(new Student(), s);
     if(s.talents && Array.isArray(s.talents)){
@@ -1231,10 +1118,11 @@ function loadGame(){ try{
     return student;
   });
   
-  // 恢复本周题目：如果存档中没有或已失效，重新选择
+  // 恢复本周题目：如果存档中没有或已失效，重新选择（基础7道+资料库额外题目）
   if (!game.weeklyTasks || !Array.isArray(game.weeklyTasks) || game.weeklyTasks.length === 0) {
     if (typeof selectRandomTasks === 'function') {
-      game.weeklyTasks = selectRandomTasks(7);
+      const extraTasks = game.facilities.getLibraryExtraTasks();
+      game.weeklyTasks = selectRandomTasks(7 + extraTasks);
     }
   }
   
@@ -1244,12 +1132,13 @@ function silentLoad(){ try{
   let raw = null;
   try{ raw = sessionStorage.getItem('oi_coach_save'); }catch(e){ raw = null; }
   try{ if(!raw) raw = localStorage.getItem('oi_coach_save'); }catch(e){}
-  if(!raw) return false; let o = JSON.parse(raw); game = Object.assign(new GameState(), o); window.game = game; game.facilities = Object.assign(new Facilities(), o.facilities); game.students = (o.students || []).map(s => { const student = Object.assign(new Student(), s); if(s.talents && Array.isArray(s.talents)){ student.talents = new Set(s.talents); } else if(s.talents && typeof s.talents === 'object'){ student.talents = new Set(Object.keys(s.talents).filter(k => s.talents[k])); } return student; }); 
+  if(!raw) return false; let o = JSON.parse(raw); game = Object.assign(new GameState(), o); window.game = game; game.facilities = Object.assign(new Facilities(), o.facilities); if(typeof o.facilities.dorm !== 'undefined' && typeof o.facilities.fan === 'undefined'){ game.facilities.fan = Math.min(o.facilities.dorm || 0, FACILITY_DEFS.fan.maxLevel); } if(typeof o.facilities.canteen !== 'undefined' && typeof o.facilities.network === 'undefined'){ game.facilities.network = 0; } game.facilities.computer_room = 1; game.students = (o.students || []).map(s => { const student = Object.assign(new Student(), s); if(s.talents && Array.isArray(s.talents)){ student.talents = new Set(s.talents); } else if(s.talents && typeof s.talents === 'object'){ student.talents = new Set(Object.keys(s.talents).filter(k => s.talents[k])); } return student; }); 
   
-  // 恢复本周题目：如果存档中没有或已失效，重新选择
+  // 恢复本周题目：如果存档中没有或已失效，重新选择（基础7道+资料库额外题目）
   if (!game.weeklyTasks || !Array.isArray(game.weeklyTasks) || game.weeklyTasks.length === 0) {
     if (typeof selectRandomTasks === 'function') {
-      game.weeklyTasks = selectRandomTasks(7);
+      const extraTasks2 = game.facilities.getLibraryExtraTasks();
+      game.weeklyTasks = selectRandomTasks(7 + extraTasks2);
     }
   }
   
@@ -1361,9 +1250,10 @@ function initGame(difficulty, province_choice, student_count){
   }
   game.updateWeather();
   
-  // 初始化第一周的题目
+  // 初始化第一周的题目（基础7道+资料库额外题目）
   if (typeof selectRandomTasks === 'function') {
-    game.weeklyTasks = selectRandomTasks(7);
+    const extraTasks = game.facilities.getLibraryExtraTasks();
+    game.weeklyTasks = selectRandomTasks(7 + extraTasks);
   }
   
   // 触发 game_start 事件，让天赋系统可以在游戏开始时进行检查
@@ -1462,8 +1352,7 @@ window.onload = ()=>{
     const actionEvictBtn = document.getElementById('action-evict');
     if(actionEvictBtn) actionEvictBtn.onclick = ()=>{ evictStudentUI(); };
     
-    // 暴露设施升级界面函数到全局作用域
-    window.showFacilityUpgradeModal = showFacilityUpgradeModal;
+    // showFacilityUpgradeModal 已在 lib/facilities.js 中暴露到全局
     // 暴露压力预计算函数到全局作用域
     window.calculateTrainingPressure = calculateTrainingPressure;
     

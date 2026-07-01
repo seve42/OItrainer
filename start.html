@@ -136,6 +136,7 @@
 <script src="lib/chinese-convert.js"></script>
 <script src="lib/climate.js"></script>
 <script src="events.js"></script>
+<script src="lib/facilities.js"></script>
 <script src="lib/constants.js"></script>
 <script src="lib/utils.js"></script>
 <script src="lib/models.js"></script>
@@ -715,6 +716,9 @@
     }
 
     window.addEventListener('load', ()=>{
+      // 测试版本弹窗提示
+      alert('游戏正在持续更新，测试版本不代表最终品质，渲染错误、逻辑异常和平衡度问题随时可能发生，在github提出的issue会在每天中午统一处理，欢迎反馈。最终更新为2026/7/1 --seve42');
+
       // 检查用户是否已经关闭过蒙版
       try{
         const dismissed = sessionStorage.getItem('oi_start_mask_dismissed') === 'true';

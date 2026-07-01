@@ -51,55 +51,49 @@
       </div>
       <div id="student-list" style="margin-top:10px;"></div>
 
-      <!-- 设施升级界面已隐藏 -->
+      <!-- 设施升级界面已隐藏（改为弹窗升级） -->
       <div style="margin-top:12px; display:none;">
         <h4 style="margin:0">设施</h4>
         <div class="facility-grid" style="margin-top:8px">
           <div class="facility">
-            <div class="fac-label">计算机</div>
-            <div id="fac-computer" class="stat">1</div>
-            <div class="small muted">提升综合训练效率</div>
-            <div class="fac-action"><button class="btn upgrade" data-fac="computer" id="upgrade-computer">升级</button></div>
+            <div class="fac-label">机房</div>
+            <div id="fac-computer-room" class="stat">1</div>
+            <div class="small muted">核心设施</div>
           </div>
-
           <div class="facility">
-            <div class="fac-label">资料库</div>
-            <div id="fac-library" class="stat">1</div>
-            <div class="small muted">提升知识训练效率</div>
-            <div class="fac-action"><button class="btn upgrade" data-fac="library" id="upgrade-library">升级</button></div>
+            <div class="fac-label">计算机</div>
+            <div id="fac-computer" class="stat">0</div>
+            <div class="small muted">训练效果提升乘区</div>
           </div>
-
+          <div class="facility">
+            <div class="fac-label">网络</div>
+            <div id="fac-canteen" class="stat">0</div>
+            <div class="small muted">模拟赛效果提升</div>
+          </div>
+          <div class="facility">
+            <div class="fac-label">电扇</div>
+            <div id="fac-dorm" class="stat">0</div>
+            <div class="small muted">提升舒适度</div>
+          </div>
           <div class="facility">
             <div class="fac-label">空调</div>
-            <div id="fac-ac" class="stat">1</div>
-            <div class="small muted">提升舒适度，缓解极端天气影响</div>
-            <div class="fac-action"><button class="btn upgrade" data-fac="ac" id="upgrade-ac">升级</button></div>
+            <div id="fac-ac" class="stat">0</div>
+            <div class="small muted">提升舒适度，缓解极端天气</div>
           </div>
-
           <div class="facility">
-            <div class="fac-label">宿舍</div>
-            <div id="fac-dorm" class="stat">1</div>
-            <div class="small muted">提升舒适度</div>
-            <div class="fac-action"><button class="btn upgrade" data-fac="dorm" id="upgrade-dorm">升级</button></div>
+            <div class="fac-label">资料库</div>
+            <div id="fac-library" class="stat">0</div>
+            <div class="small muted">提供额外备选题目，提升训练效果</div>
           </div>
-
-          <div class="facility">
-            <div class="fac-label">食堂</div>
-            <div id="fac-canteen" class="stat">1</div>
-            <div class="small muted">减少训练压力</div>
-            <div class="fac-action"><button class="btn upgrade" data-fac="canteen" id="upgrade-canteen">升级</button></div>
-          </div>
-
           <div class="facility">
             <div class="fac-label">维护费/周</div>
             <div id="fac-maint" class="stat">0</div>
-            <div class="small muted">所有设施每周维护费用</div>
-            <div class="fac-action"><button class="btn upgrade ghost" data-fac="maint" id="upgrade-maint">固定</button></div>
+            <div class="small muted">所有设施每周维护费</div>
           </div>
         </div>
       </div>
 
-      <!-- 移动到这里：周信息、下场比赛、训话、日志 -->
+      <!-- 周信息、设施面板 -->
       <div style="margin-top:16px; display:flex; gap:12px; align-items:flex-start">
         <div style="flex:1">
           <h4 style="margin:0 0 8px 0">周信息</h4>
@@ -114,9 +108,10 @@
         <div id="facilities-panel" style="flex:1">
           <h4 style="margin:0 0 8px 0">设施状态</h4>
           <div class="small" style="line-height:1.8">
-            <div>计算机 Lv.<span id="fac-computer-display">1</span> | 资料库 Lv.<span id="fac-library-display">1</span></div>
-            <div>空调 Lv.<span id="fac-ac-display">1</span> | 宿舍 Lv.<span id="fac-dorm-display">1</span></div>
-            <div>食堂 Lv.<span id="fac-canteen-display">1</span> | 维护费 ¥<span id="fac-maint-display">0</span></div>
+            <div>机房</div>
+            <div>计算机 <span id="fac-computer-display">无</span> | 网络 <span id="fac-canteen-display">无</span></div>
+            <div>电扇 <span id="fac-dorm-display">无</span> | 空调 <span id="fac-ac-display">无</span></div>
+            <div>资料库 <span id="fac-library-display">无</span> | 维护费 ¥<span id="fac-maint-display">0</span></div>
           </div>
         </div>
       </div>
@@ -196,6 +191,7 @@
 <script src="lib/climate.js"></script>
 <script src="events.js"></script>
 <script src="lib/chinese-convert.js"></script>
+<script src="lib/facilities.js"></script>
 <script src="lib/constants.js"></script>
 <script src="lib/utils.js"></script>
 <script src="lib/models.js"></script>

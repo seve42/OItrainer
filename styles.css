@@ -59,6 +59,7 @@ body.theme-purple{--accent:#805ad5;--bg:#faf5ff;--card:#ffffff;--muted:#666}
 .btn.upgrade.ghost{background:transparent;border:1px solid #ddd;color:#333}
 .modal{position:fixed;left:0;top:0;right:0;bottom:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:999}
 .dialog{width:820px;max-width:96%;background:#fff;padding:18px;border-radius:10px;max-height:85vh;overflow:auto;position:relative}
+.dialog-wide{width:96%;max-width:1100px}
 .dialog h3{margin-top:0}
 .flex-between{display:flex;justify-content:space-between;align-items:center}
 footer{margin-top:16px;text-align:center;color:var(--muted)}
@@ -1309,6 +1310,318 @@ body.comp-week .action-cards .action-card:not(#comp-only-action) {
   position: relative;
   width: 100%;
   height: 100%;
+}
+
+/* ========== 设施升级树状图样式 ========== */
+
+/* 树形容器 - 支持水平和垂直滚动 */
+.facility-tree-wrapper {
+  position: relative;
+  overflow: auto;
+  max-height: 55vh;
+  min-height: 360px;
+  padding: 16px 8px;
+  margin: 0 -4px;
+  scroll-behavior: smooth;
+}
+
+/* 自定义滚动条 */
+.facility-tree-wrapper::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.facility-tree-wrapper::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 3px;
+}
+.facility-tree-wrapper::-webkit-scrollbar-thumb {
+  background: #cbd5e0;
+  border-radius: 3px;
+}
+.facility-tree-wrapper::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* 树布局 - flex横向排列各列 */
+.facility-tree-layout {
+  display: flex;
+  gap: 0;
+  align-items: stretch;
+  min-width: max-content;
+  position: relative;
+}
+
+/* 树列 */
+.facility-tree-col {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 14px;
+  padding: 8px 20px;
+  position: relative;
+  min-width: 150px;
+}
+
+/* 列标签（mk等级标题） */
+.facility-tree-col-label {
+  text-align: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 2px;
+  user-select: none;
+}
+
+/* 树卡片 */
+.facility-tree-card {
+  position: relative;
+  z-index: 1;
+  background: #fff;
+  border: 2px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 10px 12px;
+  min-width: 130px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  user-select: none;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+}
+
+.facility-tree-card:hover {
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  transform: translateY(-2px);
+  border-color: #94a3b8;
+}
+
+/* 卡片状态样式 */
+.facility-tree-card.status-built {
+  border-color: #48bb78;
+  background: linear-gradient(135deg, #f0fff4 0%, #ffffff 100%);
+  border-width: 2px;
+}
+.facility-tree-card.status-built::after {
+  content: '✓';
+  position: absolute;
+  top: 4px;
+  right: 7px;
+  font-size: 11px;
+  color: #48bb78;
+  font-weight: 700;
+}
+
+.facility-tree-card.status-available {
+  border-color: #ed8936;
+  background: linear-gradient(135deg, #fffaf0 0%, #ffffff 100%);
+  border-width: 2px;
+  animation: glow-available 2s ease-in-out infinite;
+}
+@keyframes glow-available {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(237, 137, 54, 0.25); }
+  50% { box-shadow: 0 0 0 6px rgba(237, 137, 54, 0); }
+}
+
+.facility-tree-card.status-locked {
+  border-color: #e2e8f0;
+  background: #f8fafc;
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.facility-tree-card.status-locked:hover {
+  transform: none;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+  border-color: #e2e8f0;
+}
+.facility-tree-card.status-locked .facility-tree-card-icon,
+.facility-tree-card.status-locked .facility-tree-card-name,
+.facility-tree-card.status-locked .facility-tree-card-level {
+  filter: grayscale(40%);
+}
+
+/* 卡片选中状态 */
+.facility-tree-card.selected {
+  border-color: #2b6cb0 !important;
+  box-shadow: 0 0 0 3px rgba(43, 108, 176, 0.25), 0 4px 14px rgba(43, 108, 176, 0.12) !important;
+  transform: translateY(-3px);
+  z-index: 2;
+}
+
+/* 卡片内容 */
+.facility-tree-card-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.facility-tree-card-icon {
+  font-size: 20px;
+  line-height: 1;
+}
+
+.facility-tree-card-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: #1a202c;
+  line-height: 1.3;
+}
+
+.facility-tree-card-level {
+  font-size: 11px;
+  font-weight: 600;
+  color: #718096;
+  margin-bottom: 2px;
+}
+
+.facility-tree-card-desc {
+  font-size: 10px;
+  color: #a0aec0;
+  line-height: 1.4;
+  margin-top: 3px;
+}
+
+.facility-tree-card-cost {
+  font-size: 11px;
+  font-weight: 600;
+  color: #4a5568;
+  margin-top: 4px;
+  text-align: center;
+  padding: 3px 6px;
+  background: #f7fafc;
+  border-radius: 4px;
+}
+
+/* SVG连线层 */
+.facility-tree-svg {
+  z-index: 0;
+  pointer-events: none;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.facility-tree-svg line,
+.facility-tree-svg path {
+  stroke: #cbd5e0;
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.facility-tree-svg line.conn-built {
+  stroke: #48bb78;
+  stroke-width: 2.5;
+}
+
+.facility-tree-svg line.conn-available {
+  stroke: #ed8936;
+  stroke-width: 2;
+  stroke-dasharray: 6 3;
+}
+
+.facility-tree-svg line.conn-locked {
+  stroke: #e2e8f0;
+  stroke-width: 1.5;
+  stroke-dasharray: 4 4;
+  opacity: 0.5;
+}
+
+/* 升级操作栏（固定在卡片树下方） */
+.facility-upgrade-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 14px;
+  padding: 10px 14px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  min-height: 44px;
+}
+
+.facility-upgrade-bar-info {
+  font-size: 13px;
+  color: #4a5568;
+  flex: 1;
+}
+
+.facility-upgrade-bar-info .selected-name {
+  font-weight: 700;
+  color: #1a202c;
+}
+
+.facility-upgrade-bar-info .selected-cost {
+  font-weight: 700;
+  color: #2b6cb0;
+}
+
+.facility-upgrade-btn {
+  background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+  color: #fff;
+  border: none;
+  padding: 8px 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  box-shadow: 0 2px 6px rgba(56, 161, 105, 0.3);
+}
+.facility-upgrade-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(56, 161, 105, 0.4);
+}
+.facility-upgrade-btn:disabled {
+  background: #cbd5e0;
+  box-shadow: none;
+  cursor: not-allowed;
+  transform: none;
+  color: #a0aec0;
+}
+.facility-upgrade-btn.cant-afford {
+  background: linear-gradient(135deg, #fc8181 0%, #e53e3e 100%);
+  box-shadow: 0 2px 6px rgba(229, 62, 62, 0.3);
+}
+
+/* 机房根节点特殊样式 */
+.facility-tree-card.root-node {
+  background: linear-gradient(135deg, #ebf8ff 0%, #ffffff 100%);
+  border-color: #3182ce;
+  border-width: 2px;
+  min-width: 140px;
+}
+.facility-tree-card.root-node .facility-tree-card-name {
+  color: #2c5282;
+}
+.facility-tree-card.root-node::after {
+  content: '🏠';
+  position: absolute;
+  top: 4px;
+  right: 7px;
+  font-size: 12px;
+}
+
+/* 响应式 - 小屏幕 */
+@media (max-width: 768px) {
+  .facility-tree-col {
+    min-width: 120px;
+    padding: 6px 12px;
+    gap: 10px;
+  }
+  .facility-tree-card {
+    min-width: 110px;
+    padding: 8px 10px;
+  }
+  .facility-tree-card-icon {
+    font-size: 16px;
+  }
+  .facility-tree-card-name {
+    font-size: 11px;
+  }
 }
 
 /* 单张轮播卡片 */
