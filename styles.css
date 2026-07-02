@@ -1349,17 +1349,20 @@ body.comp-week .action-cards .action-card:not(#comp-only-action) {
   align-items: stretch;
   min-width: max-content;
   position: relative;
+  isolation: isolate;
+  /* 确保 flex 子项（列容器）在 SVG 连线之上 */
 }
 
-/* 树列 */
+/* 树列 - 需要创建层叠上下文以确保内部卡片能正确遮挡 SVG */
 .facility-tree-col {
   display: flex;
   flex-direction: column;
   justify-content: center;
   gap: 14px;
   padding: 8px 20px;
-  position: relative;
   min-width: 150px;
+  position: relative;
+  z-index: 1;
 }
 
 /* 列标签（mk等级标题） */
@@ -1377,7 +1380,7 @@ body.comp-week .action-cards .action-card:not(#comp-only-action) {
 /* 树卡片 */
 .facility-tree-card {
   position: relative;
-  z-index: 1;
+  z-index: 5;
   background: #fff;
   border: 2px solid #e2e8f0;
   border-radius: 10px;
@@ -1425,7 +1428,6 @@ body.comp-week .action-cards .action-card:not(#comp-only-action) {
 .facility-tree-card.status-locked {
   border-color: #e2e8f0;
   background: #f8fafc;
-  opacity: 0.6;
   cursor: not-allowed;
 }
 .facility-tree-card.status-locked:hover {
@@ -1444,7 +1446,7 @@ body.comp-week .action-cards .action-card:not(#comp-only-action) {
   border-color: #2b6cb0 !important;
   box-shadow: 0 0 0 3px rgba(43, 108, 176, 0.25), 0 4px 14px rgba(43, 108, 176, 0.12) !important;
   transform: translateY(-3px);
-  z-index: 2;
+  z-index: 10;
 }
 
 /* 卡片内容 */
@@ -1492,9 +1494,9 @@ body.comp-week .action-cards .action-card:not(#comp-only-action) {
   border-radius: 4px;
 }
 
-/* SVG连线层 */
+/* SVG连线层 - 始终在卡片下方 */
 .facility-tree-svg {
-  z-index: 0;
+  z-index: -1;
   pointer-events: none;
   position: absolute;
   top: 0;

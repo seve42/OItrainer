@@ -3,9 +3,232 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>OI 教练模拟器 — 入口</title>
-  <meta http-equiv="refresh" content="0;url=start.html">
-  <!-- Clarity tracking removed -->
+  <title>OI 教练模拟器 — 主菜单</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; overflow: hidden; }
+    body {
+      display: flex;
+      background: url('assets/start-bg.jpg') center/cover no-repeat;
+      color: #fff;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    }
+    #rain-canvas {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      z-index: 0;
+      pointer-events: none;
+      transform: rotate(-12deg) scale(1.5);
+      transform-origin: center center;
+      opacity: 0.85;
+    }
+    #rain-overlay {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      z-index: 1;
+      pointer-events: none;
+      background: linear-gradient(180deg, rgba(10,25,47,0.92), rgba(22,32,54,0.92));
+    }
+    .menu-left {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 60px 80px;
+      min-width: 360px;
+      max-width: 520px;
+      position: relative;
+      z-index: 2;
+    }
+    .menu-left h1 {
+      font-size: 36px;
+      font-weight: 700;
+      margin-bottom: 6px;
+      text-shadow: 0 2px 12px rgba(0,0,0,0.5);
+      letter-spacing: 2px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", "Helvetica Neue", sans-serif;
+    }
+    .menu-subtitle {
+      font-size: 14px;
+      font-weight: 400;
+      color: rgba(255,255,255,0.45);
+      margin-bottom: 12px;
+      letter-spacing: 1px;
+      font-family: "SF Mono", "Fira Code", "Consolas", "Courier New", monospace;
+    }
+    .menu-flavor {
+      font-size: 8px;
+      font-weight: 400;
+      color: rgba(255,255,255,0.12);
+      margin-bottom: 36px;
+      line-height: 1.8;
+      max-width: 380px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      user-select: none;
+      pointer-events: none;
+    }
+    .menu-btn-wrap {
+      position: relative;
+      width: fit-content;
+      margin-bottom: 14px;
+    }
+    .menu-btn-wrap::after {
+      content: '';
+      position: absolute;
+      inset: -1px;
+      background: rgba(255,255,255,0.5);
+      clip-path: polygon(10% 0%, 90% 0%, 100% 50%, 90% 100%, 10% 100%, 0% 50%);
+      z-index: 0;
+      transition: background 0.25s;
+      pointer-events: none;
+    }
+    .menu-btn-wrap:hover::after {
+      background: rgba(255,255,255,0.8);
+    }
+    .menu-btn {
+      display: block;
+      width: fit-content;
+      min-width: 160px;
+      padding: 6px 32px;
+      font-size: 15px;
+      font-weight: 500;
+      color: #fff;
+      background: rgba(16,29,48,0.85);
+      border: none;
+      cursor: pointer;
+      text-align: center;
+      text-decoration: none;
+      transition: background 0.25s, color 0.25s, padding-left 0.25s, transform 0.1s;
+      font-family: inherit;
+      clip-path: polygon(10% 0%, 90% 0%, 100% 50%, 90% 100%, 10% 100%, 0% 50%);
+      position: relative;
+      z-index: 1;
+    }
+    .menu-btn::before {
+      content: '> ';
+      position: absolute;
+      left: 16px;
+      opacity: 0;
+      color: #ffd54f;
+      font-weight: 700;
+      font-family: "SF Mono", "Fira Code", "Consolas", monospace;
+      transition: opacity 0.15s;
+    }
+    .menu-btn:hover {
+      background: rgba(30,45,68,0.9);
+      color: #ffd54f;
+      padding-left: 48px;
+    }
+    .menu-btn:hover::before {
+      opacity: 1;
+      animation: cursor-blink 0.8s step-end infinite;
+    }
+    @keyframes cursor-blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0; }
+    }
+    .menu-btn:active {
+      transform: scale(0.96);
+    }
+    .menu-btn.primary {
+      background: rgba(20,38,60,0.9);
+    }
+    .menu-btn.primary:hover {
+      background: rgba(35,52,78,0.95);
+    }
+    .menu-btn:disabled {
+      opacity: 0.35;
+      cursor: default;
+    }
+    .menu-btn:disabled:hover {
+      background: rgba(16,29,48,0.85);
+      color: #fff;
+      padding-left: 32px;
+    }
+    .menu-btn:disabled:hover::before {
+      opacity: 0;
+      animation: none;
+    }
+    .menu-btn-wrap:has(.menu-btn:disabled)::after {
+      background: rgba(255,255,255,0.25);
+    }
+    .menu-btn-wrap:has(.menu-btn:disabled):hover::after {
+      background: rgba(255,255,255,0.25);
+    }
+    .menu-right {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 60px 80px;
+      position: relative;
+      z-index: 2;
+    }
+    .changelog-panel {
+      width: 100%;
+      max-width: 480px;
+      max-height: 70vh;
+      background: transparent;
+      color: rgba(255,255,255,0.35);
+      border: none;
+      padding: 24px 28px;
+      overflow-y: auto;
+    }
+    .changelog-panel h2 {
+      font-size: 18px;
+      font-weight: 700;
+      color: rgba(255,255,255,0.35);
+      margin: 16px 0 6px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+    .changelog-panel h2:first-child {
+      margin-top: 0;
+    }
+    .changelog-panel p {
+      font-size: 13px;
+      line-height: 1.7;
+      color: rgba(255,255,255,0.25);
+      margin: 0;
+    }
+    .changelog-panel::-webkit-scrollbar {
+      width: 5px;
+    }
+    .changelog-panel::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    .changelog-panel::-webkit-scrollbar-thumb {
+      background: rgba(255,255,255,0.08);
+      border-radius: 3px;
+    }
+    .changelog-loading {
+      font-size: 13px;
+      color: rgba(255,255,255,0.2);
+      text-align: center;
+      padding: 20px 0;
+    }
+    .menu-footer {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      text-align: center;
+      padding: 12px 8px;
+      color: rgba(255,255,255,0.5);
+      font-size: 13px;
+      border-top: 1px solid rgba(255,255,255,0.1);
+      z-index: 2;
+    }
+    .menu-footer a {
+      color: rgba(255,255,255,0.6);
+      text-decoration: none;
+    }
+    .menu-footer a:hover {
+      color: rgba(255,255,255,0.9);
+    }
+  </style>
   <!-- Cloudflare Web Analytics loader (conditional: only load if page load time <= 2s) -->
   <script>
     (function(){
@@ -18,7 +241,6 @@
       }
       function shouldLoad(){
         try{
-          // navigationStart -> now
           var start = (performance.timing && performance.timing.navigationStart) || 0;
           var elapsed = performance.now ? performance.now() : (Date.now() - start);
           return elapsed <= 2000;
@@ -29,10 +251,146 @@
   </script>
 </head>
 <body>
-  <p>正在跳转到游戏开始页面... 如果没有跳转，请点击 <a href="start.html">这里</a>.</p>
-  <footer style="text-align:center;padding:12px 8px;color:#666;font-size:13px;border-top:1px solid #eee;margin-top:18px">
+  <canvas id="rain-canvas"></canvas>
+  <div id="rain-overlay"></div>
+  <div class="menu-left">
+    <h1>{OI教练模拟器}</h1>
+    <p class="menu-subtitle">&lt;OI Coach Simulator&gt;</p>
+    <p class="menu-flavor">二NOIP，你被黄紫黑黑创飞原地AFO。一觉醒来，你发现你坐在机房前，成为了你们学校信息学竞赛的总教练。回想起之前构造题没checker，模拟赛没大样例，一个月没有半天假期的训练生活。你决定要改变这一切。</p>
+    <div class="menu-btn-wrap"><a href="start.html" class="menu-btn primary">开始游戏</a></div>
+    <div class="menu-btn-wrap"><button class="menu-btn" disabled title="即将推出">成  就</button></div>
+    <div class="menu-btn-wrap"><button class="menu-btn" disabled title="即将推出">清除存档</button></div>
+  </div>
+  <div class="menu-right">
+    <div class="changelog-panel" id="changelog-panel">
+      <p class="changelog-loading">加载更新日志中...</p>
+    </div>
+  </div>
+
+  <footer class="menu-footer">
     作者 @Dreamers-seve · 洛谷: <a href="https://www.luogu.com.cn/user/668972" target="_blank" rel="noopener">https://www.luogu.com.cn/user/668972</a> · GitHub: <a href="https://github.com/seve42/OItrainer" target="_blank" rel="noopener">https://github.com/seve42/OItrainer</a>
   </footer>
+
+  <!-- 斜向代码雨动画（canvas + requestAnimationFrame，限帧25fps，CSS旋转实现斜向） -->
+  <script>
+    (function(){
+      var canvas = document.getElementById('rain-canvas');
+      if (!canvas) return;
+      var ctx = canvas.getContext('2d', { alpha: true });
+
+      var charArr = ['0','1'];
+
+      var drops = [];
+      var speeds = [];
+      var columns = 0;
+      var colWidth = 26;
+      var fontSize = 18;
+      var lastTime = 0;
+      var FPS = 22;
+      var frameInterval = 1000 / FPS;
+      var W = 0;
+      var H = 0;
+
+      function resize() {
+        var dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+        W = window.innerWidth;
+        H = window.innerHeight;
+        canvas.width = W * dpr;
+        canvas.height = H * dpr;
+        canvas.style.width = W + 'px';
+        canvas.style.height = H + 'px';
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+        columns = Math.floor(W / colWidth) + 2;
+        drops = new Array(columns);
+        speeds = new Array(columns);
+        for (var i = 0; i < columns; i++) {
+          drops[i] = Math.random() * -(H / fontSize);
+          speeds[i] = 0.35 + Math.random() * 0.65;
+        }
+      }
+
+      function draw(timestamp) {
+        requestAnimationFrame(draw);
+        if (timestamp - lastTime < frameInterval) return;
+        lastTime = timestamp;
+
+        // 半透明覆盖产生拖尾淡出效果
+        ctx.fillStyle = 'rgba(10,25,47,0.04)';
+        ctx.fillRect(0, 0, W, H);
+
+        ctx.font = fontSize + 'px "SF Mono","Fira Code","Consolas",monospace';
+
+        for (var i = 0; i < columns; i++) {
+          var x = i * colWidth;
+          var y = drops[i] * fontSize;
+
+          if (y < -fontSize || y > H + fontSize) {
+            drops[i] += speeds[i];
+            if (y > H + fontSize * 3 && Math.random() > 0.97) {
+              drops[i] = Math.random() * -6;
+              speeds[i] = 0.35 + Math.random() * 0.65;
+            }
+            continue;
+          }
+
+          // 头部亮白字符
+          ctx.fillStyle = 'rgba(255,255,255,0.9)';
+          ctx.fillText(charArr[Math.floor(Math.random() * 2)], x, y);
+
+          // 拖尾淡色字符
+          if (y > fontSize) {
+            ctx.fillStyle = 'rgba(255,255,255,0.32)';
+            ctx.fillText(charArr[Math.floor(Math.random() * 2)], x, y - fontSize);
+          }
+
+          drops[i] += speeds[i];
+
+          if (y > H + fontSize * 3 && Math.random() > 0.97) {
+            drops[i] = Math.random() * -6;
+            speeds[i] = 0.35 + Math.random() * 0.65;
+          }
+        }
+      }
+
+      resize();
+      window.addEventListener('resize', function () {
+        clearTimeout(window._rainRt);
+        window._rainRt = setTimeout(resize, 250);
+      });
+      requestAnimationFrame(draw);
+    })();
+  </script>
+
+  <!-- 加载更新日志 -->
+  <script>
+    (function(){
+      var panel = document.getElementById('changelog-panel');
+      fetch('changelog.md')
+        .then(function(res){ if(!res.ok) throw new Error('HTTP '+res.status); return res.text(); })
+        .then(function(md){
+          var html = '';
+          var lines = md.split('\n');
+          var i = 0;
+          while(i < lines.length){
+            var line = lines[i];
+            if(line.indexOf('## ') === 0){
+              html += '<h2>' + esc(line.slice(3)) + '</h2>';
+            } else if(line.indexOf('# ') === 0){
+              html += '<h2>' + esc(line.slice(2)) + '</h2>';
+            } else if(line.trim() !== ''){
+              html += '<p>' + esc(line) + '</p>';
+            }
+            i++;
+          }
+          panel.innerHTML = html || '<p class="changelog-loading">暂无更新日志</p>';
+        })
+        .catch(function(){
+          panel.innerHTML = '<p class="changelog-loading">更新日志加载失败</p>';
+        });
+      function esc(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+    })();
+  </script>
 
   <!-- winter plan injection: center link inside footer (or fixed bottom if no footer) -->
   <script>
@@ -42,7 +400,7 @@
         var now = new Date();
         if(now >= cutoff) return;
         var footer = document.querySelector('footer');
-        var linkHtml = '<a href="https://www.luogu.me/article/n4gmkam0" target="_blank" rel="noopener" style="color:#1976d2;text-decoration:none;font-weight:600;padding:6px 10px;border-radius:6px">冬日绘板计划</a>';
+        var linkHtml = '<a href="https://www.luogu.me/article/n4gmkam0" target="_blank" rel="noopener" style="color:rgba(255,255,255,0.7);text-decoration:none;font-weight:600;padding:6px 10px;border-radius:6px">冬日绘板计划</a>';
         var container;
         if(footer){
           container = footer.querySelector('#winter-plan');
@@ -51,7 +409,7 @@
             container.id = 'winter-plan';
             container.style.marginTop = '8px';
             container.style.fontSize = '13px';
-            container.style.color = '#1976d2';
+            container.style.color = 'rgba(255,255,255,0.7)';
             container.style.textAlign = 'center';
             footer.appendChild(container);
           }

@@ -29,22 +29,7 @@
   </script>
 </head>
 <body>
-  <!-- 启动蒙版：加载时完全覆盖页面，点击开始后隐藏 -->
-  <div id="oiStartMask" class="oi-start-mask" role="dialog" aria-label="游戏开始">
-    <div class="mask-content">
-      <h2>OI 教练模拟器</h2>
-      <h3 class="oi-start-subtitle"></h3>
-        高二NOIP，你被黄紫黑黑创飞原地AFO。<br><br>
-        一觉醒来，你发现你坐在机房前，成为了你们学校信息学竞赛的总教练。<br><br>
-        回想起之前构造题没checker，模拟赛没大样例，一个月没有半天假期的训练生活。<br><br>
-        你决定要改变这一切。
-  </h3>
-  <p></p>
-      <div class="mask-actions">
-       <button id="oiMaskSkipBtn" class="btn btn-skip">进入游戏</button>
-      </div>
-    </div>
-  </div>
+
 <div class="container">
   <header>
     <h1>OI 教练模拟器 — 开始</h1>
@@ -699,56 +684,9 @@
   })();
 </script>
 <script>
-  (function(){
-    // 等待 DOM 就绪（页面脚本已加载）
-    function hideMask(){
-      try{
-        const mask = document.getElementById('oiStartMask');
-        if(!mask) return;
-        mask.style.transition = 'opacity 220ms ease';
-        mask.style.opacity = '0';
-        setTimeout(()=>{ mask.parentNode && mask.parentNode.removeChild(mask); }, 260);
-        // 记录用户已经关闭过蒙版
-        try{
-          sessionStorage.setItem('oi_start_mask_dismissed', 'true');
-        }catch(e){}
-      }catch(e){ console.error('隐藏启动蒙版失败', e); }
-    }
-
-    window.addEventListener('load', ()=>{
-      // 测试版本弹窗提示
-      alert('游戏正在持续更新，测试版本不代表最终品质，渲染错误、逻辑异常和平衡度问题随时可能发生，在github提出的issue会在每天中午统一处理，欢迎反馈。最终更新为2026/7/1 --seve42');
-
-      // 检查用户是否已经关闭过蒙版
-      try{
-        const dismissed = sessionStorage.getItem('oi_start_mask_dismissed') === 'true';
-        if(dismissed){
-          // 直接隐藏蒙版，不显示动画
-          const mask = document.getElementById('oiStartMask');
-          if(mask){
-            mask.style.display = 'none';
-          }
-          return;
-        }
-      }catch(e){}
-
-      const startBtn = document.getElementById('oiMaskStartBtn');
-      const skipBtn = document.getElementById('oiMaskSkipBtn');
-      const pageStartBtn = document.getElementById('start-button');
-
-      startBtn && startBtn.addEventListener('click', ()=>{
-        // 隐藏蒙版，然后触发页面的开始逻辑（若存在）
-        hideMask();
-        try{ if(typeof startFromStartPage === 'function') startFromStartPage(); }
-        catch(e){}
-      });
-
-      skipBtn && skipBtn.addEventListener('click', ()=>{ hideMask(); });
-
-      // 如果用户在蒙版存在时点击页面原有的开始按钮（不应可见），确保也能正常工作
-      pageStartBtn && pageStartBtn.addEventListener('click', ()=>{ hideMask(); });
-    });
-  })();
+  window.addEventListener('load', ()=>{
+    alert('游戏正在持续更新，测试版本不代表最终品质，渲染错误、逻辑异常和平衡度问题随时可能发生，在github提出的issue会在每天中午统一处理，欢迎反馈。最终更新为2026/7/1 --seve42');
+  });
 </script>
   <footer style="text-align:center;padding:12px 8px;color:#666;font-size:13px;border-top:1px solid #eee;margin-top:18px">
     作者 @Dreamers-seve · 洛谷: <a href="https://www.luogu.com.cn/user/668972" target="_blank" rel="noopener">https://www.luogu.com.cn/user/668972</a> · GitHub: <a href="https://github.com/seve42/OItrainer" target="_blank" rel="noopener">https://github.com/seve42/OItrainer</a>
