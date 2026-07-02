@@ -366,7 +366,7 @@
   <script>
     (function(){
       var panel = document.getElementById('changelog-panel');
-      fetch('changelog.md')
+      fetch('CHANGELOG.md')
         .then(function(res){ if(!res.ok) throw new Error('HTTP '+res.status); return res.text(); })
         .then(function(md){
           var html = '';
